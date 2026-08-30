@@ -51,7 +51,8 @@ def mostrar_matriz(matriz):
 
 
 # ----------------------------------------------------------
-# 3. ELIMINACIÓN POR FILAS
+# 3. ELIMINACIÓN GAUSSIANA
+# Lleva la matriz a FORMA ESCALONADA
 # ----------------------------------------------------------
 
 def eliminacion_gaussiana(matriz, ecuaciones, variables):
@@ -59,19 +60,25 @@ def eliminacion_gaussiana(matriz, ecuaciones, variables):
     fila_pivote = 0
     columnas_pivote = []
 
-    # Recorremos cada columna de variables
+    # Recorremos las columnas de las variables
     for columna in range(variables):
 
-        # Buscar una fila que tenga un valor distinto de cero
-        # en la columna donde queremos colocar el pivote
+        # Si ya no quedan filas disponibles, terminamos
+        if fila_pivote >= ecuaciones:
+            break
+
+        # Buscar una fila con un valor distinto de cero
+        # para usarlo como pivote
         fila_encontrada = -1
 
         for fila in range(fila_pivote, ecuaciones):
+
             if abs(matriz[fila][columna]) > TOLERANCIA:
                 fila_encontrada = fila
                 break
 
-        # Si toda la columna tiene ceros, pasamos a la siguiente
+        # Si en esa columna no encontramos pivote,
+        # pasamos a la siguiente columna
         if fila_encontrada == -1:
             continue
 
@@ -94,13 +101,17 @@ def eliminacion_gaussiana(matriz, ecuaciones, variables):
 
             mostrar_matriz(matriz)
 
-        # Guardamos en qué columna está el pivote
+        # Guardamos la columna donde encontramos un pivote
         columnas_pivote.append(columna)
 
         pivote = matriz[fila_pivote][columna]
 
         # --------------------------------------------------
         # GENERAR CEROS DEBAJO DEL PIVOTE
+        #
+        # factor =
+        # numero que queremos eliminar / pivote
+        #
         # Fi -> Fi - factor * Fpivote
         # --------------------------------------------------
 
@@ -110,7 +121,6 @@ def eliminacion_gaussiana(matriz, ecuaciones, variables):
 
             if abs(numero_eliminar) > TOLERANCIA:
 
-                # factor = número que queremos eliminar / pivote
                 factor = numero_eliminar / pivote
 
                 print(
@@ -126,23 +136,25 @@ def eliminacion_gaussiana(matriz, ecuaciones, variables):
                         - factor * matriz[fila_pivote][j]
                     )
 
-                    # Evitar valores como 0.000000000001
+                    # Limpiar errores decimales muy pequeños
                     if abs(matriz[fila][j]) < TOLERANCIA:
                         matriz[fila][j] = 0.0
 
                 mostrar_matriz(matriz)
 
-        # Pasamos al siguiente pivote
+        # Pasamos a la siguiente fila de pivote
         fila_pivote += 1
-
-        if fila_pivote == ecuaciones:
-            break
 
     return columnas_pivote
 
 
 # ----------------------------------------------------------
 # 4. DETECTAR SI EL SISTEMA ES INCONSISTENTE
+#
+# Ejemplo:
+# 0x + 0y + 0z = 5
+#
+# Eso sería imposible, por lo tanto no hay solución.
 # ----------------------------------------------------------
 
 def es_inconsistente(matriz, ecuaciones, variables):
@@ -151,15 +163,15 @@ def es_inconsistente(matriz, ecuaciones, variables):
 
         todos_cero = True
 
-        # Revisamos los coeficientes
+        # Revisar solamente los coeficientes
         for j in range(variables):
 
             if abs(matriz[i][j]) > TOLERANCIA:
                 todos_cero = False
                 break
 
-        # Caso:
-        # 0x + 0y + 0z = número distinto de cero
+        # Si todos los coeficientes son 0
+        # pero el término independiente NO es 0
         if todos_cero and abs(matriz[i][variables]) > TOLERANCIA:
             return True
 
@@ -175,18 +187,19 @@ def sustitucion_atras(matriz, columnas_pivote, variables):
 
     soluciones = [0.0] * variables
 
-    # Empezamos desde la última fila con pivote
+    # Empezamos desde el último pivote y subimos
     for i in range(len(columnas_pivote) - 1, -1, -1):
 
         columna = columnas_pivote[i]
 
         resultado = matriz[i][variables]
 
-        # Restamos las variables que ya conocemos
+        # Restar las variables que ya conocemos
         for j in range(columna + 1, variables):
 
-            resultado -= (
-                matriz[i][j] * soluciones[j]
+            resultado = (
+                resultado
+                - matriz[i][j] * soluciones[j]
             )
 
         soluciones[columna] = (
@@ -198,10 +211,15 @@ def sustitucion_atras(matriz, columnas_pivote, variables):
 
 # ----------------------------------------------------------
 # 6. VERIFICAR LA SOLUCIÓN
-# Sustituye los valores encontrados en el sistema original
+# Sustituye los resultados en el sistema original
 # ----------------------------------------------------------
 
-def verificar_solucion(matriz_original, soluciones, ecuaciones, variables):
+def verificar_solucion(
+        matriz_original,
+        soluciones,
+        ecuaciones,
+        variables
+):
 
     print("\nVERIFICACIÓN:")
 
@@ -212,39 +230,152 @@ def verificar_solucion(matriz_original, soluciones, ecuaciones, variables):
         for j in range(variables):
 
             lado_izquierdo += (
-                matriz_original[i][j] * soluciones[j]
+                matriz_original[i][j]
+                * soluciones[j]
             )
 
         lado_derecho = matriz_original[i][variables]
 
         print(
             f"Ecuación {i + 1}: "
-            f"{lado_izquierdo:.2f} = {lado_derecho:.2f}",
+            f"{lado_izquierdo:.2f} = "
+            f"{lado_derecho:.2f}",
             end=" "
         )
 
-        if abs(lado_izquierdo - lado_derecho) < TOLERANCIA:
+        if abs(
+            lado_izquierdo - lado_derecho
+        ) < TOLERANCIA:
+
             print("✓ Correcto")
+
         else:
             print("✗ Incorrecto")
 
 
 # ----------------------------------------------------------
-# 7. PROGRAMA PRINCIPAL
+# 7. FORMA ESCALONADA REDUCIDA
+#
+# Continúa desde la forma escalonada obtenida anteriormente.
+#
+# 1. Convierte cada pivote en 1.
+# 2. Genera ceros ENCIMA de cada pivote.
 # ----------------------------------------------------------
+
+def forma_reducida(
+        matriz,
+        columnas_pivote,
+        variables
+):
+
+    # Recorremos los pivotes desde abajo hacia arriba
+    for i in range(
+        len(columnas_pivote) - 1,
+        -1,
+        -1
+    ):
+
+        columna = columnas_pivote[i]
+
+        pivote = matriz[i][columna]
+
+        # --------------------------------------------------
+        # CONVERTIR EL PIVOTE EN 1
+        #
+        # Fi -> Fi / pivote
+        # --------------------------------------------------
+
+        if abs(pivote - 1) > TOLERANCIA:
+
+            print(
+                f"F{i + 1} -> "
+                f"F{i + 1} / {pivote:.2f}"
+            )
+
+            for j in range(
+                columna,
+                variables + 1
+            ):
+
+                matriz[i][j] = (
+                    matriz[i][j] / pivote
+                )
+
+                if abs(
+                    matriz[i][j]
+                ) < TOLERANCIA:
+
+                    matriz[i][j] = 0.0
+
+            mostrar_matriz(matriz)
+
+        # --------------------------------------------------
+        # GENERAR CEROS ENCIMA DEL PIVOTE
+        #
+        # Fi -> Fi - factor * Fpivote
+        # --------------------------------------------------
+
+        for fila in range(i):
+
+            factor = matriz[fila][columna]
+
+            if abs(factor) > TOLERANCIA:
+
+                print(
+                    f"F{fila + 1} -> "
+                    f"F{fila + 1} "
+                    f"- ({factor:.2f})F{i + 1}"
+                )
+
+                for j in range(
+                    columna,
+                    variables + 1
+                ):
+
+                    matriz[fila][j] = (
+                        matriz[fila][j]
+                        - factor * matriz[i][j]
+                    )
+
+                    if abs(
+                        matriz[fila][j]
+                    ) < TOLERANCIA:
+
+                        matriz[fila][j] = 0.0
+
+                mostrar_matriz(matriz)
+
+
+# ==========================================================
+# 8. PROGRAMA PRINCIPAL
+# ==========================================================
 
 matriz, ecuaciones, variables = ingresar_matriz()
 
-# Guardamos una copia del sistema original para verificar después
+
+# ----------------------------------------------------------
+# Guardar una copia del sistema original
+# La necesitaremos para verificar la solución.
+# ----------------------------------------------------------
+
 matriz_original = []
 
 for fila in matriz:
     matriz_original.append(fila.copy())
 
 
+# ----------------------------------------------------------
+# MOSTRAR MATRIZ ORIGINAL
+# ----------------------------------------------------------
+
 print("\nMATRIZ AUMENTADA INICIAL:")
+
 mostrar_matriz(matriz)
 
+
+# ----------------------------------------------------------
+# ELIMINACIÓN GAUSSIANA
+# ----------------------------------------------------------
 
 print("PROCESO DE ELIMINACIÓN:")
 
@@ -256,22 +387,59 @@ columnas_pivote = eliminacion_gaussiana(
 
 
 print("\nMATRIZ ESCALONADA FINAL:")
+
 mostrar_matriz(matriz)
 
 
 # ----------------------------------------------------------
-# 8. CLASIFICACIÓN DEL SISTEMA
+# OPCIÓN DE FORMA ESCALONADA REDUCIDA
 # ----------------------------------------------------------
 
-if es_inconsistente(matriz, ecuaciones, variables):
+print("¿Desea obtener la forma escalonada reducida?")
+print("1. Sí")
+print("2. No")
+
+opcion = input("Seleccione una opción: ")
+
+
+if opcion == "1":
+
+    print("\nPROCESO DE REDUCCIÓN:")
+
+    forma_reducida(
+        matriz,
+        columnas_pivote,
+        variables
+    )
+
+    print(
+        "\nMATRIZ ESCALONADA REDUCIDA FINAL:"
+    )
+
+    mostrar_matriz(matriz)
+
+
+# ----------------------------------------------------------
+# 9. CLASIFICACIÓN DEL SISTEMA
+# ----------------------------------------------------------
+
+if es_inconsistente(
+    matriz,
+    ecuaciones,
+    variables
+):
 
     print("CLASIFICACIÓN:")
-    print("Sistema Inconsistente: Sin Solución.")
+    print(
+        "Sistema Inconsistente: "
+        "Sin Solución."
+    )
 
 
 elif len(columnas_pivote) < variables:
 
     print("CLASIFICACIÓN:")
+
     print(
         "Sistema Consistente Indeterminado: "
         "Presenta Infinitas Soluciones."
@@ -288,11 +456,13 @@ elif len(columnas_pivote) < variables:
 else:
 
     print("CLASIFICACIÓN:")
+
     print(
         "Sistema Consistente Determinado: "
         "Presenta Solución Única."
     )
 
+    # Calcular los valores de las variables
     soluciones = sustitucion_atras(
         matriz,
         columnas_pivote,
@@ -302,8 +472,14 @@ else:
     print("\nSOLUCIONES:")
 
     for i in range(variables):
-        print(f"x{i + 1} = {soluciones[i]:.4f}")
 
+        print(
+            f"x{i + 1} = "
+            f"{soluciones[i]:.4f}"
+        )
+
+    # Comprobar las respuestas usando
+    # el sistema original
     verificar_solucion(
         matriz_original,
         soluciones,
