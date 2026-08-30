@@ -402,7 +402,7 @@ print("2. No")
 opcion = input("Seleccione una opción: ")
 
 
-if opcion == "1":
+if opcion == "1" or opcion.lower() == "sí" or opcion.lower() == "si":
 
     print("\nPROCESO DE REDUCCIÓN:")
 
