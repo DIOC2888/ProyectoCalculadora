@@ -13,6 +13,7 @@ from eliminacion import (
 
 from sistema import (
     clasificar_sistema,
+    calcular_rango,
     identificar_variables,
     sustitucion_atras
 )
@@ -131,6 +132,33 @@ tipo = clasificar_sistema(
     ecuaciones,
     variables,
     columnas_pivote
+)
+
+
+# ----------------------------------------------------------
+# RANGOS DE LA MATRIZ
+# ----------------------------------------------------------
+
+# Se excluye o incluye la última columna para obtener rango(A)
+# y rango(A|b), respectivamente.
+rango_coeficientes = calcular_rango(
+    matriz,
+    variables
+)
+
+rango_ampliada = calcular_rango(
+    matriz,
+    variables + 1
+)
+
+print(
+    "\nRANGO DE LA MATRIZ DE COEFICIENTES: "
+    f"{rango_coeficientes}"
+)
+
+print(
+    "RANGO DE LA MATRIZ AMPLIADA: "
+    f"{rango_ampliada}"
 )
 
 

@@ -55,29 +55,76 @@ def identificar_variables(
         variables
 ):
 
-    variables_basicas = []
+    # Separamos las variables según tengan o no una columna pivote.
+
+    return (
+        obtener_variables_basicas(
+            columnas_pivote
+        ),
+        obtener_variables_libres(
+            columnas_pivote,
+            variables
+        )
+    )
+
+
+# ----------------------------------------------------------
+# OBTENER VARIABLES BÁSICAS
+# ----------------------------------------------------------
+
+def obtener_variables_basicas(
+        columnas_pivote
+):
+
+    # Cada columna pivote representa una variable básica.
+    return columnas_pivote.copy()
+
+
+# ----------------------------------------------------------
+# OBTENER VARIABLES LIBRES
+# ----------------------------------------------------------
+
+def obtener_variables_libres(
+        columnas_pivote,
+        variables
+):
+
     variables_libres = []
 
 
     for j in range(variables):
 
-        # Si la columna tiene pivote,
-        # la variable es básica
-        if j in columnas_pivote:
-
-            variables_basicas.append(j)
-
-        # Si no tiene pivote,
-        # es variable libre
-        else:
+    # Una columna sin pivote corresponde a una variable libre.
+        if j not in columnas_pivote:
 
             variables_libres.append(j)
 
 
-    return (
-        variables_basicas,
-        variables_libres
-    )
+    return variables_libres
+
+
+# ----------------------------------------------------------
+# CALCULAR RANGO
+# ----------------------------------------------------------
+
+def calcular_rango(
+        matriz,
+        columnas
+):
+
+    # El rango es el número de filas no nulas después de la eliminación.
+    rango = 0
+
+    for fila in matriz:
+
+        if any(
+            abs(valor) > TOLERANCIA
+            for valor in fila[:columnas]
+        ):
+
+            rango += 1
+
+    return rango
 
 
 # ----------------------------------------------------------
