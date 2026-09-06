@@ -222,6 +222,9 @@ else:
     ) == 0:
 
         print("Ninguna")
+        
+        if tipo == "determinado":
+            print("Como el sistema tiene solución única, no existen variables libres.")
 
     else:
 
@@ -231,29 +234,28 @@ else:
                 f"x{subindice(variable + 1)}"
             )
 
+        # ------------------------------------------------------
+        # INFINITAS SOLUCIONES
+        # ------------------------------------------------------
 
-    # ------------------------------------------------------
-    # INFINITAS SOLUCIONES
-    # ------------------------------------------------------
+        if tipo == "indeterminado":
 
-    if tipo == "indeterminado":
+            print(
+                "\nCLASIFICACIÓN:"
+            )
 
-        print(
-            "\nCLASIFICACIÓN:"
-        )
-
-        print(
-            "Sistema Consistente "
-            "Indeterminado: "
-            "Presenta Infinitas Soluciones."
-        )
+            print(
+                "Sistema Consistente "
+                "Indeterminado: "
+                "Presenta Infinitas Soluciones."
+            )
 
 
-    # ------------------------------------------------------
-    # SOLUCIÓN ÚNICA
-    # ------------------------------------------------------
+            # ------------------------------------------------------
+        # SOLUCIÓN ÚNICA
+        # ------------------------------------------------------
 
-    elif tipo == "determinado":
+    if tipo == "determinado":
 
         print(
             "\nCLASIFICACIÓN:"
