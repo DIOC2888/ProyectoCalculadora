@@ -1,7 +1,10 @@
 from config import TOLERANCIA
 from formato import (
+    copiar_matriz,
     mostrar_matriz,
-    formatear_numero
+    formatear_numero,
+    obtener_representacion_matriz,
+   
 )
 
 
@@ -20,7 +23,8 @@ def eliminacion_gaussiana(
 
     # Guarda las columnas que contienen pivotes
     columnas_pivote = []
-
+    # para que se muestren los pasos en la interfaz
+    pasos = []
 
     # Recorremos las columnas de las variables
     for columna in range(variables):
@@ -83,6 +87,17 @@ def eliminacion_gaussiana(
 
             mostrar_matriz(matriz)
 
+          # Para guardar los pasos para la interfaz
+            operacion_str = f"F{fila_pivote + 1} <-> F{fila_encontrada + 1}"
+            
+            # --- CAMBIO AQUÍ ---
+            matriz_formateada = [[formatear_numero(val) for val in fila_mat] for fila_mat in matriz]
+            
+            pasos.append({
+                "operacion": operacion_str,
+                "matriz": matriz_formateada,
+                "matriz_str": obtener_representacion_matriz(matriz)
+            })
 
         # Guardamos la columna del pivote
         columnas_pivote.append(
@@ -158,14 +173,33 @@ def eliminacion_gaussiana(
                         matriz[fila][j] = 0.0
 
 
-                mostrar_matriz(matriz)
 
+                
+                mostrar_matriz(matriz)
+                # Para guardar los pasos para la interfaz
+                # Para guardar los pasos para la interfaz
+                # Para guardar los pasos para la interfaz
+                operacion_str = (
+                    f"F{fila + 1} -> "
+                    f"F{fila + 1} - "
+                    f"({formatear_numero(factor)})"
+                    f"F{fila_pivote + 1}"
+                )
+                
+                # --- CAMBIO AQUÍ ---
+                matriz_formateada = [[formatear_numero(val) for val in fila_mat] for fila_mat in matriz]
+                
+                pasos.append({
+                    "operacion": operacion_str,
+                    "matriz": matriz_formateada,
+                    "matriz_str": obtener_representacion_matriz(matriz)
+                })
 
         # Pasamos al siguiente pivote
         fila_pivote += 1
 
 
-    return columnas_pivote
+    return columnas_pivote, pasos
 
 
 # ----------------------------------------------------------
@@ -178,6 +212,7 @@ def forma_reducida(
         columnas_pivote,
         variables
 ):
+    pasos = []
 
     # Empezamos desde el último pivote
     # y subimos
@@ -225,10 +260,24 @@ def forma_reducida(
 
                     matriz[i][j] = 0.0
 
+           
 
             mostrar_matriz(matriz)
+            # Para guardar los pasos para la interfaz
+            operacion_str = (
+                f"F{i + 1} -> "
+                f"F{i + 1} / "
+                f"{formatear_numero(pivote)}"
+            )
 
+            # --- CAMBIO AQUÍ ---
+            matriz_formateada = [[formatear_numero(val) for val in fila_mat] for fila_mat in matriz]
 
+            pasos.append({
+                "operacion": operacion_str,
+                "matriz": matriz_formateada,
+                "matriz_str": obtener_representacion_matriz(matriz)
+            })
         # --------------------------------------------------
         # GENERAR CEROS ENCIMA DEL PIVOTE
         # --------------------------------------------------
@@ -272,4 +321,44 @@ def forma_reducida(
                         matriz[fila][j] = 0.0
 
 
+               # Para guardar los pasos para la interfaz
+                operacion_str = (
+                    f"F{fila + 1} -> "
+                    f"F{fila + 1} - "
+                    f"({formatear_numero(factor)})"
+                    f"F{i + 1}"
+                )
                 mostrar_matriz(matriz)
+
+                # --- CAMBIO AQUÍ ---
+                matriz_formateada = [[formatear_numero(val) for val in fila_mat] for fila_mat in matriz]
+
+                pasos.append({
+                    "operacion": operacion_str,
+                    "matriz": matriz_formateada,
+                    "matriz_str": obtener_representacion_matriz(matriz)
+                })
+
+    return pasos
+    # ----------------------------------------------------------
+# FUNCIÓN INTEGRADORA PARA OBTENER TODOS LOS PASOS
+# ----------------------------------------------------------
+
+def resolver_sistema_completo(matriz, ecuaciones, variables):
+    # Hacer una copia para no modificar la matriz original si fuera necesario
+    matriz_trabajo = copiar_matriz(matriz)
+    
+    # 1. Pasos de Eliminación Gaussiana (hacia abajo)
+    columnas_pivote, pasos_gauss = eliminacion_gaussiana(matriz_trabajo, ecuaciones, variables)
+    
+    # 2. Pasos de Gauss-Jordan (hacia arriba)
+    pasos_jordan = forma_reducida(matriz_trabajo, columnas_pivote, variables)
+    
+    return {
+        "matriz_final": matriz_trabajo,
+        "columnas_pivote": columnas_pivote,
+        "pasos_gauss": pasos_gauss,
+        "pasos_jordan": pasos_jordan,
+        "todos_los_pasos": pasos_gauss + pasos_jordan
+    }
+             

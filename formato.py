@@ -92,3 +92,32 @@ def mostrar_matriz(matriz):
         print("]")
 
     print()
+
+#Para probar la interfaz 
+    # ----------------------------------------------------------
+# FUNCIONES PARA EL FRONTEND (GUI)
+# ----------------------------------------------------------
+
+def copiar_matriz(matriz):
+    """Crea una copia independiente de la matriz."""
+    return [fila.copy() for fila in matriz]
+
+
+def obtener_representacion_matriz(matriz):
+    """Devuelve la matriz en un formato de texto limpio para mostrar en la interfaz."""
+    variables = len(matriz[0]) - 1
+    filas_texto = []
+
+    # Encabezado
+    encabezado = "    " + " ".join([f"x{subindice(j + 1):>8}" for j in range(variables)]) + " |       TI"
+    filas_texto.append(encabezado)
+
+    # Filas
+    for fila in matriz:
+        linea = "[ "
+        for j in range(variables):
+            linea += f"{formatear_numero(fila[j]):>8} "
+        linea += f"| {formatear_numero(fila[variables]):>8} ]"
+        filas_texto.append(linea)
+
+    return "\n".join(filas_texto)

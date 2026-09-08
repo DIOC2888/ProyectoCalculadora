@@ -19,7 +19,7 @@ def verificar_solucion(
     print(
         "\nVERIFICACIÓN DE LA SOLUCIÓN:"
     )
-
+    reporte = [] # para retornar los resultados y que aparezcan en la interfaz 
 
     # Recorremos cada ecuación
     for i in range(ecuaciones):
@@ -144,6 +144,8 @@ def verificar_solucion(
             f"{ecuacion_original} = "
             f"{formatear_numero(lado_derecho)}"
         )
+        #para la interfaz
+        str_eq = f"{ecuacion_original} = {formatear_numero(lado_derecho)}"
 
 
         print("\nSustitución:")
@@ -152,6 +154,8 @@ def verificar_solucion(
             f"{sustitucion} = "
             f"{formatear_numero(lado_derecho)}"
         )
+        #para la interfaz 
+        str_sust = f"{sustitucion} = {formatear_numero(lado_derecho)}"
 
 
         print("\nOperaciones:")
@@ -160,6 +164,8 @@ def verificar_solucion(
             f"{productos} = "
             f"{formatear_numero(lado_derecho)}"
         )
+        # para la interfaz 
+        str_ops = f"{productos} = {formatear_numero(lado_derecho)}"
 
 
         print("\nResultado:")
@@ -169,23 +175,32 @@ def verificar_solucion(
             f"= "
             f"{formatear_numero(lado_derecho)}"
         )
+        # para la interfaz
+        str_res = f"{formatear_numero(lado_izquierdo)} = {formatear_numero(lado_derecho)}"
 
 
         # ----------------------------------------------
         # COMPROBAR RESULTADO
         # ----------------------------------------------
-
-        if abs(
-            lado_izquierdo
-            - lado_derecho
-        ) < TOLERANCIA:
-
-            print(
-                "/ Ecuación verificada correctamente"
-            )
-
+        #Cree es_valido que se pueda mostrar la comprobación en la interfaz, por lo cual abs(
+        #    lado_izquierdo
+        #    - lado_derecho
+        # < TOLERANCIA: pasa a estar en es_valido 
+        
+        es_valido = abs(lado_izquierdo - lado_derecho) < TOLERANCIA
+        if es_valido:
+            print("/ Ecuación verificada correctamente")
         else:
+            print("X La ecuación no se cumple")
 
-            print(
-                "X La ecuación no se cumple"
-            )
+        # Guardar datos estructurados para la GUI
+        reporte.append({
+            "ecuacion_num": i + 1,
+            "ecuacion_original": str_eq,
+            "sustitucion": str_sust,
+            "operaciones": str_ops,
+            "resultado": str_res,
+            "valido": es_valido
+        })
+
+    return reporte
