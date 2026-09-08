@@ -462,23 +462,39 @@ class MainWindow(QMainWindow):
         btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_clear.clicked.connect(self._clear_matrix_inputs)
 
-        # Creamos el ComboBox para el método
+       # Creamos el ComboBox para el método
         self.combo_metodo = QComboBox()
         self.combo_metodo.addItems(["Gauss-Jordan", "Gauss"])
         self.combo_metodo.setFixedWidth(120)
         self.combo_metodo.setFixedHeight(38)
+
+        # 1. Alinea el texto seleccionado en el cuadro desplegable
+        self.combo_metodo.setEditable(True)
+        self.combo_metodo.lineEdit().setReadOnly(True)
+        self.combo_metodo.lineEdit().setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # 2. Alinea los elementos dentro del menú desplegable cuando se abre
+        for i in range(self.combo_metodo.count()):
+            self.combo_metodo.setItemData(i, Qt.AlignmentFlag.AlignCenter, Qt.ItemDataRole.TextAlignmentRole)
+
         self.combo_metodo.setStyleSheet("""
             QComboBox {
                 background-color: #FFFFFF;
                 border: 1px solid #CBD5E1;
                 border-radius: 8px;
-                padding: 10px 12px;
+                padding: 0px 8px;
                 font-size: 13px;
                 font-weight: 600;
                 color: #475569;
             }
+            QComboBox QAbstractItemView {
+                text-align: center;
+                selection-background-color: #F1F5F9;
+                selection-color: #2563EB;
+            }
             QComboBox::drop-down {
                 border: none;
+                width: 0px;  /* Opcional: oculta la flecha para que se vea calcado a los otros botones */
             }
         """)
 
