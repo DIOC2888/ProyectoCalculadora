@@ -113,9 +113,9 @@ class Sidebar(QFrame):
         tools_grid.setHorizontalSpacing(8)
 
         items = [
-            ("Sistemas", True),
+            ("Sistemas de Equaciones", True),
             ("Matrices", False),
-            ("Determinantes", False),
+            ("Vectores", False),
             ("Espacios vectoriales", False),
             ("Producto interno", False),
             ("Autovalores", False),
