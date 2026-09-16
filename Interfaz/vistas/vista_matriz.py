@@ -577,6 +577,8 @@ class VistaMatriz(QWidget):
         main_layout.addLayout(matrix_wrapper)
         
         self.card_matriz.add_widget(container)
+
+    
     def renderizar_proceso_eliminacion(self, resultado_dict, metodo="gauss_jordan"):
         """
         Construye el proceso paso a paso manteniendo el mismo espaciado compacto

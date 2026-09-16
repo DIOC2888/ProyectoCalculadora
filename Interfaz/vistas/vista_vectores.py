@@ -207,13 +207,80 @@ class VistaVectores(QWidget):
         controls_layout.addStretch()
         matrix_layout.addLayout(controls_layout)
         
-        # Área dinámica de vectores y escalar
+     
+        # ============================================================
+        # ÁREA DINÁMICA DE VECTORES
+        # ============================================================
+
+        self.vectors_scroll = QScrollArea()
+
+        self.vectors_scroll.setWidgetResizable(True)
+        self.vectors_scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+        self.vectors_scroll.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+
+        self.vectors_scroll.setFrameShape(
+            QFrame.Shape.NoFrame
+        )
+
+        self.vectors_scroll.setStyleSheet("""
+            QScrollArea {
+                background: transparent;
+                border: none;
+            }
+
+            QScrollBar:horizontal {
+                height: 8px;
+                background: #F1F5F9;
+                border-radius: 4px;
+            }
+
+            QScrollBar::handle:horizontal {
+                background: #CBD5E1;
+                border-radius: 4px;
+                min-width: 40px;
+            }
+
+            QScrollBar::add-line:horizontal,
+            QScrollBar::sub-line:horizontal {
+                width: 0px;
+                background: none;
+                border: none;
+            }
+        """)
+
+        # Widget que contendrá todos los vectores
         self.vectors_container = QWidget()
-        self.vectors_container.setStyleSheet("background-color: transparent;")
-        self.vectors_layout = QHBoxLayout(self.vectors_container)
-        self.vectors_layout.setContentsMargins(0, 0, 0, 0)
+        self.vectors_container.setSizePolicy(
+            QSizePolicy.Policy.Minimum,
+            QSizePolicy.Policy.Preferred
+        )
+
+        self.vectors_container.setStyleSheet(
+            "background-color: transparent;"
+        )
+
+        self.vectors_layout = QHBoxLayout(
+            self.vectors_container
+        )
+
+        self.vectors_layout.setContentsMargins(
+            0, 0, 0, 0
+        )
+
         self.vectors_layout.setSpacing(16)
-        self.vectors_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
+
+        self.vectors_layout.setAlignment(
+            Qt.AlignmentFlag.AlignLeft
+        )
+
+        # El scroll mostrará el contenedor completo
+        self.vectors_scroll.setWidget(
+            self.vectors_container
+        )
 
         # Sección para el valor del Escalar k
         self.escalar_container = QWidget()
@@ -248,13 +315,24 @@ class VistaVectores(QWidget):
         self.escalar_container.hide()
 
         matrix_wrapper_layout = QHBoxLayout()
-        matrix_wrapper_layout.setContentsMargins(0, 0, 0, 0)
-        matrix_wrapper_layout.addWidget(self.escalar_container)
-        matrix_wrapper_layout.addWidget(self.vectors_container)
-        matrix_wrapper_layout.addStretch(1)
-        
-        matrix_layout.addLayout(matrix_wrapper_layout)
-        
+
+        matrix_wrapper_layout.setContentsMargins(
+            0, 0, 0, 0
+        )
+
+        matrix_wrapper_layout.addWidget(
+            self.escalar_container
+        )
+
+        matrix_wrapper_layout.addWidget(
+            self.vectors_scroll,
+            1
+        )
+
+        matrix_layout.addLayout(
+            matrix_wrapper_layout
+        )
+                
         # Botones de Acción
         action_buttons_layout = QHBoxLayout()
         action_buttons_layout.setSpacing(12)
@@ -400,8 +478,7 @@ class VistaVectores(QWidget):
         eq_view_layout.addWidget(lbl_help)
         eq_view_layout.addWidget(btn_analyze, alignment=Qt.AlignmentFlag.AlignLeft)
         
-        self.stacked_layout.addWidget(matrix_view)
-        self.stacked_layout.addWidget(equations_view)
+      
         
         card_layout.addLayout(self.stacked_layout)
         content_layout.addWidget(self.card)
@@ -447,39 +524,154 @@ class VistaVectores(QWidget):
         mops_controls.addStretch()
         mops_layout.addLayout(mops_controls)
         
-        # Área dinámica de matrices y escalar
-        self.mops_container = QWidget()
-        self.mops_container.setStyleSheet("background-color: transparent;")
-        self.mops_layout_inner = QHBoxLayout(self.mops_container)
-        self.mops_layout_inner.setContentsMargins(0, 0, 0, 0)
-        self.mops_layout_inner.setSpacing(20)
-        self.mops_layout_inner.setAlignment(Qt.AlignmentFlag.AlignLeft)
+         # ============================================================
+        # ÁREA DINÁMICA DE MATRICES
+        # ============================================================
 
-        # Sección del Escalar k (a la izquierda de la matriz cuando se elige "Escalar")
+        self.mops_scroll = QScrollArea()
+        self.mops_scroll.setWidgetResizable(False)
+
+        self.mops_scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+
+        self.mops_scroll.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+
+        self.mops_scroll.setFrameShape(
+            QFrame.Shape.NoFrame
+        )
+
+        self.mops_scroll.setStyleSheet("""
+            QScrollArea {
+                background: transparent;
+                border: none;
+            }
+
+            QScrollBar:horizontal {
+                height: 8px;
+                background: #F1F5F9;
+                border-radius: 4px;
+            }
+
+            QScrollBar::handle:horizontal {
+                background: #CBD5E1;
+                border-radius: 4px;
+                min-width: 40px;
+            }
+
+            QScrollBar::add-line:horizontal,
+            QScrollBar::sub-line:horizontal {
+                width: 0px;
+                background: none;
+                border: none;
+            }
+        """)
+
+        # Contenedor que tendrá todas las matrices
+        self.mops_container = QWidget()
+        self.mops_container.setStyleSheet(
+            "background-color: transparent;"
+        )
+
+        self.mops_layout_inner = QHBoxLayout(
+            self.mops_container
+        )
+
+        self.mops_layout_inner.setContentsMargins(
+            0, 0, 0, 0
+        )
+
+        self.mops_layout_inner.setSpacing(20)
+
+        self.mops_layout_inner.setAlignment(
+            Qt.AlignmentFlag.AlignLeft
+        )
+
+        # El scroll contiene el contenedor completo
+        self.mops_scroll.setWidget(
+            self.mops_container
+        )
+
+
+        # ============================================================
+        # ESCALAR
+        # ============================================================
+
         self.mops_escalar_container = QWidget()
-        self.mops_escalar_container.setStyleSheet("background-color: transparent;")
-        escalar_mat_layout = QVBoxLayout(self.mops_escalar_container)
-        escalar_mat_layout.setContentsMargins(0, 0, 0, 0)
+        self.mops_escalar_container.setStyleSheet(
+            "background-color: transparent;"
+        )
+
+        escalar_mat_layout = QVBoxLayout(
+            self.mops_escalar_container
+        )
+
+        escalar_mat_layout.setContentsMargins(
+            0, 0, 0, 0
+        )
+
         escalar_mat_layout.setSpacing(6)
-        
+
         lbl_k_mat = QLabel("ESCALAR (k)")
-        lbl_k_mat.setStyleSheet("color: #64748B; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; background: transparent;")
+
+        lbl_k_mat.setStyleSheet(
+            """
+            color: #64748B;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            background: transparent;
+            """
+        )
+
         self.inp_mops_escalar = QLineEdit("1")
-        self.inp_mops_escalar.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.inp_mops_escalar.setFixedSize(60, 36)
-        self.inp_mops_escalar.setStyleSheet(self.inp_escalar.styleSheet())
+
+        self.inp_mops_escalar.setAlignment(
+            Qt.AlignmentFlag.AlignCenter
+        )
+
+        self.inp_mops_escalar.setFixedSize(
+            60, 36
+        )
+
+        self.inp_mops_escalar.setStyleSheet(
+            self.inp_escalar.styleSheet()
+        )
+
         escalar_mat_layout.addWidget(lbl_k_mat)
         escalar_mat_layout.addWidget(self.inp_mops_escalar)
+
         self.mops_escalar_container.hide()
 
+
+        # ============================================================
+        # WRAPPER
+        # ============================================================
+
         mops_wrapper_layout = QHBoxLayout()
-        mops_wrapper_layout.setContentsMargins(0, 0, 0, 0)
-        mops_wrapper_layout.addWidget(self.mops_escalar_container)
-        mops_wrapper_layout.addWidget(self.mops_container)
-        mops_wrapper_layout.addStretch(1)
+
+        mops_wrapper_layout.setContentsMargins(
+            0, 0, 0, 0
+        )
+
+        mops_wrapper_layout.setSpacing(12)
+
+        mops_wrapper_layout.addWidget(
+            self.mops_escalar_container
+        )
+
+        mops_wrapper_layout.addWidget(
+            self.mops_scroll,
+            1
+        )
+
+        mops_layout.addLayout(
+            mops_wrapper_layout
+        )
         
-        mops_layout.addLayout(mops_wrapper_layout)
-        
+          
         # Botones de Acción y ComboBox
         mops_action_buttons = QHBoxLayout()
         mops_action_buttons.setSpacing(12)
@@ -494,7 +686,7 @@ class VistaVectores(QWidget):
         btn_clear_mops.clicked.connect(self._clear_matrix_ops_inputs)
         
         self.combo_mops_metodo = QComboBox()
-        self.combo_mops_metodo.addItems(["Sumar", "Restar", "Escalar"])
+        self.combo_mops_metodo.addItems(["Sumar", "Restar", "Escalar", ])
         self.combo_mops_metodo.setFixedWidth(120)
         self.combo_mops_metodo.setFixedHeight(38)
         self.combo_mops_metodo.setCurrentIndex(0)
@@ -780,8 +972,21 @@ class VistaVectores(QWidget):
         # ========================================================
 
         for v in range(num_vectores):
+            vec_widget = QWidget()
 
-            vec_box = QVBoxLayout()
+            vec_widget.setStyleSheet(
+                "background-color: transparent;"
+            )
+
+            vec_widget.setMinimumWidth(82)
+
+            vec_box = QVBoxLayout(
+                vec_widget
+            )
+
+            vec_box.setContentsMargins(
+                0, 0, 0, 0
+            )
 
             vec_box.setSpacing(6)
 
@@ -909,8 +1114,8 @@ class VistaVectores(QWidget):
                 vector_row_layout
             )
 
-            self.vectors_layout.addLayout(
-                vec_box
+            self.vectors_layout.addWidget(
+                vec_widget
             )
 
         # ========================================================
@@ -925,14 +1130,27 @@ class VistaVectores(QWidget):
 
             # Contenedor del vector b
 
-            b_box = QVBoxLayout()
+            b_widget = QWidget()
+
+            b_widget.setStyleSheet(
+                "background-color: transparent;"
+            )
+
+            b_widget.setMinimumWidth(82)
+
+            b_box = QVBoxLayout(
+                b_widget
+            )
+
+            b_box.setContentsMargins(
+                0, 0, 0, 0
+            )
 
             b_box.setSpacing(6)
 
             b_box.setAlignment(
                 Qt.AlignmentFlag.AlignTop
             )
-
             # Título b
 
             lbl_b = QLabel("b")
@@ -1041,9 +1259,10 @@ class VistaVectores(QWidget):
                 b_row_layout
             )
 
-            self.vectors_layout.addLayout(
-                b_box
+            self.vectors_layout.addWidget(
+                b_widget
             )
+            self.vectors_container.adjustSize()
 
     def _clear_matrix_inputs(self):
 
@@ -3731,6 +3950,926 @@ class VistaVectores(QWidget):
         )
 
         return card
+    def _crear_card_solucion(self):
+        """
+        Crea la tarjeta desplegable de Solución.
+        El contenido se llena posteriormente mediante
+        renderizar_tarjeta_solucion().
+        """
+
+        card = QFrame()
+        card.setObjectName("CardSolucion")
+
+        card.setStyleSheet("""
+            QFrame#CardSolucion {
+                background-color: #FFFFFF;
+                border: 1px solid #E2E8F0;
+                border-radius: 12px;
+            }
+        """)
+
+        layout = QVBoxLayout(card)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(0)
+
+        # ---------------------------------------------------------
+        # ENCABEZADO
+        # ---------------------------------------------------------
+
+        header = QHBoxLayout()
+        header.setContentsMargins(0, 0, 0, 0)
+
+        titulo = QLabel("Solución")
+
+        titulo.setStyleSheet("""
+            color: #0F172A;
+            font-size: 16px;
+            font-weight: 700;
+            border: none;
+            background: transparent;
+        """)
+
+        btn_toggle = QPushButton("−")
+
+        btn_toggle.setFixedSize(24, 24)
+
+        btn_toggle.setCursor(
+            Qt.CursorShape.PointingHandCursor
+        )
+
+        btn_toggle.setStyleSheet("""
+            QPushButton {
+                color: #64748B;
+                font-size: 18px;
+                font-weight: 600;
+                border: none;
+                background: transparent;
+            }
+
+            QPushButton:hover {
+                color: #0F172A;
+            }
+        """)
+
+        header.addWidget(titulo)
+        header.addStretch()
+        header.addWidget(btn_toggle)
+
+        layout.addLayout(header)
+
+        # ---------------------------------------------------------
+        # CONTENIDO
+        # ---------------------------------------------------------
+
+        content_widget = QWidget()
+
+        content_widget.setStyleSheet("""
+            QWidget {
+                border: none;
+                background: transparent;
+            }
+        """)
+
+        content_layout = QVBoxLayout(content_widget)
+
+        content_layout.setContentsMargins(
+            0, 20, 0, 0
+        )
+
+        content_layout.setSpacing(16)
+
+        layout.addWidget(content_widget)
+
+        # ---------------------------------------------------------
+        # DATOS PARA EL CONTROL DEL DESPLIEGUE
+        # ---------------------------------------------------------
+
+        card.content_widget = content_widget
+        card.btn_toggle = btn_toggle
+        card.is_expanded = True
+
+        def toggle():
+
+            card.is_expanded = not card.is_expanded
+
+            content_widget.setVisible(
+                card.is_expanded
+            )
+
+            btn_toggle.setText(
+                "−" if card.is_expanded else "+"
+            )
+
+        btn_toggle.clicked.connect(toggle)
+
+        return card
+    def renderizar_tarjeta_solucion(self, resultado):
+        """
+        Renderiza la tarjeta Solución.
+
+        Para Combinación lineal:
+            - Variables básicas
+            - Variables libres
+            - Valores de los coeficientes
+            - Verificación
+
+        Para Sumar, Restar y Escalar:
+            - Únicamente muestra el vector resultante.
+        """
+
+        if not hasattr(self, "card_solucion") or not self.card_solucion:
+            return
+
+        # ============================================================
+        # CONTENEDOR INTERNO
+        # ============================================================
+
+        contenedor = self.card_solucion.content_widget
+
+        layout_principal = contenedor.layout()
+
+        if not layout_principal:
+            layout_principal = QVBoxLayout(contenedor)
+            contenedor.setLayout(layout_principal)
+
+        # Limpiar contenido anterior
+        while layout_principal.count():
+
+            item = layout_principal.takeAt(0)
+
+            widget = item.widget()
+
+            if widget:
+                widget.deleteLater()
+
+        layout_principal.setSpacing(16)
+
+        # ============================================================
+        # OPERACIÓN
+        # ============================================================
+
+        operacion = resultado.get(
+            "operacion",
+            ""
+        )
+
+        # ============================================================
+        # OPERACIONES VECTORIALES SIMPLES
+        # ============================================================
+
+        if operacion in (
+            "Sumar",
+            "Restar",
+            "Escalar"
+        ):
+
+            vector_resultado = resultado.get(
+                "resultado"
+            )
+
+            if vector_resultado is None:
+                return
+
+            # --------------------------------------------------------
+            # TÍTULO
+            # --------------------------------------------------------
+
+            lbl_resultado = QLabel("RESULTADO")
+
+            lbl_resultado.setStyleSheet("""
+                color: #64748B;
+                font-weight: 700;
+                font-size: 11px;
+                letter-spacing: 0.5px;
+                border: none;
+            """)
+
+            layout_principal.addWidget(
+                lbl_resultado
+            )
+
+            # --------------------------------------------------------
+            # VECTOR RESULTANTE
+            # --------------------------------------------------------
+
+            vector_frame = QFrame()
+
+            vector_frame.setObjectName(
+                "VectorResultado"
+            )
+
+            vector_frame.setStyleSheet("""
+                QFrame#VectorResultado {
+                    background-color: #FFFFFF;
+                    border: 1px solid #E2E8F0;
+                    border-radius: 12px;
+                }
+            """)
+
+            vector_layout = QHBoxLayout(
+                vector_frame
+            )
+
+            vector_layout.setContentsMargins(
+                20, 14, 20, 14
+            )
+
+            vector_layout.setSpacing(4)
+
+            # Corchete izquierdo
+            bracket_left = QLabel("[")
+
+            bracket_left.setStyleSheet("""
+                color: #0F172A;
+                font-size: 42px;
+                font-weight: 300;
+                font-family: 'Courier New';
+                border: none;
+                background: transparent;
+            """)
+
+            vector_layout.addWidget(
+                bracket_left
+            )
+
+            # Componentes
+            componentes_layout = QVBoxLayout()
+
+            componentes_layout.setSpacing(8)
+            componentes_layout.setContentsMargins(
+                8, 0, 8, 0
+            )
+
+            for valor in vector_resultado:
+
+                lbl_valor = QLabel(
+                    formatear_numero(valor)
+                )
+
+                lbl_valor.setAlignment(
+                    Qt.AlignmentFlag.AlignCenter
+                )
+
+                lbl_valor.setStyleSheet("""
+                    color: #0F172A;
+                    font-size: 18px;
+                    font-weight: 700;
+                    font-family: 'Consolas', monospace;
+                    border: none;
+                    background: transparent;
+                """)
+
+                componentes_layout.addWidget(
+                    lbl_valor
+                )
+
+            vector_layout.addLayout(
+                componentes_layout
+            )
+
+            # Corchete derecho
+            bracket_right = QLabel("]")
+
+            bracket_right.setStyleSheet("""
+                color: #0F172A;
+                font-size: 42px;
+                font-weight: 300;
+                font-family: 'Courier New';
+                border: none;
+                background: transparent;
+            """)
+
+            vector_layout.addWidget(
+                bracket_right
+            )
+
+            vector_layout.addStretch()
+
+            layout_principal.addWidget(
+                vector_frame
+            )
+
+        # ============================================================
+        # COMBINACIÓN LINEAL
+        # ============================================================
+
+        elif operacion == "Combinacion lineal":
+
+            self._renderizar_solucion_combinacion_lineal(
+                resultado,
+                layout_principal
+            )
+
+        # ============================================================
+        # EXPANDIR TARJETA
+        # ============================================================
+
+        self.card_solucion.is_expanded = True
+        self.card_solucion.content_widget.setVisible(True)
+        self.card_solucion.btn_toggle.setText("−")
+
+    def _renderizar_solucion_combinacion_lineal(
+    self,
+    resultado,
+    layout_principal
+):
+        """
+        Renderiza la solución de combinación lineal
+        siguiendo el diseño de vista_matriz.
+        """
+
+        # ============================================================
+        # SUBÍNDICES
+        # ============================================================
+
+        def sub(i):
+
+            digitos = [
+                "₀", "₁", "₂", "₃", "₄",
+                "₅", "₆", "₇", "₈", "₉"
+            ]
+
+            return "".join(
+                digitos[int(d)]
+                for d in str(i + 1)
+            )
+
+        # ============================================================
+        # DATOS
+        # ============================================================
+
+        tipo = resultado.get(
+            "tipo"
+        )
+
+        vars_basicas = resultado.get(
+            "variables_basicas",
+            []
+        )
+
+        vars_libres = resultado.get(
+            "variables_libres",
+            []
+        )
+
+        coeficientes = resultado.get(
+            "coeficientes"
+        )
+
+        solucion_parametrica = resultado.get(
+            "solucion_parametrica"
+        )
+
+        # ============================================================
+        # 1. VARIABLES BÁSICAS Y LIBRES
+        # ============================================================
+
+        layout_vars = QHBoxLayout()
+
+        # ------------------------------------------------------------
+        # VARIABLES BÁSICAS
+        # ------------------------------------------------------------
+
+        vbox_basicas = QVBoxLayout()
+
+        vbox_basicas.setSpacing(8)
+
+        lbl_basicas = QLabel(
+            "VARIABLES BÁSICAS"
+        )
+
+        lbl_basicas.setStyleSheet("""
+            color: #64748B;
+            font-weight: 700;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            border: none;
+        """)
+
+        vbox_basicas.addWidget(
+            lbl_basicas
+        )
+
+        chips_basicas = QHBoxLayout()
+        chips_basicas.setSpacing(6)
+
+        if vars_basicas:
+
+            for idx in vars_basicas:
+
+                chip = QLabel(
+                    f"c{sub(idx)}"
+                )
+
+                chip.setStyleSheet("""
+                    background-color: #EFF6FF;
+                    color: #2563EB;
+                    border: 1px solid #BFDBFE;
+                    border-radius: 8px;
+                    padding: 4px 12px;
+                    font-weight: 700;
+                    font-size: 13px;
+                """)
+
+                chips_basicas.addWidget(
+                    chip
+                )
+
+            chips_basicas.addStretch()
+
+        else:
+
+            lbl_none = QLabel(
+                "Ninguna"
+            )
+
+            lbl_none.setStyleSheet("""
+                color: #64748B;
+                font-style: italic;
+                font-size: 13px;
+                border: none;
+            """)
+
+            chips_basicas.addWidget(
+                lbl_none
+            )
+
+            chips_basicas.addStretch()
+
+        vbox_basicas.addLayout(
+            chips_basicas
+        )
+
+        # ------------------------------------------------------------
+        # VARIABLES LIBRES
+        # ------------------------------------------------------------
+
+        vbox_libres = QVBoxLayout()
+
+        vbox_libres.setSpacing(8)
+
+        lbl_libres = QLabel(
+            "VARIABLES LIBRES"
+        )
+
+        lbl_libres.setStyleSheet("""
+            color: #64748B;
+            font-weight: 700;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            border: none;
+        """)
+
+        vbox_libres.addWidget(
+            lbl_libres
+        )
+
+        chips_libres = QHBoxLayout()
+        chips_libres.setSpacing(6)
+
+        if vars_libres:
+
+            for idx in vars_libres:
+
+                chip = QLabel(
+                    f"c{sub(idx)}"
+                )
+
+                chip.setStyleSheet("""
+                    background-color: #F1F5F9;
+                    color: #475569;
+                    border: 1px solid #CBD5E1;
+                    border-radius: 8px;
+                    padding: 4px 12px;
+                    font-weight: 700;
+                    font-size: 13px;
+                """)
+
+                chips_libres.addWidget(
+                    chip
+                )
+
+            chips_libres.addStretch()
+
+            vbox_libres.addLayout(
+                chips_libres
+            )
+
+        else:
+
+            lbl_none = QLabel(
+                "Ninguna"
+            )
+
+            lbl_none.setStyleSheet("""
+                color: #64748B;
+                font-style: italic;
+                font-size: 13px;
+                border: none;
+            """)
+
+            vbox_libres.addWidget(
+                lbl_none
+            )
+
+        layout_vars.addLayout(
+            vbox_basicas,
+            stretch=1
+        )
+
+        layout_vars.addLayout(
+            vbox_libres,
+            stretch=1
+        )
+
+        layout_principal.addLayout(
+            layout_vars
+        )
+
+        # ============================================================
+        # 2. VALORES DE LOS COEFICIENTES
+        # ============================================================
+
+        if tipo == "unica" and coeficientes:
+
+            vbox_valores = QVBoxLayout()
+
+            vbox_valores.setSpacing(8)
+
+            lbl_valores = QLabel(
+                "VALORES"
+            )
+
+            lbl_valores.setStyleSheet("""
+                color: #64748B;
+                font-weight: 700;
+                font-size: 11px;
+                letter-spacing: 0.5px;
+                border: none;
+            """)
+
+            vbox_valores.addWidget(
+                lbl_valores
+            )
+
+            cards_layout = QHBoxLayout()
+
+            cards_layout.setSpacing(16)
+
+            for i, valor in enumerate(
+                coeficientes
+            ):
+
+                card_val = QFrame()
+
+                card_val.setObjectName(
+                    "CardCoeficiente"
+                )
+
+                card_val.setFixedSize(
+                    150,
+                    70
+                )
+
+                card_val.setStyleSheet("""
+                    QFrame#CardCoeficiente {
+                        background-color: #FFFFFF;
+                        border: 1px solid #E2E8F0;
+                        border-radius: 12px;
+                    }
+                """)
+
+                card_layout = QVBoxLayout(
+                    card_val
+                )
+
+                card_layout.setContentsMargins(
+                    12, 10, 12, 10
+                )
+
+                card_layout.setSpacing(2)
+
+                card_layout.setAlignment(
+                    Qt.AlignmentFlag.AlignCenter
+                )
+
+                lbl_c = QLabel(
+                    f"c{sub(i)}"
+                )
+
+                lbl_c.setAlignment(
+                    Qt.AlignmentFlag.AlignCenter
+                )
+
+                lbl_c.setStyleSheet("""
+                    color: #64748B;
+                    font-weight: 600;
+                    font-size: 13px;
+                    border: none;
+                    background: transparent;
+                """)
+
+                lbl_num = QLabel(
+                    formatear_numero(valor)
+                )
+
+                lbl_num.setAlignment(
+                    Qt.AlignmentFlag.AlignCenter
+                )
+
+                lbl_num.setStyleSheet("""
+                    color: #0F172A;
+                    font-weight: 800;
+                    font-size: 28px;
+                    border: none;
+                    background: transparent;
+                """)
+
+                card_layout.addWidget(
+                    lbl_c
+                )
+
+                card_layout.addWidget(
+                    lbl_num
+                )
+
+                cards_layout.addWidget(
+                    card_val
+                )
+
+            cards_layout.addStretch()
+
+            vbox_valores.addLayout(
+                cards_layout
+            )
+
+            layout_principal.addLayout(
+                vbox_valores
+            )
+
+        # ============================================================
+        # 3. SOLUCIÓN PARAMÉTRICA
+        # ============================================================
+
+        if tipo == "infinitas" and solucion_parametrica:
+
+            lbl_param = QLabel(
+                "SOLUCIÓN PARAMÉTRICA"
+            )
+
+            lbl_param.setStyleSheet("""
+                color: #64748B;
+                font-weight: 700;
+                font-size: 11px;
+                letter-spacing: 0.5px;
+                border: none;
+            """)
+
+            layout_principal.addWidget(
+                lbl_param
+            )
+
+            lbl_param_value = QLabel(
+                str(solucion_parametrica)
+            )
+
+            lbl_param_value.setWordWrap(
+                True
+            )
+
+            lbl_param_value.setStyleSheet("""
+                color: #0F172A;
+                font-family: 'Consolas', monospace;
+                font-size: 13px;
+                background-color: #F8FAFC;
+                border: 1px solid #E2E8F0;
+                border-radius: 10px;
+                padding: 12px;
+            """)
+
+            layout_principal.addWidget(
+                lbl_param_value
+            )
+
+        # ============================================================
+        # 4. VERIFICACIÓN
+        # ============================================================
+
+        if tipo == "unica" and coeficientes:
+
+            matriz_A = resultado.get(
+                "matriz_generadores",
+                []
+            )
+
+            matriz_aug = resultado.get(
+                "matriz_aumentada",
+                []
+            )
+
+            if matriz_A and matriz_aug:
+
+                vbox_verif = QVBoxLayout()
+
+                vbox_verif.setSpacing(8)
+
+                lbl_verif = QLabel(
+                    "VERIFICACIÓN"
+                )
+
+                lbl_verif.setStyleSheet("""
+                    color: #64748B;
+                    font-weight: 700;
+                    font-size: 11px;
+                    letter-spacing: 0.5px;
+                    border: none;
+                """)
+
+                vbox_verif.addWidget(
+                    lbl_verif
+                )
+
+                frame_verif = QFrame()
+
+                frame_verif.setObjectName(
+                    "FrameVerifVectores"
+                )
+
+                frame_verif.setStyleSheet("""
+                    QFrame#FrameVerifVectores {
+                        background-color: #FFFFFF;
+                        border: 1px solid #E2E8F0;
+                        border-radius: 12px;
+                    }
+                """)
+
+                verif_layout = QVBoxLayout(
+                    frame_verif
+                )
+
+                verif_layout.setContentsMargins(
+                    16, 8, 16, 8
+                )
+
+                verif_layout.setSpacing(0)
+
+                for i, fila in enumerate(
+                    matriz_A
+                ):
+
+                    terminos = []
+
+                    suma = 0
+
+                    for j, coef in enumerate(
+                        coeficientes
+                    ):
+
+                        valor_vector = (
+                            coef
+                            * fila[j]
+                        )
+
+                        suma += valor_vector
+
+                        terminos.append(
+                            f"({formatear_numero(coef)})"
+                            f"({formatear_numero(fila[j])})"
+                        )
+
+                    objetivo = matriz_aug[i][-1]
+
+                    expresion = (
+                        " + ".join(terminos)
+                    )
+
+                    operaciones = []
+
+                    for j, coef in enumerate(
+                        coeficientes
+                    ):
+
+                        operaciones.append(
+                            formatear_numero(
+                                coef * fila[j]
+                            )
+                        )
+
+                    operaciones_txt = (
+                        " + ".join(
+                            operaciones
+                        )
+                    )
+
+                    texto = (
+                        f"{expresion} = "
+                        f"{formatear_numero(objetivo)}"
+                        f"   ➔   "
+                        f"{operaciones_txt} = "
+                        f"{formatear_numero(suma)}"
+                        f"   ➔   "
+                        f"{formatear_numero(suma)} = "
+                        f"{formatear_numero(objetivo)}"
+                    )
+
+                    row = QFrame()
+
+                    row.setStyleSheet(
+                        "border: none; "
+                        "background: transparent;"
+                    )
+
+                    row_layout = QHBoxLayout(
+                        row
+                    )
+
+                    row_layout.setContentsMargins(
+                        0, 10, 0, 10
+                    )
+
+                    lbl_eq = QLabel(
+                        f"Ecuación {i + 1}"
+                    )
+
+                    lbl_eq.setStyleSheet("""
+                        color: #0F172A;
+                        font-weight: 600;
+                        font-size: 13px;
+                        border: none;
+                    """)
+
+                    lbl_texto = QLabel(
+                        texto
+                    )
+
+                    lbl_texto.setStyleSheet("""
+                        color: #475569;
+                        font-size: 12px;
+                        font-family: monospace;
+                        border: none;
+                    """)
+
+                    badge = QLabel(
+                        "✓ Correcto"
+                    )
+
+                    badge.setStyleSheet("""
+                        background-color: #ECFDF5;
+                        color: #059669;
+                        border-radius: 10px;
+                        padding: 4px 12px;
+                        font-weight: 700;
+                        font-size: 11px;
+                        border: none;
+                    """)
+
+                    row_layout.addWidget(
+                        lbl_eq
+                    )
+
+                    row_layout.addStretch()
+
+                    row_layout.addWidget(
+                        lbl_texto
+                    )
+
+                    row_layout.addSpacing(
+                        15
+                    )
+
+                    row_layout.addWidget(
+                        badge
+                    )
+
+                    verif_layout.addWidget(
+                        row
+                    )
+
+                    if i < len(matriz_A) - 1:
+
+                        separador = QFrame()
+
+                        separador.setFrameShape(
+                            QFrame.Shape.HLine
+                        )
+
+                        separador.setStyleSheet("""
+                            background-color: #F1F5F9;
+                            max-height: 1px;
+                            border: none;
+                        """)
+
+                        verif_layout.addWidget(
+                            separador
+                        )
+
+                vbox_verif.addWidget(
+                    frame_verif
+                )
+
+                layout_principal.addLayout(
+                    vbox_verif
+                )
 
     def _mostrar_resultados(self, resultado):
         """Construye la vista de resultado mostrando únicamente el Banner de Estado."""
@@ -3898,6 +5037,22 @@ class VistaVectores(QWidget):
                     resultado
                 )
             )
+            
+            # ---------------------------------------------------------
+            # TARJETA DE SOLUCIÓN
+            # ---------------------------------------------------------
+
+            self.card_solucion = self._crear_card_solucion()
+
+            self.results_layout.addWidget(
+                self.card_solucion
+            )
+
+            self.renderizar_tarjeta_solucion(
+                resultado
+            )       
+                    
+         
 
         # =========================================================
         # COMBINACIÓN LINEAL
@@ -3922,6 +5077,7 @@ class VistaVectores(QWidget):
                         resultado
                     )
                 )
+            
 
             # Proceso de Gauss-Jordan
             self.results_layout.addWidget(
@@ -3930,6 +5086,19 @@ class VistaVectores(QWidget):
                 )
             )
 
+            # ---------------------------------------------------------
+            # TARJETA DE SOLUCIÓN
+            # ---------------------------------------------------------
+
+            self.card_solucion = self._crear_card_solucion()
+
+            self.results_layout.addWidget(
+                self.card_solucion
+            )
+
+            self.renderizar_tarjeta_solucion(
+                resultado
+            )
         # =========================================================
         # ECUACIÓN MATRICIAL
         # =========================================================

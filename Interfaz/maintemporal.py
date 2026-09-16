@@ -27,6 +27,7 @@ from sidebar import Sidebar
 # Importar las vistas modulares
 from vistas.vista_matriz import VistaMatriz
 from vistas.vista_vectores import VistaVectores
+from vistas.vista_operaciones_matriz import VistaOperacionesMatriz
 # from vistas.vista_otra import VistaOtra  # Tus futuras vistas
 
 
@@ -70,9 +71,11 @@ class MainWindow(QMainWindow):
         # Instanciar e ingresar Vistas al Stack
         self.vista_matriz = VistaMatriz()
         self.vista_vectores = VistaVectores()
+        self.vista_operaciones_matriz = VistaOperacionesMatriz()
 
         self.stack.addWidget(self.vista_matriz)  # Índice 0
         self.stack.addWidget(self.vista_vectores)  # Índice 1
+        self.stack.addWidget(self.vista_operaciones_matriz) #Indice 2
 
       
 

@@ -120,7 +120,7 @@ class Sidebar(QFrame):
         items = [
             ("Sistemas de Equaciones", True,0),
             ("Vectores", True,1),
-            ("Matrices", False,None),
+            ("Matrices", True,2),
             ("Espacios vectoriales", False,None),
             ("Producto interno", False,None),
             ("Espacios vectoriales", False,None),
