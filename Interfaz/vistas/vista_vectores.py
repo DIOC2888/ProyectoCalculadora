@@ -394,7 +394,7 @@ class VistaVectores(QWidget):
 
         for i in range(self.combo_metodo.count()):
             self.combo_metodo.setItemData(i, Qt.AlignmentFlag.AlignCenter, Qt.ItemDataRole.TextAlignmentRole)
-combo_popup_style = """
+        combo_popup_style = """
             QListView {
                 background-color: #FFFFFF;
                 color: #0F172A;
@@ -750,7 +750,6 @@ combo_popup_style = """
         self.stepper_mops_count.on_change_callback = self._rebuild_matrix_ops_grid
         
         self._rebuild_matrix_ops_grid()
-        self.stacked_layout.addWidget(matrix_ops_view)
         # -------------------------------------------------------------
         # VISTA 4: ECUACIONES MATRICIALES (Matriz A + Vector x)
         # -------------------------------------------------------------
@@ -4139,11 +4138,21 @@ combo_popup_style = """
             ""
         )
 
+        es_combinacion_lineal = (
+            operacion in (
+                "Combinacion lineal",
+                "Combinación lineal"
+            )
+            or "es_combinacion" in resultado
+            or resultado.get("solucion_parametrica") is not None
+            or resultado.get("coeficientes") is not None
+        )
+
         # ============================================================
         # OPERACIONES VECTORIALES SIMPLES
         # ============================================================
 
-        if operacion in (
+        if not es_combinacion_lineal and operacion in (
             "Sumar",
             "Restar",
             "Escalar"
@@ -4279,7 +4288,7 @@ combo_popup_style = """
         # COMBINACIÓN LINEAL
         # ============================================================
 
-        elif operacion == "Combinacion lineal":
+        elif es_combinacion_lineal:
 
             self._renderizar_solucion_combinacion_lineal(
                 resultado,
@@ -4655,8 +4664,26 @@ combo_popup_style = """
                 lbl_param
             )
 
+            soluciones = []
+
+            if isinstance(solucion_parametrica, dict):
+                soluciones = solucion_parametrica.get(
+                    "soluciones",
+                    []
+                )
+
+            texto_parametrico = "\n".join(
+                f"c{sub(item.get('variable', i))} = "
+                f"{item.get('expresion', '')}"
+                for i, item in enumerate(soluciones)
+                if isinstance(item, dict)
+            )
+
+            if not texto_parametrico:
+                texto_parametrico = "Sin datos de solucion parametrica."
+
             lbl_param_value = QLabel(
-                str(solucion_parametrica)
+                texto_parametrico
             )
 
             lbl_param_value.setWordWrap(
@@ -4932,6 +4959,15 @@ combo_popup_style = """
         # --- BANNER DE ESTADO ---
 
         modo = resultado.get("operacion", "")
+        es_combinacion_lineal = (
+            modo in (
+                "Combinacion lineal",
+                "Combinación lineal"
+            )
+            or "es_combinacion" in resultado
+            or resultado.get("solucion_parametrica") is not None
+            or resultado.get("coeficientes") is not None
+        )
 
         banner = QFrame()
         banner.setObjectName("BannerEstado")
@@ -4940,7 +4976,7 @@ combo_popup_style = """
         # OPERACIONES NORMALES
         # =========================================================
 
-        if modo in ("Sumar", "Restar", "Escalar"):
+        if not es_combinacion_lineal and modo in ("Sumar", "Restar", "Escalar"):
 
             banner.setStyleSheet("""
                 QFrame#BannerEstado {
@@ -4960,7 +4996,7 @@ combo_popup_style = """
         # COMBINACIÓN LINEAL
         # =========================================================
 
-        elif modo == "Combinacion lineal":
+        elif es_combinacion_lineal:
 
             es_combinacion = resultado.get(
                 "es_combinacion",
@@ -5055,7 +5091,7 @@ combo_popup_style = """
         # OPERACIONES CON VECTORES
         # =========================================================
 
-        if modo in ("Sumar", "Restar", "Escalar"):
+        if not es_combinacion_lineal and modo in ("Sumar", "Restar", "Escalar"):
 
             # Tarjeta de proceso
             self.results_layout.addWidget(
@@ -5084,7 +5120,7 @@ combo_popup_style = """
         # COMBINACIÓN LINEAL
         # =========================================================
 
-        elif modo == "Combinacion lineal":
+        elif es_combinacion_lineal:
 
             # Información del sistema
             card_info = self._crear_card_info_sistema(
