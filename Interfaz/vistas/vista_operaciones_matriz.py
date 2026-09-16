@@ -170,6 +170,10 @@ class VistaOperacionesMatriz(QWidget):
                 background-color: #1D4ED8;
             }
         """)    
+        self.btn_matrix_ops.setStyleSheet(mode_button_active_style)
+        self.btn_mat_eqs.setStyleSheet(mode_button_style)
+        
+               
         self.btn_matrix_ops.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_mat_eqs.setCursor(Qt.CursorShape.PointingHandCursor)
 

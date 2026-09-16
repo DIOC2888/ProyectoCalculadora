@@ -524,7 +524,7 @@ class VistaVectores(QWidget):
         mops_controls.addStretch()
         mops_layout.addLayout(mops_controls)
         
-         # ============================================================
+        # ============================================================
         # ÁREA DINÁMICA DE MATRICES
         # ============================================================
 
@@ -686,7 +686,7 @@ class VistaVectores(QWidget):
         btn_clear_mops.clicked.connect(self._clear_matrix_ops_inputs)
         
         self.combo_mops_metodo = QComboBox()
-        self.combo_mops_metodo.addItems(["Sumar", "Restar", "Escalar", ])
+        self.combo_mops_metodo.addItems(["Sumar", "Restar", "Escalar"])
         self.combo_mops_metodo.setFixedWidth(120)
         self.combo_mops_metodo.setFixedHeight(38)
         self.combo_mops_metodo.setCurrentIndex(0)
