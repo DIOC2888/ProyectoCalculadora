@@ -245,21 +245,24 @@ class VistaMatriz(QWidget):
         btn_clear.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_clear.clicked.connect(self._clear_matrix_inputs)
         
-               # Creamos el ComboBox para el método
+        # Creamos el ComboBox para el método
         self.combo_metodo = QComboBox()
         self.combo_metodo.addItems(["Gauss-Jordan", "Gauss"])
         self.combo_metodo.setFixedWidth(120)
         self.combo_metodo.setFixedHeight(38)
-        
-        # 1. Alinea el texto seleccionado en el cuadro desplegable
-        self.combo_metodo.setEditable(True)
-        self.combo_metodo.lineEdit().setReadOnly(True)
-        self.combo_metodo.lineEdit().setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        # 2. Alinea los elementos dentro del menú desplegable cuando se abre
+        self.combo_metodo.setCurrentIndex(0)
+
+        """ide6 debe tener un editor interno real sobre el combo para que
+        # el texto visible del método seleccionado pueda quedar centrado.
+        line_edit = self.combo_metodo.lineEdit()
+        if line_edit is not None:
+            line_edit.setReadOnly(True)
+            line_edit.setAlignment(Qt.AlignmentFlag.AlignCenter)"""
+
+        # Alinea los elementos dentro del menú desplegable usando itemData
         for i in range(self.combo_metodo.count()):
             self.combo_metodo.setItemData(i, Qt.AlignmentFlag.AlignCenter, Qt.ItemDataRole.TextAlignmentRole)
-        
+
         self.combo_metodo.setStyleSheet("""
             QComboBox {
                 background-color: #FFFFFF;
@@ -269,6 +272,10 @@ class VistaMatriz(QWidget):
                 font-size: 13px;
                 font-weight: 600;
                 color: #475569;
+                text-align: center;
+            }
+            QComboBox:focus {
+                border: 1px solid #2563EB;
             }
             QComboBox QAbstractItemView {
                 text-align: center;
@@ -277,7 +284,7 @@ class VistaMatriz(QWidget):
             }
             QComboBox::drop-down {
                 border: none;
-                width: 0px;  /* Opcional: oculta la flecha para que se vea calcado a los otros botones */
+                width: 22px;
             }
         """)
         

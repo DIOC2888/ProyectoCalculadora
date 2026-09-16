@@ -1,13 +1,17 @@
 import os
 import sys
 
+
 # Garantiza que los módulos de esta interfaz tengan prioridad de importación.
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_DIR = os.path.dirname(CURRENT_DIR)
 
 if CURRENT_DIR not in sys.path:
-
     sys.path.insert(0, CURRENT_DIR)
+
+if PROJECT_DIR not in sys.path:
+    sys.path.insert(0, PROJECT_DIR)
 
 from PySide6.QtGui import QFont
 from navbar import Navbar
@@ -22,19 +26,19 @@ from sidebar import Sidebar
 
 # Importar las vistas modulares
 from vistas.vista_matriz import VistaMatriz
+from vistas.vista_vectores import VistaVectores
 # from vistas.vista_otra import VistaOtra  # Tus futuras vistas
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Calculadora Matricial")
-        self.resize(1100, 750)
+            super().__init__()
+            self.setWindowTitle("Calculadora Matricial y Vectorial")
+            self.resize(1100, 750)
 
-        self._build_ui()
+            self._build_ui()
 
     def _build_ui(self):
-        # Layout contenedor principal (vertical: Navbar arriba, contenido abajo)
         main_widget = QWidget()
         main_layout = QVBoxLayout(main_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -52,25 +56,26 @@ class MainWindow(QMainWindow):
 
         # Lateral: Sidebar
         self.sidebar = Sidebar()
-        self.sidebar.hide()  # Inicia oculto o visible según prefieras
+        self.sidebar.hide()
         self.navbar.menu_clicked.connect(self.sidebar.toggle)
+
+        # Conectar el cambio de vista mediante la señal de la sidebar
+        self.sidebar.navigation_requested.connect(self._on_navigation)
+
         body_layout.addWidget(self.sidebar)
 
         # Contenedor dinámico de vistas (QStackedWidget)
         self.stack = QStackedWidget()
 
-        # --- INSTANCIAR VISTAS ---
+        # Instanciar e ingresar Vistas al Stack
         self.vista_matriz = VistaMatriz()
-        # self.vista_otra = VistaOtra()
+        self.vista_vectores = VistaVectores()
 
-        # Añadir vistas al Stack
         self.stack.addWidget(self.vista_matriz)  # Índice 0
-        # self.stack.addWidget(self.vista_otra)  # Índice 1
+        self.stack.addWidget(self.vista_vectores)  # Índice 1
 
-        # =========================================================================
-        # VISTA POR DEFECTO:
-        # Al abrir main.py se mostrará VistaMatriz inmediatamente
-        # =========================================================================
+      
+
         self.stack.setCurrentWidget(self.vista_matriz)
 
         body_layout.addWidget(self.stack)
@@ -78,12 +83,18 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(main_widget)
 
+    def _on_navigation(self, index: int):
+        """Cambia de pantalla según la opción presionada en el Sidebar."""
+        self.stack.setCurrentIndex(index)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
+
+    
 
 """def main():
 

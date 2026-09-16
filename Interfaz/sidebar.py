@@ -1,3 +1,4 @@
+from PySide6.QtCore import Qt, Signal  # <-- Importar Signal
 from PySide6.QtCore import Qt
 from PySide6.QtSvgWidgets import QSvgWidget
 from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
@@ -6,6 +7,9 @@ from sleeping_dog import SleepingDogContainer
 
 
 class Sidebar(QFrame):
+    # Señal para notificar a MainWindow el índice de la vista seleccionada
+    navigation_requested = Signal(int)
+
     LOGO_SVG = """<svg width="24" height="24" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path d="M7 6H4V26H7" stroke="#1E3A8A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
         <path d="M25 6H28V26H25" stroke="#1E3A8A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -23,6 +27,7 @@ class Sidebar(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFixedWidth(240)
+        self.buttons = []  # Para gestionar el estado activo visualmente
         self.setStyleSheet(
             """
             Sidebar {
@@ -113,28 +118,40 @@ class Sidebar(QFrame):
         tools_grid.setHorizontalSpacing(8)
 
         items = [
-            ("Sistemas de Equaciones", True),
-            ("Matrices", False),
-            ("Vectores", False),
-            ("Espacios vectoriales", False),
-            ("Producto interno", False),
-            ("Autovalores", False),
-            ("Transformaciones", False),
-            ("Factorizaciones", False),
+            ("Sistemas de Equaciones", True,0),
+            ("Vectores", True,1),
+            ("Matrices", False,None),
+            ("Espacios vectoriales", False,None),
+            ("Producto interno", False,None),
+            ("Espacios vectoriales", False,None),
+            ("Autovalores", False,None),
+            ("Transformaciones", False,None),
+            ("Factorizaciones", False,None),
         ]
 
-        for row_idx, (name, is_active) in enumerate(items):
+        for row_idx, (name, is_available, stack_index) in enumerate(items):
             btn = QPushButton(name)
-            btn.setProperty("active", is_active)
+            # El primero inicia activo visualmente (active=True)
+            btn.setProperty("active", row_idx == 0)
             btn.setProperty("class", "nav-btn")
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
             tools_grid.addWidget(btn, row_idx, 0)
+            self.buttons.append((btn, stack_index))
 
-            if not is_active:
+            if is_available and stack_index is not None:
+                # Conectar el clic para emitir el índice hacia MainWindow
+                btn.clicked.connect(
+                    lambda _, idx=stack_index, b=btn: self._on_item_clicked(
+                        idx, b
+                    )
+                )
+            else:
                 lbl_tag = QLabel("PRÓX.")
                 lbl_tag.setProperty("class", "prox-tag")
-                lbl_tag.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                lbl_tag.setAlignment(
+                    Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+                )
                 tools_grid.addWidget(lbl_tag, row_idx, 1)
 
         layout.addLayout(tools_grid)
@@ -143,6 +160,15 @@ class Sidebar(QFrame):
         # Perrito en el menú lateral
         self.sidebar_dog = SleepingDogContainer(small=True)
         layout.addWidget(self.sidebar_dog, alignment=Qt.AlignmentFlag.AlignCenter)
+
+    def _on_item_clicked(self, index: int, target_btn: QPushButton):
+        """Actualiza el estilo visual del botón seleccionado y emite la señal."""
+        for btn, _ in self.buttons:
+            btn.setProperty("active", btn == target_btn)
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+
+        self.navigation_requested.emit(index)
 
     def toggle(self):
         self.setVisible(not self.isVisible())

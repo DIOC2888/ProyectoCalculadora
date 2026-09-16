@@ -104,3 +104,38 @@ class ControladorMatriz:
             "soluciones_valores": soluciones_valores,
             "verificacion": reporte_verificacion
         }
+class ControladorVectores:
+    """Clase encargada de conectar la interfaz en PySide6 con la lógica del backend para operaciones vectoriales."""
+
+    @staticmethod
+    def calcular_operacion_vectorial(vector_a, vector_b, operacion):
+        """
+        Recibe dos vectores (listas de floats) y una operación a realizar.
+        Retorna el resultado de la operación y un mensaje descriptivo.
+        """
+        if not vector_a or not vector_b:
+            raise ValueError("Los vectores no pueden estar vacíos.")
+
+        if len(vector_a) != len(vector_b):
+            raise ValueError("Los vectores deben tener la misma dimensión.")
+
+        resultado = []
+        mensaje = ""
+
+        if operacion == "suma":
+            resultado = [a + b for a, b in zip(vector_a, vector_b)]
+            mensaje = f"Suma de vectores: {resultado}"
+        elif operacion == "resta":
+            resultado = [a - b for a, b in zip(vector_a, vector_b)]
+            mensaje = f"Resta de vectores: {resultado}"
+        elif operacion == "producto_interno":
+            producto = sum(a * b for a, b in zip(vector_a, vector_b))
+            resultado = [producto]
+            mensaje = f"Producto interno: {producto}"
+        else:
+            raise ValueError("Operación no soportada.")
+
+        return {
+            "resultado": resultado,
+            "mensaje": mensaje
+        }
