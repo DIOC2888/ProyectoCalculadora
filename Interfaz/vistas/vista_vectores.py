@@ -5,6 +5,7 @@ PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."
 if PROJECT_DIR not in sys.path:
     sys.path.insert(0, PROJECT_DIR)
 
+from PySide6.QtWidgets import QProxyStyle,QStyle, QStyleOptionComboBox
 from formato import formatear_numero
 from fractions import Fraction
 from PySide6.QtCore import Qt
@@ -36,8 +37,19 @@ try:
     from entrada import leer_sistema_desde_texto
 except ImportError:
     leer_sistema_desde_texto = None
+class ComboBoxCenterStyle(QProxyStyle):
 
+    def drawControl(self, element, option, painter, widget=None):
+        if element == QStyle.ControlElement.CE_ComboBoxLabel:
+            option = QStyleOptionComboBox(option)
 
+            # Texto alineado a la izquierda
+            option.textAlignment = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+
+            # Pequeño margen desde el borde izquierdo
+            option.rect.setLeft(option.rect.left() + 12)
+
+        super().drawControl(element, option, painter, widget)
 class VistaVectores(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -116,8 +128,7 @@ class VistaVectores(QWidget):
         
         self.btn_matrix = QPushButton("Construir vectores")
         self.btn_equations = QPushButton("Ingresar ecuaciones")
-        self.btn_matrix_ops = QPushButton("Operaciones matriciales")
-        self.btn_mat_eqs = QPushButton("Ecuaciones matriciales")
+  
         
         mode_button_style = """
             QPushButton {
@@ -145,17 +156,13 @@ class VistaVectores(QWidget):
         
         self.btn_matrix.setStyleSheet(mode_button_active_style)
         self.btn_equations.setStyleSheet(mode_button_style)
-        self.btn_matrix_ops.setStyleSheet(mode_button_style)
-        self.btn_mat_eqs.setStyleSheet(mode_button_style)
+
         self.btn_matrix.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_equations.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_matrix_ops.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_mat_eqs.setCursor(Qt.CursorShape.PointingHandCursor)
-
+     
         mode_layout.addWidget(self.btn_matrix)
         mode_layout.addWidget(self.btn_equations)
-        mode_layout.addWidget(self.btn_matrix_ops)
-        mode_layout.addWidget(self.btn_mat_eqs)
+
         
         mode_wrapper.addWidget(mode_container, alignment=Qt.AlignmentFlag.AlignLeft)
         card_layout.addLayout(mode_wrapper)
@@ -375,16 +382,19 @@ class VistaVectores(QWidget):
         
         # ComboBox para operaciones de vectores
         self.combo_metodo = QComboBox()
+        self.combo_metodo.setStyle(ComboBoxCenterStyle())
         self.combo_metodo.addItems(["Sumar", "Restar", "Escalar", "Combinación lineal"])
-        self.combo_metodo.setFixedWidth(120)
+        
+       
+        self.combo_metodo.setFixedWidth(155)
         self.combo_metodo.setFixedHeight(38)
+
         self.combo_metodo.setCurrentIndex(0)
         self.combo_metodo.currentIndexChanged.connect(self._on_operation_changed)
 
         for i in range(self.combo_metodo.count()):
             self.combo_metodo.setItemData(i, Qt.AlignmentFlag.AlignCenter, Qt.ItemDataRole.TextAlignmentRole)
-
-        combo_popup_style = """
+combo_popup_style = """
             QListView {
                 background-color: #FFFFFF;
                 color: #0F172A;
@@ -411,7 +421,7 @@ class VistaVectores(QWidget):
                 background-color: #FFFFFF;
                 border: 1px solid #CBD5E1;
                 border-radius: 8px;
-                padding: 0px 8px;
+                padding: 0px 0px;
                 font-size: 13px;
                 font-weight: 600;
                 color: #475569;
@@ -435,8 +445,9 @@ class VistaVectores(QWidget):
                 border: none;
                 width: 22px;
             }
-        """)
+""")
         self.combo_metodo.view().setStyleSheet(combo_popup_style)
+
         
         action_buttons_layout.addWidget(self.btn_solve)
         action_buttons_layout.addWidget(self.combo_metodo)
@@ -811,18 +822,13 @@ class VistaVectores(QWidget):
         meqs_actions.addStretch()
         meqs_layout.addLayout(meqs_actions)
 
+
         # Añadir las vistas al stacked_layout
         self.stacked_layout.addWidget(matrix_view)
         self.stacked_layout.addWidget(equations_view)
-        self.stacked_layout.addWidget(matrix_ops_view)
-        self.stacked_layout.addWidget(mat_eqs_view) # Index 3
+      
 
-        # Conectar callbacks de los steppers
-        self.stepper_meqs_rows.on_change_callback = self._rebuild_mat_eqs_grid
-        self.stepper_meqs_cols.on_change_callback = self._rebuild_mat_eqs_grid
-        self.stepper_meqs_vars.on_change_callback = self._rebuild_mat_eqs_grid
-
-        self._rebuild_mat_eqs_grid()
+       
         # TARJETA DE RESULTADOS
         self.results_card = QWidget()
         self.results_layout = QVBoxLayout(self.results_card)
@@ -851,18 +857,12 @@ class VistaVectores(QWidget):
                 0, mode_button_active_style, mode_button_style
             )
         )
-        self.btn_matrix_ops.clicked.connect(
-            lambda: self._set_mode(
-                2, mode_button_active_style, mode_button_style
-            )
-        )
+
         self.btn_equations.clicked.connect(
             lambda: self._set_mode(
                 1, mode_button_active_style, mode_button_style
             )
         )
-        self.btn_mat_eqs.clicked.connect(lambda: self._set_mode(3, mode_button_active_style, mode_button_style)) 
-
         content_outer_layout.addWidget(centered_wrapper)
         scroll_area.setWidget(main_content)
         main_layout.addWidget(scroll_area)
@@ -885,23 +885,11 @@ class VistaVectores(QWidget):
         if index == 0:
             self.btn_matrix.setStyleSheet(active_style)
             self.btn_equations.setStyleSheet(inactive_style)
-            self.btn_matrix_ops.setStyleSheet(inactive_style)
-            self.btn_mat_eqs.setStyleSheet(inactive_style)
+        
         elif index == 1:
             self.btn_matrix.setStyleSheet(inactive_style)
             self.btn_equations.setStyleSheet(active_style)
-            self.btn_matrix_ops.setStyleSheet(inactive_style)
-            self.btn_mat_eqs.setStyleSheet(inactive_style)
-        elif index == 2:
-            self.btn_matrix.setStyleSheet(inactive_style)
-            self.btn_equations.setStyleSheet(inactive_style)
-            self.btn_matrix_ops.setStyleSheet(active_style)
-            self.btn_mat_eqs.setStyleSheet(inactive_style)
-        elif index ==3:
-            self.btn_matrix.setStyleSheet(inactive_style)
-            self.btn_equations.setStyleSheet(inactive_style)
-            self.btn_matrix_ops.setStyleSheet(inactive_style)
-            self.btn_mat_eqs.setStyleSheet(active_style)
+  
 
     def _rebuild_matrix_grid(self):
         """
@@ -997,6 +985,10 @@ class VistaVectores(QWidget):
             + (rows - 1) * 8
         )
 
+        # Altura necesaria para mostrar completamente los vectores
+        vectors_height = bracket_height + 20
+
+        self.vectors_scroll.setMinimumHeight(vectors_height)
         # ========================================================
         #                 VECTORES GENERADORES
         # ========================================================
