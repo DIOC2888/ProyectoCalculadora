@@ -1878,20 +1878,11 @@ class VistaVectores(QWidget):
     
     def _crear_card_proceso_operacion(self, resultado):
         """
-        Construye la tarjeta desplegable 'Proceso' para:
+        Construye la tarjeta desplegable 'Proceso' para las operaciones
+        de suma, resta y multiplicación por escalar.
 
-            - Suma de vectores
-            - Resta de vectores
-            - Multiplicación por escalar
-
-        El diseño visual sigue la misma estructura utilizada
-        en renderizar_proceso_eliminacion():
-
-            - Cada paso tiene su propia tarjeta.
-            - Cada tarjeta tiene número de paso.
-            - Título superior.
-            - Badge con la operación.
-            - Contenido alineado.
+        El diseño sigue el mismo estilo visual utilizado en
+        renderizar_proceso_eliminacion().
         """
 
         # ==========================================================
@@ -1910,11 +1901,7 @@ class VistaVectores(QWidget):
         """)
 
         layout_principal = QVBoxLayout(card)
-
-        layout_principal.setContentsMargins(
-            20, 16, 20, 20
-        )
-
+        layout_principal.setContentsMargins(20, 16, 20, 20)
         layout_principal.setSpacing(12)
 
         # ==========================================================
@@ -1922,34 +1909,25 @@ class VistaVectores(QWidget):
         # ==========================================================
 
         header_widget = QWidget()
-
-        header_layout = QHBoxLayout(
-            header_widget
+        header_widget.setStyleSheet(
+            "background: transparent; border: none;"
         )
 
-        header_layout.setContentsMargins(
-            0, 0, 0, 0
-        )
-
-        header_layout.setSpacing(0)
+        header_layout = QHBoxLayout(header_widget)
+        header_layout.setContentsMargins(0, 0, 0, 0)
 
         lbl_title = QLabel("Proceso")
 
         lbl_title.setStyleSheet("""
-            QLabel {
-                color: #0F172A;
-                font-size: 15px;
-                font-weight: 700;
-                border: none;
-                background: transparent;
-            }
+            color: #0F172A;
+            font-size: 15px;
+            font-weight: 700;
+            border: none;
+            background: transparent;
         """)
 
         btn_toggle = QPushButton("−")
-
-        btn_toggle.setFixedSize(
-            24, 24
-        )
+        btn_toggle.setFixedSize(24, 24)
 
         btn_toggle.setStyleSheet("""
             QPushButton {
@@ -1965,29 +1943,26 @@ class VistaVectores(QWidget):
             }
         """)
 
-        header_layout.addWidget(
-            lbl_title
-        )
-
+        header_layout.addWidget(lbl_title)
         header_layout.addStretch()
+        header_layout.addWidget(btn_toggle)
 
-        header_layout.addWidget(
-            btn_toggle
-        )
-
-        layout_principal.addWidget(
-            header_widget
-        )
+        layout_principal.addWidget(header_widget)
 
         # ==========================================================
-        # CONTENEDOR DE PASOS
+        # CONTENIDO
         # ==========================================================
 
         body_widget = QWidget()
 
-        body_layout = QVBoxLayout(
-            body_widget
-        )
+        body_widget.setStyleSheet("""
+            QWidget {
+                background: transparent;
+                border: none;
+            }
+        """)
+
+        body_layout = QVBoxLayout(body_widget)
 
         body_layout.setContentsMargins(
             0, 10, 0, 10
@@ -1999,9 +1974,8 @@ class VistaVectores(QWidget):
         # DATOS
         # ==========================================================
 
-        operacion = resultado.get(
-            "operacion",
-            ""
+        operacion = str(
+            resultado.get("operacion", "")
         )
 
         vectores = resultado.get(
@@ -2023,6 +1997,22 @@ class VistaVectores(QWidget):
         )
 
         # ==========================================================
+        # NOMBRE DE LA OPERACIÓN
+        # ==========================================================
+
+        def crear_nombre_operacion(simbolo):
+
+            nombres = []
+
+            for i in range(len(vectores)):
+
+                nombres.append(
+                    f"v({i + 1})"
+                )
+
+            return f" {simbolo} ".join(nombres)
+
+        # ==========================================================
         # VECTOR VISUAL
         # ==========================================================
 
@@ -2030,9 +2020,14 @@ class VistaVectores(QWidget):
 
             widget = QWidget()
 
-            layout = QHBoxLayout(
-                widget
-            )
+            widget.setStyleSheet("""
+                QWidget {
+                    background: transparent;
+                    border: none;
+                }
+            """)
+
+            layout = QHBoxLayout(widget)
 
             layout.setContentsMargins(
                 0, 0, 0, 0
@@ -2040,47 +2035,70 @@ class VistaVectores(QWidget):
 
             layout.setSpacing(4)
 
-            # Corchete izquierdo
-            bracket_left = QLabel("[")
+            # ------------------------------------------------------
+            # CORCHETE IZQUIERDO
+            # ------------------------------------------------------
 
-            bracket_left.setStyleSheet("""
-                QLabel {
+            try:
+
+                bracket_left = BracketWidget(
+                    is_left=True
+                )
+
+                layout.addWidget(
+                    bracket_left
+                )
+
+            except NameError:
+
+                bracket_left = QLabel("[")
+
+                bracket_left.setStyleSheet("""
                     color: #0F172A;
-                    font-size: 36px;
+                    font-size: 38px;
                     font-weight: 300;
                     font-family: 'Courier New';
                     border: none;
                     background: transparent;
-                    padding: 0;
-                    margin: 0;
-                }
-            """)
+                    padding: 0px;
+                    margin: 0px;
+                """)
 
-            layout.addWidget(
-                bracket_left
-            )
+                layout.addWidget(
+                    bracket_left
+                )
 
-            # Componentes
+            # ------------------------------------------------------
+            # COMPONENTES
+            # ------------------------------------------------------
+
             grid = QGridLayout()
 
+            grid.setVerticalSpacing(4)
+            grid.setHorizontalSpacing(18)
             grid.setContentsMargins(
                 0, 0, 0, 0
-            )
-
-            grid.setHorizontalSpacing(
-                18
-            )
-
-            grid.setVerticalSpacing(
-                4
             )
 
             ALTURA_CELDA = 24
 
             for row, valor in enumerate(vector):
 
+                if isinstance(
+                    valor,
+                    (int, float)
+                ):
+
+                    texto = formatear_numero(
+                        valor
+                    )
+
+                else:
+
+                    texto = str(valor)
+
                 lbl_valor = QLabel(
-                    formatear_numero(valor)
+                    texto
                 )
 
                 lbl_valor.setFixedHeight(
@@ -2109,34 +2127,45 @@ class VistaVectores(QWidget):
                     0
                 )
 
-            layout.addLayout(
-                grid
-            )
+            layout.addLayout(grid)
 
-            # Corchete derecho
-            bracket_right = QLabel("]")
+            # ------------------------------------------------------
+            # CORCHETE DERECHO
+            # ------------------------------------------------------
 
-            bracket_right.setStyleSheet("""
-                QLabel {
+            try:
+
+                bracket_right = BracketWidget(
+                    is_left=False
+                )
+
+                layout.addWidget(
+                    bracket_right
+                )
+
+            except NameError:
+
+                bracket_right = QLabel("]")
+
+                bracket_right.setStyleSheet("""
                     color: #0F172A;
-                    font-size: 36px;
+                    font-size: 38px;
                     font-weight: 300;
                     font-family: 'Courier New';
                     border: none;
                     background: transparent;
-                    padding: 0;
-                    margin: 0;
-                }
-            """)
+                    padding: 0px;
+                    margin: 0px;
+                """)
 
-            layout.addWidget(
-                bracket_right
-            )
+                layout.addWidget(
+                    bracket_right
+                )
 
             return widget
 
         # ==========================================================
-        # VECTORES HORIZONTALES
+        # VECTORES ORIGINALES
         # ==========================================================
 
         def crear_vectores_operacion_widget(
@@ -2146,15 +2175,20 @@ class VistaVectores(QWidget):
 
             widget = QWidget()
 
-            layout = QHBoxLayout(
-                widget
-            )
+            widget.setStyleSheet("""
+                QWidget {
+                    background: transparent;
+                    border: none;
+                }
+            """)
+
+            layout = QHBoxLayout(widget)
 
             layout.setContentsMargins(
                 40, 0, 0, 0
             )
 
-            layout.setSpacing(12)
+            layout.setSpacing(18)
 
             for i, vector in enumerate(vectores):
 
@@ -2170,6 +2204,10 @@ class VistaVectores(QWidget):
                         simbolo
                     )
 
+                    lbl_simbolo.setAlignment(
+                        Qt.AlignmentFlag.AlignCenter
+                    )
+
                     lbl_simbolo.setStyleSheet("""
                         QLabel {
                             color: #0F172A;
@@ -2179,10 +2217,6 @@ class VistaVectores(QWidget):
                             background: transparent;
                         }
                     """)
-
-                    lbl_simbolo.setAlignment(
-                        Qt.AlignmentFlag.AlignCenter
-                    )
 
                     layout.addWidget(
                         lbl_simbolo
@@ -2203,9 +2237,14 @@ class VistaVectores(QWidget):
 
             widget = QWidget()
 
-            layout = QHBoxLayout(
-                widget
-            )
+            widget.setStyleSheet("""
+                QWidget {
+                    background: transparent;
+                    border: none;
+                }
+            """)
+
+            layout = QHBoxLayout(widget)
 
             layout.setContentsMargins(
                 40, 0, 0, 0
@@ -2213,38 +2252,49 @@ class VistaVectores(QWidget):
 
             layout.setSpacing(4)
 
-            bracket_left = QLabel("[")
+            # ------------------------------------------------------
+            # CORCHETE IZQUIERDO
+            # ------------------------------------------------------
 
-            bracket_left.setStyleSheet("""
-                QLabel {
+            try:
+
+                bracket_left = BracketWidget(
+                    is_left=True
+                )
+
+            except NameError:
+
+                bracket_left = QLabel("[")
+
+                bracket_left.setStyleSheet("""
                     color: #0F172A;
-                    font-size: 36px;
+                    font-size: 38px;
                     font-weight: 300;
                     font-family: 'Courier New';
                     border: none;
                     background: transparent;
-                }
-            """)
+                """)
 
             layout.addWidget(
                 bracket_left
             )
 
+            # ------------------------------------------------------
+            # COMPONENTES
+            # ------------------------------------------------------
+
             grid = QGridLayout()
+
+            grid.setVerticalSpacing(4)
+            grid.setHorizontalSpacing(18)
 
             grid.setContentsMargins(
                 0, 0, 0, 0
             )
 
-            grid.setHorizontalSpacing(
-                18
+            dimension = len(
+                vectores[0]
             )
-
-            grid.setVerticalSpacing(
-                4
-            )
-
-            dimension = len(vectores[0])
 
             for row in range(dimension):
 
@@ -2252,11 +2302,24 @@ class VistaVectores(QWidget):
 
                 for vector in vectores:
 
-                    componentes.append(
-                        formatear_numero(
-                            vector[row]
+                    valor = vector[row]
+
+                    if isinstance(
+                        valor,
+                        (int, float)
+                    ):
+
+                        componentes.append(
+                            formatear_numero(
+                                valor
+                            )
                         )
-                    )
+
+                    else:
+
+                        componentes.append(
+                            str(valor)
+                        )
 
                 texto = (
                     f" {simbolo} ".join(
@@ -2268,9 +2331,7 @@ class VistaVectores(QWidget):
                     texto
                 )
 
-                lbl.setFixedHeight(
-                    24
-                )
+                lbl.setFixedHeight(24)
 
                 lbl.setAlignment(
                     Qt.AlignmentFlag.AlignCenter
@@ -2298,18 +2359,28 @@ class VistaVectores(QWidget):
                 grid
             )
 
-            bracket_right = QLabel("]")
+            # ------------------------------------------------------
+            # CORCHETE DERECHO
+            # ------------------------------------------------------
 
-            bracket_right.setStyleSheet("""
-                QLabel {
+            try:
+
+                bracket_right = BracketWidget(
+                    is_left=False
+                )
+
+            except NameError:
+
+                bracket_right = QLabel("]")
+
+                bracket_right.setStyleSheet("""
                     color: #0F172A;
-                    font-size: 36px;
+                    font-size: 38px;
                     font-weight: 300;
                     font-family: 'Courier New';
                     border: none;
                     background: transparent;
-                }
-            """)
+                """)
 
             layout.addWidget(
                 bracket_right
@@ -2320,14 +2391,14 @@ class VistaVectores(QWidget):
             return widget
 
         # ==========================================================
-        # CREAR TARJETA DE PASO
+        # CREAR UNA TARJETA DE PASO
         # ==========================================================
 
-        def crear_step_card(
+        def crear_card_paso(
             numero,
             titulo,
-            operacion_txt=None,
-            contenido=None
+            etiqueta,
+            contenido_widget
         ):
 
             card_step = QFrame()
@@ -2352,9 +2423,7 @@ class VistaVectores(QWidget):
                 16, 16, 16, 16
             )
 
-            step_layout.setSpacing(
-                12
-            )
+            step_layout.setSpacing(12)
 
             # ------------------------------------------------------
             # HEADER DEL PASO
@@ -2366,11 +2435,10 @@ class VistaVectores(QWidget):
                 0, 0, 0, 0
             )
 
-            header_step.setSpacing(
-                12
-            )
+            header_step.setSpacing(12)
 
-            # Círculo
+            # Número
+
             lbl_num = QLabel(
                 str(numero)
             )
@@ -2399,21 +2467,20 @@ class VistaVectores(QWidget):
             """)
 
             # Columna de textos
+
             vbox_textos = QVBoxLayout()
 
             vbox_textos.setContentsMargins(
                 0, 0, 0, 0
             )
 
-            vbox_textos.setSpacing(
-                6
-            )
+            vbox_textos.setSpacing(6)
 
-            lbl_sub = QLabel(
+            lbl_titulo = QLabel(
                 titulo
             )
 
-            lbl_sub.setStyleSheet("""
+            lbl_titulo.setStyleSheet("""
                 QLabel {
                     color: #64748B;
                     font-size: 10px;
@@ -2425,17 +2492,26 @@ class VistaVectores(QWidget):
             """)
 
             vbox_textos.addWidget(
-                lbl_sub
+                lbl_titulo
             )
 
-            # Badge
-            if operacion_txt:
+            # ------------------------------------------------------
+            # BADGE
+            # ------------------------------------------------------
 
-                lbl_op = QLabel(
-                    operacion_txt
+            if etiqueta:
+
+                hbox_badge = QHBoxLayout()
+
+                hbox_badge.setContentsMargins(
+                    0, 0, 0, 0
                 )
 
-                lbl_op.setStyleSheet("""
+                lbl_etiqueta = QLabel(
+                    etiqueta
+                )
+
+                lbl_etiqueta.setStyleSheet("""
                     QLabel {
                         background-color: #F8FAFC;
                         color: #0F172A;
@@ -2450,8 +2526,14 @@ class VistaVectores(QWidget):
                     }
                 """)
 
-                vbox_textos.addWidget(
-                    lbl_op
+                hbox_badge.addWidget(
+                    lbl_etiqueta
+                )
+
+                hbox_badge.addStretch()
+
+                vbox_textos.addLayout(
+                    hbox_badge
                 )
 
             header_step.addWidget(
@@ -2473,11 +2555,9 @@ class VistaVectores(QWidget):
             # CONTENIDO
             # ------------------------------------------------------
 
-            if contenido:
-
-                step_layout.addLayout(
-                    contenido
-                )
+            step_layout.addWidget(
+                contenido_widget
+            )
 
             return card_step
 
@@ -2485,280 +2565,317 @@ class VistaVectores(QWidget):
         # SUMA
         # ==========================================================
 
-        if operacion == "suma" and len(vectores) >= 2:
+        if operacion == "Sumar" and len(vectores) >= 2:
 
-            # Paso 1
-            contenido = QHBoxLayout()
-
-            contenido.setContentsMargins(
-                40, 0, 0, 0
+            nombre_operacion = crear_nombre_operacion(
+                "+"
             )
 
-            contenido.addWidget(
-                crear_vectores_operacion_widget(
-                    vectores,
-                    "+"
-                )
+            # ------------------------------------------------------
+            # PASO 1
+            # ------------------------------------------------------
+
+            paso1 = crear_vectores_operacion_widget(
+                vectores,
+                "+"
             )
 
-            step1 = crear_step_card(
+            card1 = crear_card_paso(
                 1,
                 "OPERACIÓN VECTORIAL",
-                crear_nombre_operacion("+")
-                if False else
-                " + ".join(
-                    f"v₍{i + 1}₎"
-                    for i in range(len(vectores))
-                ),
-                contenido
+                nombre_operacion,
+                paso1
             )
 
             body_layout.addWidget(
-                step1
+                card1
             )
 
-            # Paso 2
-            contenido2 = QHBoxLayout()
+            # ------------------------------------------------------
+            # PASO 2
+            # ------------------------------------------------------
 
-            contenido2.setContentsMargins(
-                0, 0, 0, 0
+            componentes = crear_componentes_widget(
+                vectores,
+                "+"
             )
 
-            contenido2.addWidget(
-                crear_componentes_widget(
-                    vectores,
-                    "+"
-                )
-            )
-
-            step2 = crear_step_card(
+            card2 = crear_card_paso(
                 2,
                 "OPERACIÓN COMPONENTE A COMPONENTE",
-                "Suma de componentes",
-                contenido2
+                nombre_operacion,
+                componentes
             )
 
             body_layout.addWidget(
-                step2
+                card2
             )
 
-            # Paso 3
-            contenido3 = QHBoxLayout()
+            # ------------------------------------------------------
+            # PASO 3
+            # ------------------------------------------------------
 
-            contenido3.setContentsMargins(
+            resultado_widget = crear_vector_widget(
+                resultado_vector
+            )
+
+            resultado_wrapper = QWidget()
+
+            resultado_wrapper.setStyleSheet("""
+                QWidget {
+                    background: transparent;
+                    border: none;
+                }
+            """)
+
+            resultado_layout = QHBoxLayout(
+                resultado_wrapper
+            )
+
+            resultado_layout.setContentsMargins(
                 40, 0, 0, 0
             )
 
-            contenido3.addWidget(
-                crear_vector_widget(
-                    resultado_vector
-                )
+            resultado_layout.addWidget(
+                resultado_widget
             )
 
-            contenido3.addStretch()
+            resultado_layout.addStretch()
 
-            step3 = crear_step_card(
+            card3 = crear_card_paso(
                 3,
                 "RESULTADO",
                 None,
-                contenido3
+                resultado_wrapper
             )
 
             body_layout.addWidget(
-                step3
+                card3
             )
 
         # ==========================================================
         # RESTA
         # ==========================================================
 
-        elif operacion == "resta" and len(vectores) >= 2:
+        elif operacion == "Restar" and len(vectores) >= 2:
 
-            # Paso 1
-            contenido = QHBoxLayout()
-
-            contenido.setContentsMargins(
-                40, 0, 0, 0
+            nombre_operacion = crear_nombre_operacion(
+                "−"
             )
 
-            contenido.addWidget(
-                crear_vectores_operacion_widget(
-                    vectores,
-                    "−"
-                )
+            # ------------------------------------------------------
+            # PASO 1
+            # ------------------------------------------------------
+
+            paso1 = crear_vectores_operacion_widget(
+                vectores,
+                "−"
             )
 
-            step1 = crear_step_card(
+            card1 = crear_card_paso(
                 1,
                 "OPERACIÓN VECTORIAL",
-                " − ".join(
-                    f"v₍{i + 1}₎"
-                    for i in range(len(vectores))
-                ),
-                contenido
+                nombre_operacion,
+                paso1
             )
 
             body_layout.addWidget(
-                step1
+                card1
             )
 
-            # Paso 2
-            contenido2 = QHBoxLayout()
+            # ------------------------------------------------------
+            # PASO 2
+            # ------------------------------------------------------
 
-            contenido2.setContentsMargins(
-                0, 0, 0, 0
+            componentes = crear_componentes_widget(
+                vectores,
+                "−"
             )
 
-            contenido2.addWidget(
-                crear_componentes_widget(
-                    vectores,
-                    "−"
-                )
-            )
-
-            step2 = crear_step_card(
+            card2 = crear_card_paso(
                 2,
                 "OPERACIÓN COMPONENTE A COMPONENTE",
-                "Resta de componentes",
-                contenido2
+                nombre_operacion,
+                componentes
             )
 
             body_layout.addWidget(
-                step2
+                card2
             )
 
-            # Paso 3
-            contenido3 = QHBoxLayout()
+            # ------------------------------------------------------
+            # PASO 3
+            # ------------------------------------------------------
 
-            contenido3.setContentsMargins(
+            resultado_widget = crear_vector_widget(
+                resultado_vector
+            )
+
+            resultado_wrapper = QWidget()
+
+            resultado_wrapper.setStyleSheet("""
+                QWidget {
+                    background: transparent;
+                    border: none;
+                }
+            """)
+
+            resultado_layout = QHBoxLayout(
+                resultado_wrapper
+            )
+
+            resultado_layout.setContentsMargins(
                 40, 0, 0, 0
             )
 
-            contenido3.addWidget(
-                crear_vector_widget(
-                    resultado_vector
-                )
+            resultado_layout.addWidget(
+                resultado_widget
             )
 
-            contenido3.addStretch()
+            resultado_layout.addStretch()
 
-            step3 = crear_step_card(
+            card3 = crear_card_paso(
                 3,
                 "RESULTADO",
                 None,
-                contenido3
+                resultado_wrapper
             )
 
             body_layout.addWidget(
-                step3
+                card3
             )
 
         # ==========================================================
         # ESCALAR
         # ==========================================================
 
-        elif operacion == "escalar":
+        elif operacion == "Escalar":
 
             if vector_original is None:
                 vector_original = []
 
+            etiqueta = (
+                f"{formatear_numero(escalar)} · v(1)"
+            )
+
             # ------------------------------------------------------
-            # Paso 1: Vector original
+            # PASO 1
             # ------------------------------------------------------
 
-            contenido = QHBoxLayout()
+            vector_original_widget = crear_vector_widget(
+                vector_original
+            )
 
-            contenido.setContentsMargins(
+            wrapper1 = QWidget()
+
+            wrapper1.setStyleSheet("""
+                QWidget {
+                    background: transparent;
+                    border: none;
+                }
+            """)
+
+            layout1 = QHBoxLayout(wrapper1)
+
+            layout1.setContentsMargins(
                 40, 0, 0, 0
             )
 
-            contenido.addWidget(
-                crear_vector_widget(
-                    vector_original
-                )
+            layout1.addWidget(
+                vector_original_widget
             )
 
-            contenido.addStretch()
+            layout1.addStretch()
 
-            step1 = crear_step_card(
+            card1 = crear_card_paso(
                 1,
-                "VECTOR ORIGINAL",
-                f"{formatear_numero(escalar)} · v₁",
-                contenido
+                "OPERACIÓN VECTORIAL",
+                etiqueta,
+                wrapper1
             )
 
             body_layout.addWidget(
-                step1
+                card1
             )
 
             # ------------------------------------------------------
-            # Paso 2: Componentes
+            # PASO 2
             # ------------------------------------------------------
 
-            contenido2 = QHBoxLayout()
+            componentes = []
 
-            contenido2.setContentsMargins(
-                40, 0, 0, 0
-            )
+            for valor in vector_original:
 
-            # Vector de operaciones
+                if isinstance(
+                    valor,
+                    (int, float)
+                ):
+
+                    valor_txt = formatear_numero(
+                        valor
+                    )
+
+                else:
+
+                    valor_txt = str(valor)
+
+                componentes.append(
+                    f"{formatear_numero(escalar)} · "
+                    f"{valor_txt}"
+                )
+
             comp_widget = QWidget()
+
+            comp_widget.setStyleSheet("""
+                QWidget {
+                    background: transparent;
+                    border: none;
+                }
+            """)
 
             comp_layout = QHBoxLayout(
                 comp_widget
             )
 
             comp_layout.setContentsMargins(
-                0, 0, 0, 0
+                40, 0, 0, 0
             )
 
-            comp_layout.setSpacing(
-                4
-            )
+            try:
 
-            bracket_left = QLabel("[")
+                comp_layout.addWidget(
+                    BracketWidget(
+                        is_left=True
+                    )
+                )
 
-            bracket_left.setStyleSheet("""
-                QLabel {
+            except NameError:
+
+                bracket = QLabel("[")
+                bracket.setStyleSheet("""
                     color: #0F172A;
-                    font-size: 36px;
-                    font-weight: 300;
+                    font-size: 38px;
                     font-family: 'Courier New';
                     border: none;
                     background: transparent;
-                }
-            """)
+                """)
 
-            comp_layout.addWidget(
-                bracket_left
-            )
+                comp_layout.addWidget(
+                    bracket
+                )
 
             grid = QGridLayout()
 
-            grid.setContentsMargins(
-                0, 0, 0, 0
-            )
+            grid.setVerticalSpacing(4)
+            grid.setHorizontalSpacing(18)
 
-            grid.setVerticalSpacing(
-                4
-            )
-
-            for row, valor in enumerate(
-                vector_original
-            ):
-
-                texto = (
-                    f"{formatear_numero(escalar)} · "
-                    f"{formatear_numero(valor)}"
-                )
+            for row, texto in enumerate(componentes):
 
                 lbl = QLabel(
                     texto
                 )
 
-                lbl.setFixedHeight(
-                    24
-                )
+                lbl.setFixedHeight(24)
 
                 lbl.setAlignment(
                     Qt.AlignmentFlag.AlignCenter
@@ -2786,67 +2903,80 @@ class VistaVectores(QWidget):
                 grid
             )
 
-            bracket_right = QLabel("]")
+            try:
 
-            bracket_right.setStyleSheet("""
-                QLabel {
+                comp_layout.addWidget(
+                    BracketWidget(
+                        is_left=False
+                    )
+                )
+
+            except NameError:
+
+                bracket = QLabel("]")
+                bracket.setStyleSheet("""
                     color: #0F172A;
-                    font-size: 36px;
-                    font-weight: 300;
+                    font-size: 38px;
                     font-family: 'Courier New';
                     border: none;
                     background: transparent;
-                }
-            """)
+                """)
 
-            comp_layout.addWidget(
-                bracket_right
-            )
+                comp_layout.addWidget(
+                    bracket
+                )
 
-            contenido2.addWidget(
+            comp_layout.addStretch()
+
+            card2 = crear_card_paso(
+                2,
+                "OPERACIÓN COMPONENTE A COMPONENTE",
+                etiqueta,
                 comp_widget
             )
 
-            contenido2.addStretch()
-
-            step2 = crear_step_card(
-                2,
-                "MULTIPLICACIÓN COMPONENTE A COMPONENTE",
-                f"{formatear_numero(escalar)} · v₁",
-                contenido2
-            )
-
             body_layout.addWidget(
-                step2
+                card2
             )
 
             # ------------------------------------------------------
-            # Paso 3: Resultado
+            # PASO 3
             # ------------------------------------------------------
 
-            contenido3 = QHBoxLayout()
+            resultado_widget = crear_vector_widget(
+                resultado_vector
+            )
 
-            contenido3.setContentsMargins(
+            wrapper3 = QWidget()
+
+            wrapper3.setStyleSheet("""
+                QWidget {
+                    background: transparent;
+                    border: none;
+                }
+            """)
+
+            layout3 = QHBoxLayout(wrapper3)
+
+            layout3.setContentsMargins(
                 40, 0, 0, 0
             )
 
-            contenido3.addWidget(
-                crear_vector_widget(
-                    resultado_vector
-                )
+            layout3.addWidget(
+                resultado_widget
             )
 
-            contenido3.addStretch()
+            layout3.addStretch()
 
-            step3 = crear_step_card(
+            card3 = crear_card_paso(
                 3,
                 "RESULTADO",
                 None,
-                contenido3
+                wrapper3
             )
 
             body_layout.addWidget(
-                step3
+                card3
             )
 
         # ==========================================================
@@ -2862,8 +2992,8 @@ class VistaVectores(QWidget):
             lbl_vacio.setStyleSheet("""
                 QLabel {
                     color: #64748B;
+                    font-size: 13px;
                     font-style: italic;
-                    padding: 12px;
                     border: none;
                     background: transparent;
                 }

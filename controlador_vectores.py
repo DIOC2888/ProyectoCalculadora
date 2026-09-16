@@ -400,97 +400,117 @@ class ControladorVectores:
                 "mensaje":
                     str(e)
             }
-
-    # ========================================================
+        # ========================================================
     #              OPERACIONES MATRICIALES
     # ========================================================
 
     @staticmethod
-    def sumar_matrices(A, B):
+    def sumar_matrices(matrices):
         """
-        Ejecuta la suma de dos matrices.
+        Suma dos o más matrices utilizando el backend.
+
+        Recibe una lista de matrices y devuelve tanto
+        el resultado como el proceso de la operación.
         """
 
         try:
 
-            resultado = (
-                backend_matrices
-                .sumar_matrices(
-                    A,
-                    B
-                )
+            datos = backend_matrices.sumar_matrices(
+                matrices
             )
 
             return {
                 "exito": True,
-                "resultado": resultado,
-                "mensaje":
+                "operacion": "Sumar matrices",
+                "matrices": matrices,
+                "resultado": datos["resultado"],
+                "proceso": datos["proceso"],
+                "mensaje": (
                     "Suma de matrices realizada correctamente."
+                )
             }
 
         except (ValueError, TypeError) as e:
 
             return {
                 "exito": False,
+                "operacion": "Sumar matrices",
+                "matrices": matrices,
                 "resultado": None,
+                "proceso": [],
                 "mensaje": str(e)
             }
+
 
     @staticmethod
-    def restar_matrices(A, B):
+    def restar_matrices(matrices):
         """
-        Ejecuta la resta de dos matrices.
+        Resta dos o más matrices utilizando el backend.
+
+        Realiza:
+
+            M1 - M2 - M3 - ...
+
+        Devuelve el resultado y el proceso.
         """
 
         try:
 
-            resultado = (
-                backend_matrices
-                .restar_matrices(
-                    A,
-                    B
-                )
+            datos = backend_matrices.restar_matrices(
+                matrices
             )
 
             return {
                 "exito": True,
-                "resultado": resultado,
-                "mensaje":
+                "operacion": "Restar matrices",
+                "matrices": matrices,
+                "resultado": datos["resultado"],
+                "proceso": datos["proceso"],
+                "mensaje": (
                     "Resta de matrices realizada correctamente."
+                )
             }
 
         except (ValueError, TypeError) as e:
 
             return {
                 "exito": False,
+                "operacion": "Restar matrices",
+                "matrices": matrices,
                 "resultado": None,
+                "proceso": [],
                 "mensaje": str(e)
             }
+
 
     @staticmethod
     def multiplicar_matriz_escalar(
-        A,
+        matriz,
         escalar
     ):
         """
-        Multiplica una matriz por un escalar.
+        Multiplica una matriz por un escalar utilizando
+        el backend.
+
+        Devuelve el resultado y el proceso.
         """
 
         try:
 
             escalar = float(escalar)
 
-            resultado = (
-                backend_matrices
-                .multiplicar_matriz_escalar(
-                    A,
-                    escalar
-                )
+            datos = backend_matrices.multiplicar_matriz_escalar(
+                matriz,
+                escalar
             )
 
             return {
                 "exito": True,
-                "resultado": resultado,
+                "operacion": "Multiplicar matriz por escalar",
+                "matriz": matriz,
+                "escalar": escalar,
+                "resultado": datos["resultado"],
+                "proceso": datos["proceso"],
                 "mensaje": (
                     "Multiplicación de matriz por escalar "
                     "realizada correctamente."
@@ -501,44 +521,54 @@ class ControladorVectores:
 
             return {
                 "exito": False,
+                "operacion": "Multiplicar matriz por escalar",
+                "matriz": matriz,
+                "escalar": escalar,
                 "resultado": None,
-                "mensaje":
+                "proceso": [],
+                "mensaje": (
                     "El escalar debe ser un número válido."
+                )
             }
 
         except TypeError as e:
 
             return {
                 "exito": False,
+                "operacion": "Multiplicar matriz por escalar",
+                "matriz": matriz,
+                "escalar": escalar,
                 "resultado": None,
+                "proceso": [],
                 "mensaje": str(e)
             }
 
+
     @staticmethod
-    def multiplicar_matrices(A, B):
+    def multiplicar_matrices(matrices):
         """
-        Ejecuta la multiplicación:
+        Multiplica dos o más matrices utilizando el backend.
 
-            A(m x n) · B(n x p)
+        Realiza:
 
-        verificando que:
+            M1 × M2 × M3 × ...
 
-            columnas de A = filas de B
+        Las dimensiones deben ser compatibles en cada
+        multiplicación consecutiva.
         """
 
         try:
 
-            resultado = (
-                backend_matrices
-                .multiplicar_matrices(
-                    A,
-                    B
-                )
+            datos = backend_matrices.multiplicar_matrices(
+                matrices
             )
 
             return {
                 "exito": True,
-                "resultado": resultado,
+                "operacion": "Multiplicar matrices",
+                "matrices": matrices,
+                "resultado": datos["resultado"],
+                "proceso": datos["proceso"],
                 "mensaje": (
                     "Multiplicación de matrices "
                     "realizada correctamente."
@@ -549,10 +579,12 @@ class ControladorVectores:
 
             return {
                 "exito": False,
+                "operacion": "Multiplicar matrices",
+                "matrices": matrices,
                 "resultado": None,
+                "proceso": [],
                 "mensaje": str(e)
             }
-
     # ========================================================
     #                  ECUACIONES Ax = b
     # ========================================================
