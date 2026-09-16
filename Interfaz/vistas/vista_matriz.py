@@ -263,6 +263,28 @@ class VistaMatriz(QWidget):
         for i in range(self.combo_metodo.count()):
             self.combo_metodo.setItemData(i, Qt.AlignmentFlag.AlignCenter, Qt.ItemDataRole.TextAlignmentRole)
 
+        combo_popup_style = """
+            QListView {
+                background-color: #FFFFFF;
+                color: #0F172A;
+                border: 1px solid #CBD5E1;
+                border-radius: 8px;
+                padding: 4px;
+                outline: 0px;
+            }
+            QListView::item {
+                min-height: 30px;
+                padding: 6px 10px;
+                color: #0F172A;
+                background-color: #FFFFFF;
+            }
+            QListView::item:selected,
+            QListView::item:hover {
+                background-color: #EFF6FF;
+                color: #2563EB;
+            }
+        """
+
         self.combo_metodo.setStyleSheet("""
             QComboBox {
                 background-color: #FFFFFF;
@@ -278,6 +300,12 @@ class VistaMatriz(QWidget):
                 border: 1px solid #2563EB;
             }
             QComboBox QAbstractItemView {
+                background-color: #FFFFFF;
+                color: #0F172A;
+                border: 1px solid #CBD5E1;
+                border-radius: 8px;
+                outline: 0px;
+                padding: 4px;
                 text-align: center;
                 selection-background-color: #F1F5F9;
                 selection-color: #2563EB;
@@ -287,6 +315,7 @@ class VistaMatriz(QWidget):
                 width: 22px;
             }
         """)
+        self.combo_metodo.view().setStyleSheet(combo_popup_style)
         
         action_buttons_layout.addWidget(self.btn_solve)
         action_buttons_layout.addWidget(self.combo_metodo)
@@ -538,7 +567,9 @@ class VistaMatriz(QWidget):
             for c in range(columnas):
                 val = matriz[r][c]
                 lbl_val = QLabel(
-                    f"{val:g}" if isinstance(val, (int, float)) else str(val)
+                    formatear_numero(val)
+                    if isinstance(val, (int, float))
+                    else str(val)
                 )
                 lbl_val.setStyleSheet(
                     "font-size: 15px; color: #0F172A; font-family: sans-serif;"
@@ -557,7 +588,9 @@ class VistaMatriz(QWidget):
             # Vector b
             val_b = matriz[r][-1]
             lbl_b = QLabel(
-                f"{val_b:g}" if isinstance(val_b, (int, float)) else str(val_b)
+                formatear_numero(val_b)
+                if isinstance(val_b, (int, float))
+                else str(val_b)
             )
             lbl_b.setStyleSheet(
                 "font-size: 15px; font-weight: bold; color: #0F172A; font-family: sans-serif;"

@@ -21,6 +21,20 @@ def subindice(numero):
 # MOSTRAR DECIMALES COMO FRACCIONES
 # ----------------------------------------------------------
 
+def formatear_decimal(numero, decimales=4):
+
+    if abs(numero - round(numero)) < TOLERANCIA:
+        return str(int(round(numero)))
+
+    texto = f"{numero:.{decimales}f}"
+    texto = texto.rstrip("0").rstrip(".")
+
+    if texto == "-0" or texto == "":
+        return "0"
+
+    return texto
+
+
 def formatear_numero(numero):
 
     # Si está muy cerca de un número entero,
@@ -30,6 +44,9 @@ def formatear_numero(numero):
 
     # Convertimos el decimal a fracción
     fraccion = Fraction(numero).limit_denominator(1000)
+
+    if abs(float(fraccion) - numero) > TOLERANCIA:
+        return formatear_decimal(numero)
 
     return (
         f"{fraccion.numerator}/"

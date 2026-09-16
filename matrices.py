@@ -19,6 +19,7 @@ from validaciones import (
     validar_mismas_dimensiones_matrices,
     validar_multiplicacion_matrices
 )
+from formato import formatear_numero
 
 
 # ============================================================
@@ -36,8 +37,8 @@ def _formatear_numero(valor):
         -3.0 -> "-3"
     """
 
-    if isinstance(valor, float) and valor.is_integer():
-        return str(int(valor))
+    if isinstance(valor, (int, float)):
+        return formatear_numero(valor)
 
     return str(valor)
 

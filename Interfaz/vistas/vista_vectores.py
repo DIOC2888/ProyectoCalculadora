@@ -384,6 +384,28 @@ class VistaVectores(QWidget):
         for i in range(self.combo_metodo.count()):
             self.combo_metodo.setItemData(i, Qt.AlignmentFlag.AlignCenter, Qt.ItemDataRole.TextAlignmentRole)
 
+        combo_popup_style = """
+            QListView {
+                background-color: #FFFFFF;
+                color: #0F172A;
+                border: 1px solid #CBD5E1;
+                border-radius: 8px;
+                padding: 4px;
+                outline: 0px;
+            }
+            QListView::item {
+                min-height: 30px;
+                padding: 6px 10px;
+                color: #0F172A;
+                background-color: #FFFFFF;
+            }
+            QListView::item:selected,
+            QListView::item:hover {
+                background-color: #EFF6FF;
+                color: #2563EB;
+            }
+        """
+
         self.combo_metodo.setStyleSheet("""
             QComboBox {
                 background-color: #FFFFFF;
@@ -399,6 +421,12 @@ class VistaVectores(QWidget):
                 border: 1px solid #2563EB;
             }
             QComboBox QAbstractItemView {
+                background-color: #FFFFFF;
+                color: #0F172A;
+                border: 1px solid #CBD5E1;
+                border-radius: 8px;
+                outline: 0px;
+                padding: 4px;
                 text-align: center;
                 selection-background-color: #F1F5F9;
                 selection-color: #2563EB;
@@ -408,6 +436,7 @@ class VistaVectores(QWidget):
                 width: 22px;
             }
         """)
+        self.combo_metodo.view().setStyleSheet(combo_popup_style)
         
         action_buttons_layout.addWidget(self.btn_solve)
         action_buttons_layout.addWidget(self.combo_metodo)
@@ -691,6 +720,7 @@ class VistaVectores(QWidget):
         self.combo_mops_metodo.setFixedHeight(38)
         self.combo_mops_metodo.setCurrentIndex(0)
         self.combo_mops_metodo.setStyleSheet(self.combo_metodo.styleSheet())
+        self.combo_mops_metodo.view().setStyleSheet(combo_popup_style)
         self.combo_mops_metodo.currentIndexChanged.connect(self._on_mops_operation_changed)
 
         for i in range(self.combo_mops_metodo.count()):
@@ -2051,7 +2081,11 @@ class VistaVectores(QWidget):
             for i, fila in enumerate(matriz_aug):
                 num_cols = len(fila)
                 for j, val in enumerate(fila):
-                    lbl_val = QLabel(f"{val:g}" if isinstance(val, (int, float)) else str(val))
+                    lbl_val = QLabel(
+                        formatear_numero(val)
+                        if isinstance(val, (int, float))
+                        else str(val)
+                    )
                     
                     # Estilo diferenciado para la columna b (negrita)
                     if j == num_cols - 1:

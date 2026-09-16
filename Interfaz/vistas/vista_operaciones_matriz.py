@@ -235,6 +235,9 @@ class VistaOperacionesMatriz(QWidget):
 
         self.mops_scroll = QScrollArea()
         self.mops_scroll.setWidgetResizable(False)
+        self.mops_scroll.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop
+        )
 
         self.mops_scroll.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
@@ -441,6 +444,27 @@ class VistaOperacionesMatriz(QWidget):
         self.combo_mops_metodo.setFixedWidth(120)
         self.combo_mops_metodo.setFixedHeight(38)
         self.combo_mops_metodo.setCurrentIndex(0)
+        combo_popup_style = """
+            QListView {
+                background-color: #FFFFFF;
+                color: #0F172A;
+                border: 1px solid #CBD5E1;
+                border-radius: 8px;
+                padding: 4px;
+                outline: 0px;
+            }
+            QListView::item {
+                min-height: 30px;
+                padding: 6px 10px;
+                color: #0F172A;
+                background-color: #FFFFFF;
+            }
+            QListView::item:selected,
+            QListView::item:hover {
+                background-color: #EFF6FF;
+                color: #2563EB;
+            }
+        """
         self.combo_mops_metodo.setStyleSheet("""
             QComboBox {
                 background-color: #FFFFFF;
@@ -457,6 +481,12 @@ class VistaOperacionesMatriz(QWidget):
             }
 
             QComboBox QAbstractItemView {
+                background-color: #FFFFFF;
+                color: #0F172A;
+                border: 1px solid #CBD5E1;
+                border-radius: 8px;
+                outline: 0px;
+                padding: 4px;
                 selection-background-color: #F1F5F9;
                 selection-color: #2563EB;
             }
@@ -466,6 +496,7 @@ class VistaOperacionesMatriz(QWidget):
                 width: 22px;
             }
         """)
+        self.combo_mops_metodo.view().setStyleSheet(combo_popup_style)
 
         self.combo_mops_metodo.currentIndexChanged.connect(self._on_mops_operation_changed)
 
@@ -685,39 +716,37 @@ class VistaOperacionesMatriz(QWidget):
                 valores_actuales.append(matriz_valores)
 
         # ============================================================
-        # 2. ELIMINAR SOLAMENTE LAS MATRICES
-        #    NO eliminar mops_container ni mops_scroll
+        # 2. RECREAR EL CONTENEDOR INTERNO DEL SCROLL
         # ============================================================
 
-        while self.mops_layout_inner.count():
+        old_container = self.mops_scroll.takeWidget()
 
-            item = self.mops_layout_inner.takeAt(0)
+        if old_container is not None:
+            old_container.deleteLater()
 
-            layout = item.layout()
+        self.mops_container = QWidget()
+        self.mops_container.setStyleSheet(
+            "background-color: transparent;"
+        )
+        self.mops_container.setSizePolicy(
+            QSizePolicy.Policy.Fixed,
+            QSizePolicy.Policy.Fixed
+        )
 
-            if layout is not None:
+        self.mops_layout_inner = QHBoxLayout(
+            self.mops_container
+        )
+        self.mops_layout_inner.setContentsMargins(
+            0, 0, 0, 0
+        )
+        self.mops_layout_inner.setSpacing(20)
+        self.mops_layout_inner.setAlignment(
+            Qt.AlignmentFlag.AlignLeft
+        )
 
-                while layout.count():
-
-                    sub_item = layout.takeAt(0)
-
-                    widget = sub_item.widget()
-
-                    if widget is not None:
-                        widget.deleteLater()
-
-                    sub_layout = sub_item.layout()
-
-                    if sub_layout is not None:
-
-                        while sub_layout.count():
-
-                            sub_sub_item = sub_layout.takeAt(0)
-
-                            widget = sub_sub_item.widget()
-
-                            if widget is not None:
-                                widget.deleteLater()
+        self.mops_scroll.setWidget(
+            self.mops_container
+        )
 
         # ============================================================
         # 3. DIMENSIONES
@@ -760,7 +789,28 @@ class VistaOperacionesMatriz(QWidget):
             }
         """
 
-        bracket_height = rows * 36 + (rows - 1) * 8
+        input_width = 54
+        input_height = 36
+        grid_spacing = 8
+        bracket_width = 12
+        bracket_gap = 4
+        matrix_spacing = 20
+        label_height = 16
+        label_gap = 6
+
+        bracket_height = rows * input_height + (rows - 1) * grid_spacing
+        matrix_width = (
+            bracket_width * 2
+            + cols * input_width
+            + max(0, cols - 1) * grid_spacing
+            + bracket_gap * 2
+        )
+        matrix_height = label_height + label_gap + bracket_height
+        content_width = (
+            num_matrices * matrix_width
+            + max(0, num_matrices - 1) * matrix_spacing
+        )
+        content_height = matrix_height
 
         # ============================================================
         # 5. CREAR A1, A2, A3...
@@ -768,8 +818,16 @@ class VistaOperacionesMatriz(QWidget):
 
         for m in range(num_matrices):
 
-            mat_box = QVBoxLayout()
+            mat_widget = QWidget()
+            mat_widget.setStyleSheet("background-color: transparent;")
+            mat_widget.setSizePolicy(
+                QSizePolicy.Policy.Fixed,
+                QSizePolicy.Policy.Fixed
+            )
+
+            mat_box = QVBoxLayout(mat_widget)
             mat_box.setSpacing(6)
+            mat_box.setContentsMargins(0, 0, 0, 0)
             mat_box.setAlignment(Qt.AlignmentFlag.AlignTop)
 
             # --------------------------------------------------------
@@ -832,7 +890,7 @@ class VistaOperacionesMatriz(QWidget):
                         Qt.AlignmentFlag.AlignCenter
                     )
 
-                    inp.setFixedSize(54, 36)
+                    inp.setFixedSize(input_width, input_height)
 
                     inp.setStyleSheet(input_style)
 
@@ -854,7 +912,9 @@ class VistaOperacionesMatriz(QWidget):
 
             mat_box.addLayout(mat_row_layout)
 
-            self.mops_layout_inner.addLayout(mat_box)
+            mat_widget.setFixedSize(matrix_width, matrix_height)
+
+            self.mops_layout_inner.addWidget(mat_widget)
 
         # ============================================================
         # 6. ESCALAR
@@ -866,22 +926,19 @@ class VistaOperacionesMatriz(QWidget):
         # 7. AJUSTAR EL CONTENEDOR DEL SCROLL
         # ============================================================
 
-        self.mops_layout_inner.activate()
+        scroll_height = content_height + 18
 
-        size = self.mops_layout_inner.sizeHint()
-
-        self.mops_container.setMinimumSize(
-            size.width(),
-            size.height()
+        self.mops_container.setFixedSize(
+            content_width,
+            content_height
         )
 
-        self.mops_container.resize(
-            size.width(),
-            size.height()
-        )
+        self.mops_scroll.setFixedHeight(scroll_height)
 
+        self.mops_container.show()
         self.mops_container.updateGeometry()
         self.mops_scroll.updateGeometry()
+        self.mops_scroll.horizontalScrollBar().setValue(0)
         self.mops_scroll.viewport().update()
 
     def _clear_matrix_ops_inputs(self):
@@ -891,17 +948,25 @@ class VistaOperacionesMatriz(QWidget):
                     inp.setText("0")
         self.inp_mops_escalar.setText("1")
     def _rebuild_mat_eqs_grid(self):
-        # Función recursiva para limpiar layouts y widgets completamente
-        def clear_layout(layout):
-            while layout.count():
-                item = layout.takeAt(0)
-                widget = item.widget()
-                if widget is not None:
-                    widget.deleteLater()
-                elif item.layout() is not None:
-                    clear_layout(item.layout())
+        # Guardar valores antes de reconstruir la grilla.
+        valores_matriz = []
 
-        clear_layout(self.meqs_layout_inner)
+        if hasattr(self, "meqs_matrix_inputs"):
+            for fila_inputs in self.meqs_matrix_inputs:
+                valores_matriz.append([
+                    inp.text()
+                    for inp in fila_inputs
+                ])
+
+        valores_vector = []
+
+        if hasattr(self, "meqs_vector_inputs"):
+            valores_vector = [
+                inp.text()
+                for inp in self.meqs_vector_inputs
+            ]
+
+        self._clear_layout(self.meqs_layout_inner)
 
         rows = self.stepper_meqs_rows.value  # Filas de la Matriz A
         cols = self.stepper_meqs_cols.value  # Columnas de la Matriz A
@@ -926,8 +991,16 @@ class VistaOperacionesMatriz(QWidget):
         self.meqs_vector_inputs = []
 
         # --- 1. MATRIZ A ---
-        mat_box = QVBoxLayout()
+        mat_widget = QWidget()
+        mat_widget.setStyleSheet("background-color: transparent;")
+        mat_widget.setSizePolicy(
+            QSizePolicy.Policy.Fixed,
+            QSizePolicy.Policy.Fixed
+        )
+
+        mat_box = QVBoxLayout(mat_widget)
         mat_box.setSpacing(6)
+        mat_box.setContentsMargins(0, 0, 0, 0)
         mat_box.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         lbl_a = QLabel("A")
@@ -950,7 +1023,15 @@ class VistaOperacionesMatriz(QWidget):
         for r in range(rows):
             row_inputs = []
             for c in range(cols):
-                inp = QLineEdit("0")
+                valor = "0"
+
+                if (
+                    r < len(valores_matriz)
+                    and c < len(valores_matriz[r])
+                ):
+                    valor = valores_matriz[r][c]
+
+                inp = QLineEdit(valor)
                 inp.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 inp.setFixedSize(54, 36)
                 inp.setStyleSheet(input_style)
@@ -966,14 +1047,22 @@ class VistaOperacionesMatriz(QWidget):
         mat_row_layout.addWidget(b_right_mat)
 
         mat_box.addLayout(mat_row_layout)
-        self.meqs_layout_inner.addLayout(mat_box)
+        self.meqs_layout_inner.addWidget(mat_widget)
 
         # Separador horizontal entre la matriz y el vector
         self.meqs_layout_inner.addSpacing(16)
 
         # --- 2. VECTOR x ---
-        vec_box = QVBoxLayout()
+        vec_widget = QWidget()
+        vec_widget.setStyleSheet("background-color: transparent;")
+        vec_widget.setSizePolicy(
+            QSizePolicy.Policy.Fixed,
+            QSizePolicy.Policy.Fixed
+        )
+
+        vec_box = QVBoxLayout(vec_widget)
         vec_box.setSpacing(6)
+        vec_box.setContentsMargins(0, 0, 0, 0)
         vec_box.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         lbl_x = QLabel("b")
@@ -994,7 +1083,13 @@ class VistaOperacionesMatriz(QWidget):
         vec_inputs_col.setContentsMargins(0, 0, 0, 0)
 
         for r in range(vars_count):
-            inp = QLineEdit("0")
+            valor = (
+                valores_vector[r]
+                if r < len(valores_vector)
+                else "0"
+            )
+
+            inp = QLineEdit(valor)
             inp.setAlignment(Qt.AlignmentFlag.AlignCenter)
             inp.setFixedSize(54, 36)
             inp.setStyleSheet(input_style)
@@ -1009,7 +1104,10 @@ class VistaOperacionesMatriz(QWidget):
         vec_row_layout.addWidget(b_right_vec)
 
         vec_box.addLayout(vec_row_layout)
-        self.meqs_layout_inner.addLayout(vec_box)
+        self.meqs_layout_inner.addWidget(vec_widget)
+
+        self.meqs_container.adjustSize()
+        self.meqs_container.updateGeometry()
 
     def _clear_mat_eqs_inputs(self):
         for row in self.meqs_matrix_inputs:
@@ -1020,12 +1118,751 @@ class VistaOperacionesMatriz(QWidget):
  #
  # LOGICA PARA LA TARJETA DE SOLUCION Y CONECTAR CON EL CONTROLADOR
  #
+    def _clear_layout(self, layout):
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+            child_layout = item.layout()
+
+            if widget is not None:
+                widget.deleteLater()
+            elif child_layout is not None:
+                self._clear_layout(child_layout)
+
+    def _leer_float(self, inp):
+        texto = inp.text().strip().replace(",", ".")
+        return float(texto) if texto else 0.0
+
+    def _leer_matrices_mops(self):
+        matrices = []
+
+        for matriz_inputs in self.mops_inputs_list:
+            matriz = []
+
+            for fila_inputs in matriz_inputs:
+                fila = []
+
+                for inp in fila_inputs:
+                    fila.append(self._leer_float(inp))
+
+                matriz.append(fila)
+
+            matrices.append(matriz)
+
+        return matrices
+
+    def _leer_matriz_meqs(self):
+        matriz = []
+
+        for fila_inputs in self.meqs_matrix_inputs:
+            fila = []
+
+            for inp in fila_inputs:
+                fila.append(self._leer_float(inp))
+
+            matriz.append(fila)
+
+        return matriz
+
+    def _leer_vector_meqs(self):
+        return [
+            self._leer_float(inp)
+            for inp in self.meqs_vector_inputs
+        ]
+
     def on_solved_clicked_mops(self):
-        pass
+        try:
+            modo = self.combo_mops_metodo.currentText()
+            matrices = self._leer_matrices_mops()
+
+            if modo in ("Sumar", "Restar", "Multiplicar") and len(matrices) < 2:
+                QMessageBox.warning(
+                    self,
+                    "Matrices insuficientes",
+                    "Debes ingresar al menos dos matrices."
+                )
+                return
+
+            if modo == "Sumar":
+                resultado = ControladorVectores.sumar_matrices(matrices)
+
+            elif modo == "Restar":
+                resultado = ControladorVectores.restar_matrices(matrices)
+
+            elif modo == "Escalar":
+                if not matrices:
+                    QMessageBox.warning(
+                        self,
+                        "Sin matriz",
+                        "Debes ingresar una matriz."
+                    )
+                    return
+
+                escalar = self._leer_float(self.inp_mops_escalar)
+                resultado = ControladorVectores.multiplicar_matriz_escalar(
+                    matrices[0],
+                    escalar
+                )
+
+            elif modo == "Multiplicar":
+                resultado = ControladorVectores.multiplicar_matrices(matrices)
+
+            else:
+                QMessageBox.warning(
+                    self,
+                    "Operacion desconocida",
+                    "Selecciona una operacion valida."
+                )
+                return
+
+            if not resultado.get("exito", False):
+                QMessageBox.warning(
+                    self,
+                    "Error",
+                    resultado.get(
+                        "mensaje",
+                        "No se pudo realizar la operacion."
+                    )
+                )
+                return
+
+            self._mostrar_resultados(resultado)
+
+        except ValueError:
+            QMessageBox.warning(
+                self,
+                "Entrada invalida",
+                "Todos los componentes deben ser numeros validos."
+            )
+
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Error de ejecucion",
+                f"Detalle del error:\n{str(e)}"
+            )
 
 
     def on_solved_clicked_meqs(self):
-            pass
+        try:
+            matriz = self._leer_matriz_meqs()
+            vector_b = self._leer_vector_meqs()
+
+            resultado = ControladorVectores.resolver_ecuacion_matricial(
+                matriz,
+                vector_b
+            )
+
+            resultado["operacion"] = "ecuacion_matricial"
+
+            if not resultado.get("exito", False):
+                QMessageBox.warning(
+                    self,
+                    "Error",
+                    resultado.get(
+                        "mensaje",
+                        "No se pudo resolver la ecuacion matricial."
+                    )
+                )
+                return
+
+            self._mostrar_resultados(resultado)
+
+        except ValueError:
+            QMessageBox.warning(
+                self,
+                "Entrada invalida",
+                "Todos los componentes deben ser numeros validos."
+            )
+
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Error de ejecucion",
+                f"Detalle del error:\n{str(e)}"
+            )
+
+    def _formatear_valor(self, valor):
+        if isinstance(valor, (int, float)):
+            return formatear_numero(valor)
+
+        return str(valor)
+
+    def _crear_card_base(self, titulo):
+        card = QFrame()
+        card.setObjectName("CardResultadoGenerica")
+        card.setStyleSheet("""
+            QFrame#CardResultadoGenerica {
+                background-color: #FFFFFF;
+                border: 1px solid #E2E8F0;
+                border-radius: 12px;
+            }
+        """)
+
+        layout_principal = QVBoxLayout(card)
+        layout_principal.setContentsMargins(20, 16, 20, 20)
+        layout_principal.setSpacing(12)
+
+        header_widget = QWidget()
+        header_widget.setStyleSheet("background: transparent; border: none;")
+        header_layout = QHBoxLayout(header_widget)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+
+        lbl_title = QLabel(titulo)
+        lbl_title.setStyleSheet("""
+            color: #0F172A;
+            font-size: 15px;
+            font-weight: 700;
+            border: none;
+            background: transparent;
+        """)
+
+        btn_toggle = QPushButton("-")
+        btn_toggle.setFixedSize(24, 24)
+        btn_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_toggle.setStyleSheet("""
+            QPushButton {
+                background: transparent;
+                border: none;
+                color: #64748B;
+                font-size: 16px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                color: #0F172A;
+            }
+        """)
+
+        header_layout.addWidget(lbl_title)
+        header_layout.addStretch()
+        header_layout.addWidget(btn_toggle)
+        layout_principal.addWidget(header_widget)
+
+        body_widget = QWidget()
+        body_widget.setStyleSheet("background: transparent; border: none;")
+        body_layout = QVBoxLayout(body_widget)
+        body_layout.setContentsMargins(0, 10, 0, 0)
+        body_layout.setSpacing(16)
+        layout_principal.addWidget(body_widget)
+
+        def _toggle():
+            body_widget.setVisible(not body_widget.isVisible())
+            btn_toggle.setText("-" if body_widget.isVisible() else "+")
+
+        btn_toggle.clicked.connect(_toggle)
+
+        card.content_widget = body_widget
+        card.content_layout = body_layout
+        card.btn_toggle = btn_toggle
+        card.is_expanded = True
+
+        return card, body_layout
+
+    def _crear_matriz_widget(self, matriz, texto=False, aumentada=False):
+        if not matriz:
+            lbl = QLabel("Sin datos")
+            lbl.setStyleSheet(
+                "color: #64748B; font-size: 13px; border: none;"
+            )
+            return lbl
+
+        widget = QWidget()
+        widget.setStyleSheet("background: transparent; border: none;")
+
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        filas = len(matriz)
+        bracket_height = max(36, filas * 28 + (filas - 1) * 6)
+
+        b_left = BracketWidget(is_left=True)
+        b_left.setFixedHeight(bracket_height)
+        layout.addWidget(b_left)
+
+        grid = QGridLayout()
+        grid.setVerticalSpacing(6)
+        grid.setHorizontalSpacing(12 if texto else 18)
+        grid.setContentsMargins(0, 0, 0, 0)
+
+        for r, fila in enumerate(matriz):
+            last_col = len(fila) - 1
+
+            for c, valor in enumerate(fila):
+                lbl_val = QLabel(self._formatear_valor(valor))
+                lbl_val.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                lbl_val.setMinimumWidth(120 if texto else 44)
+                lbl_val.setFixedHeight(24)
+                lbl_val.setStyleSheet("""
+                    color: #0F172A;
+                    font-size: 13px;
+                    font-weight: 600;
+                    font-family: 'Consolas', 'Courier New', monospace;
+                    border: none;
+                    background: transparent;
+                    padding: 0px;
+                    margin: 0px;
+                """)
+
+                grid_col = c
+
+                if aumentada and c == last_col:
+                    linea_v = QFrame()
+                    linea_v.setFrameShape(QFrame.Shape.VLine)
+                    linea_v.setStyleSheet(
+                        "background-color: #CBD5E1; max-width: 1px; border: none;"
+                    )
+                    grid.addWidget(linea_v, r, c)
+                    grid_col = c + 1
+
+                grid.addWidget(lbl_val, r, grid_col)
+
+        layout.addLayout(grid)
+
+        b_right = BracketWidget(is_left=False)
+        b_right.setFixedHeight(bracket_height)
+        layout.addWidget(b_right)
+
+        return widget
+
+    def _crear_fila_matrices_widget(self, matrices, simbolo=None):
+        widget = QWidget()
+        widget.setStyleSheet("background: transparent; border: none;")
+
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(40, 0, 0, 0)
+        layout.setSpacing(18)
+
+        for i, matriz in enumerate(matrices):
+            layout.addWidget(self._crear_matriz_widget(matriz))
+
+            if simbolo and i < len(matrices) - 1:
+                lbl_simbolo = QLabel(simbolo)
+                lbl_simbolo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                lbl_simbolo.setStyleSheet("""
+                    color: #0F172A;
+                    font-size: 18px;
+                    font-weight: 800;
+                    border: none;
+                    background: transparent;
+                """)
+                layout.addWidget(lbl_simbolo)
+
+        layout.addStretch()
+        return widget
+
+    def _crear_card_paso(self, numero, titulo, etiqueta, contenido_widget):
+        card_step = QFrame()
+        card_step.setObjectName("CardStepOperacionMatriz")
+        card_step.setStyleSheet("""
+            QFrame#CardStepOperacionMatriz {
+                background-color: #FFFFFF;
+                border: 1px solid #E2E8F0;
+                border-radius: 12px;
+            }
+        """)
+
+        step_layout = QVBoxLayout(card_step)
+        step_layout.setContentsMargins(16, 16, 16, 16)
+        step_layout.setSpacing(12)
+
+        header_step = QHBoxLayout()
+        header_step.setContentsMargins(0, 0, 0, 0)
+        header_step.setSpacing(12)
+
+        lbl_num = QLabel(str(numero))
+        lbl_num.setFixedSize(28, 28)
+        lbl_num.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_num.setStyleSheet("""
+            background-color: #EEF2FF;
+            color: #4F46E5;
+            font-weight: 700;
+            font-size: 13px;
+            border-radius: 14px;
+            border: none;
+        """)
+
+        vbox_textos = QVBoxLayout()
+        vbox_textos.setContentsMargins(0, 0, 0, 0)
+        vbox_textos.setSpacing(6)
+
+        lbl_titulo = QLabel(titulo)
+        lbl_titulo.setStyleSheet("""
+            color: #64748B;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            border: none;
+            background: transparent;
+        """)
+        vbox_textos.addWidget(lbl_titulo)
+
+        if etiqueta:
+            badge_layout = QHBoxLayout()
+            badge_layout.setContentsMargins(0, 0, 0, 0)
+
+            lbl_etiqueta = QLabel(etiqueta)
+            lbl_etiqueta.setStyleSheet("""
+                background-color: #F8FAFC;
+                color: #0F172A;
+                font-family: 'Consolas', 'Courier New', monospace;
+                font-weight: 600;
+                font-size: 13px;
+                padding: 6px 12px;
+                border-radius: 8px;
+                border: 1px solid #F1F5F9;
+            """)
+            badge_layout.addWidget(lbl_etiqueta)
+            badge_layout.addStretch()
+            vbox_textos.addLayout(badge_layout)
+
+        header_step.addWidget(lbl_num, alignment=Qt.AlignmentFlag.AlignTop)
+        header_step.addLayout(vbox_textos)
+        header_step.addStretch()
+
+        step_layout.addLayout(header_step)
+        step_layout.addWidget(contenido_widget)
+
+        return card_step
+
+    def _simbolo_operacion_matriz(self, texto_operacion):
+        texto = str(texto_operacion).lower()
+
+        if "rest" in texto or "-" in texto or "âˆ’" in texto:
+            return "-"
+
+        if "multip" in texto or "x" in texto or "Ã—" in texto:
+            return "x"
+
+        return "+"
+
+    def _crear_card_proceso_matricial(self, resultado):
+        card, body_layout = self._crear_card_base("Proceso")
+        proceso = resultado.get("proceso", [])
+        operacion_general = resultado.get("operacion", "")
+
+        if not proceso:
+            lbl_vacio = QLabel("No hay informacion del proceso para mostrar.")
+            lbl_vacio.setStyleSheet(
+                "color: #64748B; font-size: 13px; border: none;"
+            )
+            body_layout.addWidget(lbl_vacio)
+            return card
+
+        for indice, paso in enumerate(proceso, start=1):
+            numero = paso.get("numero", indice)
+            titulo = paso.get("titulo", "PASO")
+            operacion_paso = paso.get("operacion", "")
+            etiqueta = operacion_paso if isinstance(operacion_paso, str) else ""
+            tipo = paso.get("tipo", "")
+
+            if tipo == "operacion":
+                if paso.get("matrices"):
+                    contenido = self._crear_fila_matrices_widget(
+                        paso.get("matrices", []),
+                        self._simbolo_operacion_matriz(
+                            f"{operacion_general} {etiqueta}"
+                        )
+                    )
+
+                elif paso.get("matriz_izquierda") and paso.get("matriz_derecha"):
+                    contenido = self._crear_fila_matrices_widget(
+                        [
+                            paso.get("matriz_izquierda"),
+                            paso.get("matriz_derecha")
+                        ],
+                        "x"
+                    )
+
+                elif paso.get("matriz"):
+                    contenido = self._crear_fila_matrices_widget(
+                        [paso.get("matriz")]
+                    )
+
+                else:
+                    contenido = QLabel(str(etiqueta))
+
+            elif tipo == "componentes":
+                contenido = QWidget()
+                contenido.setStyleSheet("background: transparent; border: none;")
+                contenido_layout = QHBoxLayout(contenido)
+                contenido_layout.setContentsMargins(40, 0, 0, 0)
+                contenido_layout.addWidget(
+                    self._crear_matriz_widget(
+                        operacion_paso if isinstance(operacion_paso, list) else [],
+                        texto=True
+                    )
+                )
+                contenido_layout.addStretch()
+
+            elif tipo == "resultado":
+                contenido = self._crear_fila_matrices_widget(
+                    [paso.get("matriz", [])]
+                )
+
+            else:
+                contenido = QLabel(str(paso))
+
+            body_layout.addWidget(
+                self._crear_card_paso(
+                    numero,
+                    titulo,
+                    etiqueta,
+                    contenido
+                )
+            )
+
+        return card
+
+    def _crear_card_proceso_eliminacion(self, resultado):
+        card, body_layout = self._crear_card_base("Proceso de eliminacion")
+        proceso = resultado.get("proceso", [])
+
+        if not proceso:
+            lbl_vacio = QLabel("No hay pasos de eliminacion para mostrar.")
+            lbl_vacio.setStyleSheet(
+                "color: #64748B; font-size: 13px; border: none;"
+            )
+            body_layout.addWidget(lbl_vacio)
+            return card
+
+        for indice, paso in enumerate(proceso, start=1):
+            matriz_paso = paso.get("matriz", [])
+            contenido = QWidget()
+            contenido.setStyleSheet("background: transparent; border: none;")
+
+            contenido_layout = QHBoxLayout(contenido)
+            contenido_layout.setContentsMargins(40, 0, 0, 0)
+            contenido_layout.addWidget(
+                self._crear_matriz_widget(
+                    matriz_paso,
+                    aumentada=True
+                )
+            )
+            contenido_layout.addStretch()
+
+            body_layout.addWidget(
+                self._crear_card_paso(
+                    indice,
+                    "OPERACION ELEMENTAL",
+                    paso.get("operacion", ""),
+                    contenido
+                )
+            )
+
+        return card
+
+    def _crear_card_solucion(self, titulo="Solucion"):
+        card, _ = self._crear_card_base(titulo)
+        return card
+
+    def _agregar_titulo_seccion(self, layout, texto):
+        lbl = QLabel(texto)
+        lbl.setStyleSheet("""
+            color: #64748B;
+            font-weight: 700;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            border: none;
+            background: transparent;
+        """)
+        layout.addWidget(lbl)
+
+    def renderizar_tarjeta_solucion(self, resultado):
+        if not hasattr(self, "card_solucion") or not self.card_solucion:
+            return
+
+        contenedor = self.card_solucion.content_widget
+        layout_principal = contenedor.layout()
+
+        while layout_principal.count():
+            item = layout_principal.takeAt(0)
+            widget = item.widget()
+
+            if widget is not None:
+                widget.deleteLater()
+
+            child_layout = item.layout()
+
+            if child_layout is not None:
+                self._clear_layout(child_layout)
+
+        operacion = resultado.get("operacion", "")
+
+        if operacion in (
+            "Sumar matrices",
+            "Restar matrices",
+            "Multiplicar matriz por escalar",
+            "Multiplicar matrices"
+        ):
+            self._agregar_titulo_seccion(layout_principal, "RESULTADO")
+
+            wrapper = QWidget()
+            wrapper.setStyleSheet("background: transparent; border: none;")
+            wrapper_layout = QHBoxLayout(wrapper)
+            wrapper_layout.setContentsMargins(0, 0, 0, 0)
+            wrapper_layout.addWidget(
+                self._crear_matriz_widget(
+                    resultado.get("resultado", [])
+                )
+            )
+            wrapper_layout.addStretch()
+            layout_principal.addWidget(wrapper)
+
+        elif operacion == "ecuacion_matricial":
+            tipo = resultado.get("tipo")
+            solucion = resultado.get("solucion") or []
+            solucion_parametrica = resultado.get("solucion_parametrica")
+
+            layout_vars = QHBoxLayout()
+            layout_vars.setSpacing(16)
+
+            for titulo, valores, color in (
+                (
+                    "VARIABLES BASICAS",
+                    resultado.get("variables_basicas", []),
+                    "#2563EB"
+                ),
+                (
+                    "VARIABLES LIBRES",
+                    resultado.get("variables_libres", []),
+                    "#475569"
+                )
+            ):
+                columna = QVBoxLayout()
+                columna.setSpacing(8)
+                lbl_titulo = QLabel(titulo)
+                lbl_titulo.setStyleSheet("""
+                    color: #64748B;
+                    font-weight: 700;
+                    font-size: 11px;
+                    letter-spacing: 0.5px;
+                    border: none;
+                """)
+                columna.addWidget(lbl_titulo)
+
+                chips = QHBoxLayout()
+                chips.setSpacing(6)
+
+                if valores:
+                    for idx in valores:
+                        chip = QLabel(f"x{idx + 1}")
+                        chip.setStyleSheet(f"""
+                            background-color: #F8FAFC;
+                            color: {color};
+                            border: 1px solid #E2E8F0;
+                            border-radius: 8px;
+                            padding: 4px 12px;
+                            font-weight: 700;
+                            font-size: 13px;
+                        """)
+                        chips.addWidget(chip)
+
+                else:
+                    lbl_none = QLabel("Ninguna")
+                    lbl_none.setStyleSheet("""
+                        color: #64748B;
+                        font-style: italic;
+                        font-size: 13px;
+                        border: none;
+                    """)
+                    chips.addWidget(lbl_none)
+
+                chips.addStretch()
+                columna.addLayout(chips)
+                layout_vars.addLayout(columna, stretch=1)
+
+            layout_principal.addLayout(layout_vars)
+
+            if tipo == "unica" and solucion:
+                self._agregar_titulo_seccion(layout_principal, "VALORES")
+
+                valores_layout = QHBoxLayout()
+                valores_layout.setSpacing(16)
+
+                for i, valor in enumerate(solucion):
+                    card_val = QFrame()
+                    card_val.setObjectName("CardValorSolucion")
+                    card_val.setFixedSize(150, 70)
+                    card_val.setStyleSheet("""
+                        QFrame#CardValorSolucion {
+                            background-color: #FFFFFF;
+                            border: 1px solid #E2E8F0;
+                            border-radius: 12px;
+                        }
+                    """)
+
+                    card_layout = QVBoxLayout(card_val)
+                    card_layout.setContentsMargins(12, 10, 12, 10)
+                    card_layout.setSpacing(2)
+                    card_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+                    lbl_x = QLabel(f"x{i + 1}")
+                    lbl_x.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    lbl_x.setStyleSheet("""
+                        color: #64748B;
+                        font-weight: 600;
+                        font-size: 13px;
+                        border: none;
+                        background: transparent;
+                    """)
+
+                    lbl_val = QLabel(formatear_numero(valor))
+                    lbl_val.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    lbl_val.setStyleSheet("""
+                        color: #0F172A;
+                        font-weight: 800;
+                        font-size: 28px;
+                        border: none;
+                        background: transparent;
+                    """)
+
+                    card_layout.addWidget(lbl_x)
+                    card_layout.addWidget(lbl_val)
+                    valores_layout.addWidget(card_val)
+
+                valores_layout.addStretch()
+                layout_principal.addLayout(valores_layout)
+
+            elif tipo == "infinitas" and solucion_parametrica:
+                self._agregar_titulo_seccion(
+                    layout_principal,
+                    "SOLUCION PARAMETRICA"
+                )
+
+                soluciones = solucion_parametrica.get("soluciones", [])
+                texto = "\n".join(
+                    f"x{item.get('variable', 0) + 1} = {item.get('expresion', '')}"
+                    for item in soluciones
+                )
+
+                lbl_param = QLabel(texto)
+                lbl_param.setWordWrap(True)
+                lbl_param.setStyleSheet("""
+                    color: #0F172A;
+                    font-family: 'Consolas', 'Courier New', monospace;
+                    font-size: 13px;
+                    background-color: #F8FAFC;
+                    border: 1px solid #E2E8F0;
+                    border-radius: 10px;
+                    padding: 12px;
+                """)
+                layout_principal.addWidget(lbl_param)
+
+            elif tipo == "ninguna":
+                lbl_none = QLabel("El sistema no tiene solucion.")
+                lbl_none.setStyleSheet("""
+                    color: #DC2626;
+                    font-size: 13px;
+                    font-weight: 700;
+                    border: none;
+                    background: transparent;
+                """)
+                layout_principal.addWidget(lbl_none)
+
+        self.card_solucion.is_expanded = True
+        self.card_solucion.content_widget.setVisible(True)
+        self.card_solucion.btn_toggle.setText("-")
     
     def _crear_card_info_sistema(self, resultado):
         """Construye la tarjeta 'Información del sistema' usando las claves del controlador."""
@@ -1207,7 +2044,11 @@ class VistaOperacionesMatriz(QWidget):
             for i, fila in enumerate(matriz_aug):
                 num_cols = len(fila)
                 for j, val in enumerate(fila):
-                    lbl_val = QLabel(f"{val:g}" if isinstance(val, (int, float)) else str(val))
+                    lbl_val = QLabel(
+                        formatear_numero(val)
+                        if isinstance(val, (int, float))
+                        else str(val)
+                    )
                     
                     # Estilo diferenciado para la columna b (negrita)
                     if j == num_cols - 1:
@@ -1251,5 +2092,152 @@ class VistaOperacionesMatriz(QWidget):
 
         return card
     def _mostrar_resultados(self, resultado):
-        pass
+        self.card.hide()
+
+        if hasattr(self, "dog_main"):
+            self.dog_main.hide()
+
+        self.card_matriz = None
+        self.card_proceso = None
+        self.card_solucion = None
+
+        while self.results_layout.count():
+            item = self.results_layout.takeAt(0)
+            widget = item.widget()
+
+            if widget:
+                widget.deleteLater()
+
+        self.results_card.show()
+
+        btn_back = QPushButton("<- Nuevo sistema")
+        btn_back.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_back.setStyleSheet(
+            "QPushButton { color: #64748B; font-weight: 600; font-size: 13px; "
+            "border: none; background: transparent; text-align: left; padding: 0px; } "
+            "QPushButton:hover { color: #0F172A; }"
+        )
+        btn_back.clicked.connect(self._volver_a_matriz)
+        self.results_layout.addWidget(btn_back)
+
+        modo = resultado.get("operacion", "")
+
+        banner = QFrame()
+        banner.setObjectName("BannerEstado")
+
+        if modo == "ecuacion_matricial":
+            tipo = resultado.get("tipo")
+
+            if tipo == "unica":
+                color_icono = "#059669"
+                titulo_estado = "Sistema consistente determinado"
+                sub_estado = "Solucion unica"
+                texto_icono = "OK"
+                banner_bg = "#ECFDF5"
+                banner_border = "#A7F3D0"
+
+            elif tipo == "infinitas":
+                color_icono = "#2563EB"
+                titulo_estado = "Sistema consistente indeterminado"
+                sub_estado = "Infinitas soluciones"
+                texto_icono = "INF"
+                banner_bg = "#EFF6FF"
+                banner_border = "#BFDBFE"
+
+            else:
+                color_icono = "#DC2626"
+                titulo_estado = "Sistema inconsistente"
+                sub_estado = "Sin solucion"
+                texto_icono = "X"
+                banner_bg = "#FEF2F2"
+                banner_border = "#FECACA"
+
+        else:
+            color_icono = "#059669"
+            titulo_estado = "Operacion realizada exitosamente"
+            sub_estado = "El resultado se calculo correctamente."
+            texto_icono = "OK"
+            banner_bg = "#ECFDF5"
+            banner_border = "#A7F3D0"
+
+        banner.setStyleSheet(f"""
+            QFrame#BannerEstado {{
+                background-color: {banner_bg};
+                border: 1px solid {banner_border};
+                border-radius: 12px;
+                padding: 6px 16px;
+            }}
+        """)
+
+        b_layout = QHBoxLayout(banner)
+        b_layout.setContentsMargins(0, 4, 0, 4)
+        b_layout.setSpacing(12)
+
+        lbl_icon = QLabel(texto_icono)
+        lbl_icon.setStyleSheet(
+            f"color: {color_icono}; font-size: 13px; font-weight: 800; "
+            "border: none; background: transparent;"
+        )
+        b_layout.addWidget(lbl_icon)
+
+        text_vbox = QVBoxLayout()
+        text_vbox.setSpacing(1)
+        text_vbox.setContentsMargins(0, 0, 0, 0)
+
+        lbl_status_title = QLabel(titulo_estado)
+        lbl_status_title.setStyleSheet(
+            f"color: {color_icono}; font-size: 13px; font-weight: 700; "
+            "border: none; background: transparent;"
+        )
+
+        lbl_status_sub = QLabel(sub_estado)
+        lbl_status_sub.setStyleSheet(
+            f"color: {color_icono}; font-size: 11px; "
+            "border: none; background: transparent;"
+        )
+
+        text_vbox.addWidget(lbl_status_title)
+        text_vbox.addWidget(lbl_status_sub)
+
+        b_layout.addLayout(text_vbox)
+        b_layout.addStretch()
+
+        self.results_layout.addWidget(banner)
+
+        if modo in (
+            "Sumar matrices",
+            "Restar matrices",
+            "Multiplicar matriz por escalar",
+            "Multiplicar matrices"
+        ):
+            self.results_layout.addWidget(
+                self._crear_card_proceso_matricial(resultado)
+            )
+
+            self.card_solucion = self._crear_card_solucion("Resultado")
+            self.results_layout.addWidget(self.card_solucion)
+            self.renderizar_tarjeta_solucion(resultado)
+
+        elif modo == "ecuacion_matricial":
+            self.results_layout.addWidget(
+                self._crear_card_info_sistema(resultado)
+            )
+
+            if resultado.get("matriz_aumentada"):
+                self.results_layout.addWidget(
+                    self._crear_card_matriz_aumentada(resultado)
+                )
+
+            self.results_layout.addWidget(
+                self._crear_card_proceso_eliminacion(resultado)
+            )
+
+            self.card_solucion = self._crear_card_solucion("Solucion")
+            self.results_layout.addWidget(self.card_solucion)
+            self.renderizar_tarjeta_solucion(resultado)
+
+        else:
+            self.card_solucion = self._crear_card_solucion("Resultado")
+            self.results_layout.addWidget(self.card_solucion)
+            self.renderizar_tarjeta_solucion(resultado)
    

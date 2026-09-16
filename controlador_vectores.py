@@ -630,6 +630,9 @@ class ControladorVectores:
 
                 "exito": True,
 
+                "operacion":
+                    "ecuacion_matricial",
+
                 # --------------------------------------------
                 # INFORMACIÓN PRINCIPAL
                 # --------------------------------------------
@@ -726,6 +729,9 @@ class ControladorVectores:
             return {
 
                 "exito": False,
+
+                "operacion":
+                    "ecuacion_matricial",
 
                 "tipo":
                     None,

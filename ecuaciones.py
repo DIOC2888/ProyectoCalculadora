@@ -15,6 +15,7 @@ from validaciones import (
 )
 
 from config import TOLERANCIA
+from formato import formatear_numero
 
 
 def es_cero(valor):
@@ -250,7 +251,8 @@ def gauss_jordan(matriz_aumentada):
             proceso.append({
                 "operacion":
                     f"F{fila_pivote + 1} ← "
-                    f"F{fila_pivote + 1} / {pivote}",
+                    f"F{fila_pivote + 1} / "
+                    f"{formatear_numero(pivote)}",
 
                 "matriz":
                     copiar_matriz(matriz)
@@ -285,7 +287,8 @@ def gauss_jordan(matriz_aumentada):
             proceso.append({
                 "operacion":
                     f"F{i + 1} ← F{i + 1} - "
-                    f"({factor})F{fila_pivote + 1}",
+                    f"({formatear_numero(factor)})"
+                    f"F{fila_pivote + 1}",
 
                 "matriz":
                     copiar_matriz(matriz)
@@ -571,15 +574,15 @@ def formatear_coeficiente(coeficiente):
         -2   -> "-2"
     """
 
-    if coeficiente == 1:
+    if es_cero(coeficiente - 1):
 
         return ""
 
-    if coeficiente == -1:
+    if es_cero(coeficiente + 1):
 
         return "-"
 
-    return str(coeficiente)
+    return formatear_numero(coeficiente)
 
 
 def obtener_solucion_parametrica(
@@ -695,7 +698,7 @@ def obtener_solucion_parametrica(
             ][cantidad_variables]
         )
 
-        expresion = str(
+        expresion = formatear_numero(
             termino_independiente
         )
 
@@ -723,7 +726,7 @@ def obtener_solucion_parametrica(
                 variable_libre
             ]
 
-            if coeficiente == 1:
+            if es_cero(coeficiente - 1):
 
                 termino = parametro
 
@@ -737,7 +740,7 @@ def obtener_solucion_parametrica(
                         " + " + termino
                     )
 
-            elif coeficiente == -1:
+            elif es_cero(coeficiente + 1):
 
                 termino = parametro
 
@@ -754,7 +757,7 @@ def obtener_solucion_parametrica(
             elif coeficiente > 0:
 
                 termino = (
-                    str(coeficiente)
+                    formatear_numero(coeficiente)
                     + parametro
                 )
 
@@ -771,7 +774,7 @@ def obtener_solucion_parametrica(
             else:
 
                 termino = (
-                    str(abs(coeficiente))
+                    formatear_numero(abs(coeficiente))
                     + parametro
                 )
 
