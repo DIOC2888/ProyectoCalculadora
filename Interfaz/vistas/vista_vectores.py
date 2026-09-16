@@ -5,6 +5,7 @@ PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."
 if PROJECT_DIR not in sys.path:
     sys.path.insert(0, PROJECT_DIR)
 
+from PySide6.QtWidgets import QProxyStyle,QStyle, QStyleOptionComboBox
 from formato import formatear_numero
 from fractions import Fraction
 from PySide6.QtCore import Qt
@@ -36,8 +37,19 @@ try:
     from entrada import leer_sistema_desde_texto
 except ImportError:
     leer_sistema_desde_texto = None
+class ComboBoxCenterStyle(QProxyStyle):
 
+    def drawControl(self, element, option, painter, widget=None):
+        if element == QStyle.ControlElement.CE_ComboBoxLabel:
+            option = QStyleOptionComboBox(option)
 
+            # Texto alineado a la izquierda
+            option.textAlignment = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+
+            # Pequeño margen desde el borde izquierdo
+            option.rect.setLeft(option.rect.left() + 12)
+
+        super().drawControl(element, option, painter, widget)
 class VistaVectores(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -116,8 +128,7 @@ class VistaVectores(QWidget):
         
         self.btn_matrix = QPushButton("Construir vectores")
         self.btn_equations = QPushButton("Ingresar ecuaciones")
-        self.btn_matrix_ops = QPushButton("Operaciones matriciales")
-        self.btn_mat_eqs = QPushButton("Ecuaciones matriciales")
+  
         
         mode_button_style = """
             QPushButton {
@@ -145,17 +156,13 @@ class VistaVectores(QWidget):
         
         self.btn_matrix.setStyleSheet(mode_button_active_style)
         self.btn_equations.setStyleSheet(mode_button_style)
-        self.btn_matrix_ops.setStyleSheet(mode_button_style)
-        self.btn_mat_eqs.setStyleSheet(mode_button_style)
+
         self.btn_matrix.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_equations.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_matrix_ops.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_mat_eqs.setCursor(Qt.CursorShape.PointingHandCursor)
-
+     
         mode_layout.addWidget(self.btn_matrix)
         mode_layout.addWidget(self.btn_equations)
-        mode_layout.addWidget(self.btn_matrix_ops)
-        mode_layout.addWidget(self.btn_mat_eqs)
+
         
         mode_wrapper.addWidget(mode_container, alignment=Qt.AlignmentFlag.AlignLeft)
         card_layout.addLayout(mode_wrapper)
@@ -375,21 +382,25 @@ class VistaVectores(QWidget):
         
         # ComboBox para operaciones de vectores
         self.combo_metodo = QComboBox()
+        self.combo_metodo.setStyle(ComboBoxCenterStyle())
         self.combo_metodo.addItems(["Sumar", "Restar", "Escalar", "Combinación lineal"])
-        self.combo_metodo.setFixedWidth(120)
+        
+       
+        self.combo_metodo.setFixedWidth(155)
         self.combo_metodo.setFixedHeight(38)
+
         self.combo_metodo.setCurrentIndex(0)
         self.combo_metodo.currentIndexChanged.connect(self._on_operation_changed)
 
         for i in range(self.combo_metodo.count()):
             self.combo_metodo.setItemData(i, Qt.AlignmentFlag.AlignCenter, Qt.ItemDataRole.TextAlignmentRole)
-
+     
         self.combo_metodo.setStyleSheet("""
             QComboBox {
                 background-color: #FFFFFF;
                 border: 1px solid #CBD5E1;
                 border-radius: 8px;
-                padding: 0px 8px;
+                padding: 0px 0px;
                 font-size: 13px;
                 font-weight: 600;
                 color: #475569;
@@ -407,7 +418,8 @@ class VistaVectores(QWidget):
                 border: none;
                 width: 22px;
             }
-        """)
+        """ )
+    
         
         action_buttons_layout.addWidget(self.btn_solve)
         action_buttons_layout.addWidget(self.combo_metodo)
@@ -483,316 +495,14 @@ class VistaVectores(QWidget):
         card_layout.addLayout(self.stacked_layout)
         content_layout.addWidget(self.card)
 
-       # VISTA 3: OPERACIONES MATRICIALES
-        matrix_ops_view = QWidget()
-        matrix_ops_view.setStyleSheet("background-color: transparent;")
-        mops_layout = QVBoxLayout(matrix_ops_view)
-        mops_layout.setContentsMargins(0, 0, 0, 0)
-        mops_layout.setSpacing(20)
-        
-        # Controles superiores
-        mops_controls = QHBoxLayout()
-        mops_controls.setSpacing(24)
-        
-        rows_box = QVBoxLayout()
-        rows_box.setSpacing(6)
-        lbl_rows = QLabel("FILAS (m)")
-        lbl_rows.setStyleSheet("color: #64748B; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; background: transparent;")
-        self.stepper_mops_rows = NumberStepper(value=3)
-        rows_box.addWidget(lbl_rows)
-        rows_box.addWidget(self.stepper_mops_rows)
-        
-        cols_box = QVBoxLayout()
-        cols_box.setSpacing(6)
-        lbl_cols = QLabel("COLUMNAS (n)")
-        lbl_cols.setStyleSheet("color: #64748B; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; background: transparent;")
-        self.stepper_mops_cols = NumberStepper(value=3)
-        cols_box.addWidget(lbl_cols)
-        cols_box.addWidget(self.stepper_mops_cols)
-        
-        mats_box = QVBoxLayout()
-        mats_box.setSpacing(6)
-        lbl_mats = QLabel("CANTIDAD DE MATRICES")
-        lbl_mats.setStyleSheet("color: #64748B; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; background: transparent;")
-        self.stepper_mops_count = NumberStepper(value=3)
-        mats_box.addWidget(lbl_mats)
-        mats_box.addWidget(self.stepper_mops_count)
-        
-        mops_controls.addLayout(rows_box)
-        mops_controls.addLayout(cols_box)
-        mops_controls.addLayout(mats_box)
-        mops_controls.addStretch()
-        mops_layout.addLayout(mops_controls)
-        
-        # ============================================================
-        # ÁREA DINÁMICA DE MATRICES
-        # ============================================================
-
-        self.mops_scroll = QScrollArea()
-        self.mops_scroll.setWidgetResizable(False)
-
-        self.mops_scroll.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAsNeeded
-        )
-
-        self.mops_scroll.setVerticalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
-
-        self.mops_scroll.setFrameShape(
-            QFrame.Shape.NoFrame
-        )
-
-        self.mops_scroll.setStyleSheet("""
-            QScrollArea {
-                background: transparent;
-                border: none;
-            }
-
-            QScrollBar:horizontal {
-                height: 8px;
-                background: #F1F5F9;
-                border-radius: 4px;
-            }
-
-            QScrollBar::handle:horizontal {
-                background: #CBD5E1;
-                border-radius: 4px;
-                min-width: 40px;
-            }
-
-            QScrollBar::add-line:horizontal,
-            QScrollBar::sub-line:horizontal {
-                width: 0px;
-                background: none;
-                border: none;
-            }
-        """)
-
-        # Contenedor que tendrá todas las matrices
-        self.mops_container = QWidget()
-        self.mops_container.setStyleSheet(
-            "background-color: transparent;"
-        )
-
-        self.mops_layout_inner = QHBoxLayout(
-            self.mops_container
-        )
-
-        self.mops_layout_inner.setContentsMargins(
-            0, 0, 0, 0
-        )
-
-        self.mops_layout_inner.setSpacing(20)
-
-        self.mops_layout_inner.setAlignment(
-            Qt.AlignmentFlag.AlignLeft
-        )
-
-        # El scroll contiene el contenedor completo
-        self.mops_scroll.setWidget(
-            self.mops_container
-        )
-
-
-        # ============================================================
-        # ESCALAR
-        # ============================================================
-
-        self.mops_escalar_container = QWidget()
-        self.mops_escalar_container.setStyleSheet(
-            "background-color: transparent;"
-        )
-
-        escalar_mat_layout = QVBoxLayout(
-            self.mops_escalar_container
-        )
-
-        escalar_mat_layout.setContentsMargins(
-            0, 0, 0, 0
-        )
-
-        escalar_mat_layout.setSpacing(6)
-
-        lbl_k_mat = QLabel("ESCALAR (k)")
-
-        lbl_k_mat.setStyleSheet(
-            """
-            color: #64748B;
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            background: transparent;
-            """
-        )
-
-        self.inp_mops_escalar = QLineEdit("1")
-
-        self.inp_mops_escalar.setAlignment(
-            Qt.AlignmentFlag.AlignCenter
-        )
-
-        self.inp_mops_escalar.setFixedSize(
-            60, 36
-        )
-
-        self.inp_mops_escalar.setStyleSheet(
-            self.inp_escalar.styleSheet()
-        )
-
-        escalar_mat_layout.addWidget(lbl_k_mat)
-        escalar_mat_layout.addWidget(self.inp_mops_escalar)
-
-        self.mops_escalar_container.hide()
-
-
-        # ============================================================
-        # WRAPPER
-        # ============================================================
-
-        mops_wrapper_layout = QHBoxLayout()
-
-        mops_wrapper_layout.setContentsMargins(
-            0, 0, 0, 0
-        )
-
-        mops_wrapper_layout.setSpacing(12)
-
-        mops_wrapper_layout.addWidget(
-            self.mops_escalar_container
-        )
-
-        mops_wrapper_layout.addWidget(
-            self.mops_scroll,
-            1
-        )
-
-        mops_layout.addLayout(
-            mops_wrapper_layout
-        )
-        
-          
-        # Botones de Acción y ComboBox
-        mops_action_buttons = QHBoxLayout()
-        mops_action_buttons.setSpacing(12)
-        
-        btn_calc_mops = QPushButton("Calcular")
-        btn_calc_mops.setStyleSheet(self.btn_solve.styleSheet())
-        btn_calc_mops.setCursor(Qt.CursorShape.PointingHandCursor)
-        
-        btn_clear_mops = QPushButton("Limpiar")
-        btn_clear_mops.setStyleSheet(btn_clear.styleSheet())
-        btn_clear_mops.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_clear_mops.clicked.connect(self._clear_matrix_ops_inputs)
-        
-        self.combo_mops_metodo = QComboBox()
-        self.combo_mops_metodo.addItems(["Sumar", "Restar", "Escalar"])
-        self.combo_mops_metodo.setFixedWidth(120)
-        self.combo_mops_metodo.setFixedHeight(38)
-        self.combo_mops_metodo.setCurrentIndex(0)
-        self.combo_mops_metodo.setStyleSheet(self.combo_metodo.styleSheet())
-        self.combo_mops_metodo.currentIndexChanged.connect(self._on_mops_operation_changed)
-
-        for i in range(self.combo_mops_metodo.count()):
-            self.combo_mops_metodo.setItemData(i, Qt.AlignmentFlag.AlignCenter, Qt.ItemDataRole.TextAlignmentRole)
-        
-        mops_action_buttons.addWidget(btn_calc_mops)
-        mops_action_buttons.addWidget(self.combo_mops_metodo)
-        mops_action_buttons.addWidget(btn_clear_mops)
-        mops_action_buttons.addStretch()
-        
-        mops_layout.addLayout(mops_action_buttons)
-        
-        # Suscribir steppers de matrices
-        self.stepper_mops_rows.on_change_callback = self._rebuild_matrix_ops_grid
-        self.stepper_mops_cols.on_change_callback = self._rebuild_matrix_ops_grid
-        self.stepper_mops_count.on_change_callback = self._rebuild_matrix_ops_grid
-        
-        self._rebuild_matrix_ops_grid()
-        self.stacked_layout.addWidget(matrix_ops_view)
-        # -------------------------------------------------------------
-        # VISTA 4: ECUACIONES MATRICIALES (Matriz A + Vector x)
-        # -------------------------------------------------------------
-        mat_eqs_view = QWidget()
-        mat_eqs_view.setStyleSheet("background-color: transparent;")
-        meqs_layout = QVBoxLayout(mat_eqs_view)
-        meqs_layout.setContentsMargins(0, 0, 0, 0)
-        meqs_layout.setSpacing(20)
-
-        # Controles superiores (Filas, Columnas y Variables para el Vector)
-        meqs_controls = QHBoxLayout()
-        meqs_controls.setSpacing(24)
-
-        rows_box = QVBoxLayout()
-        rows_box.setSpacing(6)
-        lbl_rows = QLabel("CANTIDAD DE FILAS")
-        lbl_rows.setStyleSheet("color: #64748B; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; background: transparent;")
-        self.stepper_meqs_rows = NumberStepper(value=3)
-        rows_box.addWidget(lbl_rows)
-        rows_box.addWidget(self.stepper_meqs_rows)
-
-        cols_box = QVBoxLayout()
-        cols_box.setSpacing(6)
-        lbl_cols = QLabel("CANTIDAD DE COLUMNAS")
-        lbl_cols.setStyleSheet("color: #64748B; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; background: transparent;")
-        self.stepper_meqs_cols = NumberStepper(value=3)
-        cols_box.addWidget(lbl_cols)
-        cols_box.addWidget(self.stepper_meqs_cols)
-
-        vars_box = QVBoxLayout()
-        vars_box.setSpacing(6)
-        lbl_vars = QLabel("CANTIDAD DE VARIABLES")
-        lbl_vars.setStyleSheet("color: #64748B; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; background: transparent;")
-        self.stepper_meqs_vars = NumberStepper(value=3)
-        vars_box.addWidget(lbl_vars)
-        vars_box.addWidget(self.stepper_meqs_vars)
-
-        meqs_controls.addLayout(rows_box)
-        meqs_controls.addLayout(cols_box)
-        meqs_controls.addLayout(vars_box)
-        meqs_controls.addStretch()
-        meqs_layout.addLayout(meqs_controls)
-
-        # Área dinámica donde se dibujan Matriz A y Vector x
-        self.meqs_container = QWidget()
-        self.meqs_container.setStyleSheet("background-color: transparent;")
-        self.meqs_layout_inner = QHBoxLayout(self.meqs_container)
-        self.meqs_layout_inner.setContentsMargins(0, 0, 0, 0)
-        self.meqs_layout_inner.setSpacing(24)
-        self.meqs_layout_inner.setAlignment(Qt.AlignmentFlag.AlignLeft)
-
-        meqs_layout.addWidget(self.meqs_container)
-
-        # Botones de Acción (Calcular y Limpiar)
-        meqs_actions = QHBoxLayout()
-        meqs_actions.setSpacing(12)
-
-        btn_calc_meqs = QPushButton("Calcular")
-        btn_calc_meqs.setStyleSheet(self.btn_solve.styleSheet())
-        btn_calc_meqs.setCursor(Qt.CursorShape.PointingHandCursor)
-
-        btn_clear_meqs = QPushButton("Limpiar")
-        btn_clear_meqs.setStyleSheet(btn_clear.styleSheet())
-        btn_clear_meqs.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn_clear_meqs.clicked.connect(self._clear_mat_eqs_inputs)
-
-        meqs_actions.addWidget(btn_calc_meqs)
-        meqs_actions.addWidget(btn_clear_meqs)
-        meqs_actions.addStretch()
-        meqs_layout.addLayout(meqs_actions)
+   
 
         # Añadir las vistas al stacked_layout
         self.stacked_layout.addWidget(matrix_view)
         self.stacked_layout.addWidget(equations_view)
-        self.stacked_layout.addWidget(matrix_ops_view)
-        self.stacked_layout.addWidget(mat_eqs_view) # Index 3
+      
 
-        # Conectar callbacks de los steppers
-        self.stepper_meqs_rows.on_change_callback = self._rebuild_mat_eqs_grid
-        self.stepper_meqs_cols.on_change_callback = self._rebuild_mat_eqs_grid
-        self.stepper_meqs_vars.on_change_callback = self._rebuild_mat_eqs_grid
-
-        self._rebuild_mat_eqs_grid()
+       
         # TARJETA DE RESULTADOS
         self.results_card = QWidget()
         self.results_layout = QVBoxLayout(self.results_card)
@@ -821,18 +531,12 @@ class VistaVectores(QWidget):
                 0, mode_button_active_style, mode_button_style
             )
         )
-        self.btn_matrix_ops.clicked.connect(
-            lambda: self._set_mode(
-                2, mode_button_active_style, mode_button_style
-            )
-        )
+
         self.btn_equations.clicked.connect(
             lambda: self._set_mode(
                 1, mode_button_active_style, mode_button_style
             )
         )
-        self.btn_mat_eqs.clicked.connect(lambda: self._set_mode(3, mode_button_active_style, mode_button_style)) 
-
         content_outer_layout.addWidget(centered_wrapper)
         scroll_area.setWidget(main_content)
         main_layout.addWidget(scroll_area)
@@ -855,23 +559,11 @@ class VistaVectores(QWidget):
         if index == 0:
             self.btn_matrix.setStyleSheet(active_style)
             self.btn_equations.setStyleSheet(inactive_style)
-            self.btn_matrix_ops.setStyleSheet(inactive_style)
-            self.btn_mat_eqs.setStyleSheet(inactive_style)
+        
         elif index == 1:
             self.btn_matrix.setStyleSheet(inactive_style)
             self.btn_equations.setStyleSheet(active_style)
-            self.btn_matrix_ops.setStyleSheet(inactive_style)
-            self.btn_mat_eqs.setStyleSheet(inactive_style)
-        elif index == 2:
-            self.btn_matrix.setStyleSheet(inactive_style)
-            self.btn_equations.setStyleSheet(inactive_style)
-            self.btn_matrix_ops.setStyleSheet(active_style)
-            self.btn_mat_eqs.setStyleSheet(inactive_style)
-        elif index ==3:
-            self.btn_matrix.setStyleSheet(inactive_style)
-            self.btn_equations.setStyleSheet(inactive_style)
-            self.btn_matrix_ops.setStyleSheet(inactive_style)
-            self.btn_mat_eqs.setStyleSheet(active_style)
+  
 
     def _rebuild_matrix_grid(self):
         """
@@ -967,6 +659,10 @@ class VistaVectores(QWidget):
             + (rows - 1) * 8
         )
 
+        # Altura necesaria para mostrar completamente los vectores
+        vectors_height = bracket_height + 20
+
+        self.vectors_scroll.setMinimumHeight(vectors_height)
         # ========================================================
         #                 VECTORES GENERADORES
         # ========================================================
