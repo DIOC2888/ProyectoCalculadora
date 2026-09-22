@@ -61,6 +61,34 @@ class ControladorMatriz:
         soluciones_valores = []
         soluciones_texto = []
         reporte_verificacion = []
+        solucion_parametrica = None
+        conjunto_solucion = None
+
+        try:
+            from ecuaciones import resolver_sistema as resolver_sistema_backend
+
+            matriz_coeficientes = [
+                fila[:-1]
+                for fila in matriz_original
+            ]
+            vector_constantes = [
+                fila[-1]
+                for fila in matriz_original
+            ]
+            resultado_backend = resolver_sistema_backend(
+                matriz_coeficientes,
+                vector_constantes
+            )
+            solucion_parametrica = resultado_backend.get(
+                "solucion_parametrica"
+            )
+            conjunto_solucion = resultado_backend.get(
+                "conjunto_solucion"
+            )
+
+        except (ValueError, TypeError, KeyError):
+            solucion_parametrica = None
+            conjunto_solucion = None
 
         if tipo_sistema == "determinado":
             # Solución única por sustitución hacia atrás
@@ -102,6 +130,8 @@ class ControladorMatriz:
             "variables_libres": vars_libres,
             "soluciones_texto": soluciones_texto,
             "soluciones_valores": soluciones_valores,
+            "solucion_parametrica": solucion_parametrica,
+            "conjunto_solucion": conjunto_solucion,
             "verificacion": reporte_verificacion
         }
 class ControladorVectores:

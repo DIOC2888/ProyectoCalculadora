@@ -383,7 +383,13 @@ class VistaVectores(QWidget):
         # ComboBox para operaciones de vectores
         self.combo_metodo = QComboBox()
         self.combo_metodo.setStyle(ComboBoxCenterStyle())
-        self.combo_metodo.addItems(["Sumar", "Restar", "Escalar", "Combinación lineal"])
+        self.combo_metodo.addItems([
+            "Sumar",
+            "Restar",
+            "Escalar",
+            "Combinación lineal",
+            "Independencia lineal"
+        ])
         
        
         self.combo_metodo.setFixedWidth(155)
@@ -1751,6 +1757,15 @@ class VistaVectores(QWidget):
                     )
                 )
 
+            elif modo == "Independencia lineal":
+
+                resultado = (
+                    ControladorVectores
+                    .evaluar_independencia_lineal(
+                        vectores
+                    )
+                )
+
             # ====================================================
             # OPERACIÓN DESCONOCIDA
             # ====================================================
@@ -1965,7 +1980,13 @@ class VistaVectores(QWidget):
 
         # --- RESUMEN EN CÓDIGO ---
         tipo_sol = resultado.get("tipo", "ninguna")
-        if tipo_sol == "unica":
+        if resultado.get("operacion") == "Independencia lineal":
+            texto_conclusion = (
+                "vectores independientes"
+                if resultado.get("es_independiente", False)
+                else "vectores dependientes"
+            )
+        elif tipo_sol == "unica":
             texto_conclusion = "solución única"
         elif tipo_sol == "infinitas":
             texto_conclusion = "infinitas soluciones"
@@ -4088,6 +4109,73 @@ class VistaVectores(QWidget):
         btn_toggle.clicked.connect(toggle)
 
         return card
+
+    def _agregar_titulo_seccion(self, layout, texto):
+        lbl = QLabel(texto)
+        lbl.setStyleSheet("""
+            color: #64748B;
+            font-weight: 700;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            border: none;
+            background: transparent;
+        """)
+        layout.addWidget(lbl)
+
+    def _formatear_vector_texto(self, vector):
+        return (
+            "["
+            + "; ".join(
+                formatear_numero(valor)
+                if isinstance(valor, (int, float))
+                else str(valor)
+                for valor in vector
+            )
+            + "]"
+        )
+
+    def _texto_conjunto_solucion(self, conjunto, variable="c"):
+        if not conjunto:
+            return ""
+
+        forma_vectorial = conjunto.get("forma_vectorial")
+
+        if isinstance(forma_vectorial, list):
+            return (
+                f"{variable} = "
+                + self._formatear_vector_texto(forma_vectorial)
+            )
+
+        solucion_particular = conjunto.get(
+            "solucion_particular",
+            []
+        )
+        vectores_direccion = conjunto.get(
+            "vectores_direccion",
+            []
+        )
+        parametros = conjunto.get("parametros", [])
+
+        if not solucion_particular and not vectores_direccion:
+            return ""
+
+        partes = [
+            self._formatear_vector_texto(solucion_particular)
+        ]
+
+        for indice, vector in enumerate(vectores_direccion):
+            parametro = (
+                parametros[indice]
+                if indice < len(parametros)
+                else f"t{indice + 1}"
+            )
+            partes.append(
+                f"{parametro}"
+                f"{self._formatear_vector_texto(vector)}"
+            )
+
+        return f"{variable} = " + " + ".join(partes)
+
     def renderizar_tarjeta_solucion(self, resultado):
         """
         Renderiza la tarjeta Solución.
@@ -4138,7 +4226,14 @@ class VistaVectores(QWidget):
             ""
         )
 
+        es_independencia_lineal = (
+            operacion == "Independencia lineal"
+            or "es_independiente" in resultado
+        )
+
         es_combinacion_lineal = (
+            not es_independencia_lineal
+            and (
             operacion in (
                 "Combinacion lineal",
                 "Combinación lineal"
@@ -4146,6 +4241,7 @@ class VistaVectores(QWidget):
             or "es_combinacion" in resultado
             or resultado.get("solucion_parametrica") is not None
             or resultado.get("coeficientes") is not None
+            )
         )
 
         # ============================================================
@@ -4295,6 +4391,13 @@ class VistaVectores(QWidget):
                 layout_principal
             )
 
+        elif es_independencia_lineal:
+
+            self._renderizar_solucion_independencia_lineal(
+                resultado,
+                layout_principal
+            )
+
         # ============================================================
         # EXPANDIR TARJETA
         # ============================================================
@@ -4353,6 +4456,10 @@ class VistaVectores(QWidget):
 
         solucion_parametrica = resultado.get(
             "solucion_parametrica"
+        )
+
+        conjunto_solucion = resultado.get(
+            "conjunto_solucion"
         )
 
         # ============================================================
@@ -4704,6 +4811,30 @@ class VistaVectores(QWidget):
                 lbl_param_value
             )
 
+        texto_conjunto = self._texto_conjunto_solucion(
+            conjunto_solucion,
+            "c"
+        )
+
+        if tipo != "ninguna" and texto_conjunto:
+            self._agregar_titulo_seccion(
+                layout_principal,
+                "CONJUNTO SOLUCIÓN VECTORIAL"
+            )
+
+            lbl_conjunto = QLabel(texto_conjunto)
+            lbl_conjunto.setWordWrap(True)
+            lbl_conjunto.setStyleSheet("""
+                color: #0F172A;
+                font-family: 'Consolas', monospace;
+                font-size: 13px;
+                background-color: #F8FAFC;
+                border: 1px solid #E2E8F0;
+                border-radius: 10px;
+                padding: 12px;
+            """)
+            layout_principal.addWidget(lbl_conjunto)
+
         # ============================================================
         # 4. VERIFICACIÓN
         # ============================================================
@@ -4924,6 +5055,254 @@ class VistaVectores(QWidget):
                     vbox_verif
                 )
 
+    def _renderizar_solucion_independencia_lineal(
+        self,
+        resultado,
+        layout_principal
+    ):
+        self._agregar_titulo_seccion(
+            layout_principal,
+            "CONCLUSION"
+        )
+
+        es_independiente = resultado.get(
+            "es_independiente",
+            False
+        )
+
+        mensaje = resultado.get(
+            "mensaje",
+            ""
+        )
+
+        lbl_mensaje = QLabel(mensaje)
+        lbl_mensaje.setWordWrap(True)
+        lbl_mensaje.setStyleSheet("""
+            color: #0F172A;
+            font-size: 13px;
+            font-weight: 600;
+            background-color: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 10px;
+            padding: 12px;
+        """)
+        layout_principal.addWidget(lbl_mensaje)
+
+        solucion_parametrica = resultado.get(
+            "solucion_parametrica"
+        )
+        conjunto_solucion = resultado.get(
+            "conjunto_solucion"
+        )
+
+        if solucion_parametrica:
+            soluciones = solucion_parametrica.get(
+                "soluciones",
+                []
+            )
+            texto_parametrico = "\n".join(
+                f"c{item.get('variable', i) + 1} = "
+                f"{item.get('expresion', '')}"
+                for i, item in enumerate(soluciones)
+                if isinstance(item, dict)
+            )
+
+            if texto_parametrico:
+                self._agregar_titulo_seccion(
+                    layout_principal,
+                    "SOLUCIÓN PARAMÉTRICA"
+                )
+
+                lbl_param = QLabel(texto_parametrico)
+                lbl_param.setWordWrap(True)
+                lbl_param.setStyleSheet("""
+                    color: #0F172A;
+                    font-family: 'Consolas', monospace;
+                    font-size: 13px;
+                    background-color: #F8FAFC;
+                    border: 1px solid #E2E8F0;
+                    border-radius: 10px;
+                    padding: 12px;
+                """)
+                layout_principal.addWidget(lbl_param)
+
+        texto_conjunto = self._texto_conjunto_solucion(
+            conjunto_solucion,
+            "c"
+        )
+
+        if texto_conjunto:
+            self._agregar_titulo_seccion(
+                layout_principal,
+                "CONJUNTO SOLUCIÓN VECTORIAL"
+            )
+
+            lbl_conjunto = QLabel(texto_conjunto)
+            lbl_conjunto.setWordWrap(True)
+            lbl_conjunto.setStyleSheet("""
+                color: #0F172A;
+                font-family: 'Consolas', monospace;
+                font-size: 13px;
+                background-color: #F8FAFC;
+                border: 1px solid #E2E8F0;
+                border-radius: 10px;
+                padding: 12px;
+            """)
+            layout_principal.addWidget(lbl_conjunto)
+
+        if es_independiente:
+            cantidad_variables = resultado.get("num_variables")
+
+            if not cantidad_variables:
+                cantidad_variables = len(
+                    resultado.get("vectores", [])
+                )
+
+            if (
+                not cantidad_variables
+                and conjunto_solucion
+                and isinstance(
+                    conjunto_solucion.get("forma_vectorial"),
+                    list
+                )
+            ):
+                cantidad_variables = len(
+                    conjunto_solucion.get("forma_vectorial")
+                )
+
+            if cantidad_variables:
+                self._agregar_titulo_seccion(
+                    layout_principal,
+                    "SOLUCIÓN DEL SISTEMA"
+                )
+
+                frame_solucion = QFrame()
+                frame_solucion.setObjectName(
+                    "FrameSolucionIndependiente"
+                )
+                frame_solucion.setStyleSheet("""
+                    QFrame#FrameSolucionIndependiente {
+                        background-color: #FFFFFF;
+                        border: 1px solid #D1FAE5;
+                        border-radius: 12px;
+                    }
+                """)
+
+                solucion_layout = QVBoxLayout(frame_solucion)
+                solucion_layout.setContentsMargins(
+                    16, 14, 16, 14
+                )
+                solucion_layout.setSpacing(10)
+
+                lbl_intro = QLabel(
+                    "La solución del sistema de ecuaciones es:"
+                )
+                lbl_intro.setStyleSheet("""
+                    color: #6D28D9;
+                    font-size: 13px;
+                    font-weight: 700;
+                    border: none;
+                    background: transparent;
+                """)
+                solucion_layout.addWidget(lbl_intro)
+
+                texto_solucion = ", ".join(
+                    f"x{i + 1} = 0"
+                    for i in range(cantidad_variables)
+                )
+
+                lbl_solucion = QLabel(texto_solucion)
+                lbl_solucion.setAlignment(
+                    Qt.AlignmentFlag.AlignCenter
+                )
+                lbl_solucion.setStyleSheet("""
+                    color: #DC2626;
+                    font-family: 'Consolas', monospace;
+                    font-size: 14px;
+                    font-weight: 800;
+                    border: none;
+                    background: transparent;
+                """)
+                solucion_layout.addWidget(lbl_solucion)
+
+                lbl_indica = QLabel(
+                    "Indica que los vectores son linealmente independientes."
+                )
+                lbl_indica.setWordWrap(True)
+                lbl_indica.setStyleSheet("""
+                    color: #475569;
+                    font-size: 13px;
+                    font-weight: 600;
+                    border: none;
+                    background: transparent;
+                """)
+                solucion_layout.addWidget(lbl_indica)
+
+                layout_principal.addWidget(frame_solucion)
+
+        relacion = resultado.get(
+            "relacion_dependencia"
+        )
+
+        if es_independiente or not relacion:
+            return
+
+        self._agregar_titulo_seccion(
+            layout_principal,
+            "RELACION DE DEPENDENCIA"
+        )
+
+        coeficientes = relacion.get(
+            "coeficientes",
+            []
+        )
+
+        valores_layout = QHBoxLayout()
+        valores_layout.setSpacing(12)
+
+        for i, valor in enumerate(coeficientes):
+            chip = QLabel(
+                f"c{i + 1} = {formatear_numero(valor)}"
+            )
+            chip.setStyleSheet("""
+                background-color: #FFFFFF;
+                color: #0F172A;
+                border: 1px solid #E2E8F0;
+                border-radius: 8px;
+                padding: 6px 12px;
+                font-weight: 700;
+                font-size: 13px;
+            """)
+            valores_layout.addWidget(chip)
+
+        valores_layout.addStretch()
+        layout_principal.addLayout(valores_layout)
+
+        terminos = []
+
+        for termino in relacion.get("terminos", []):
+            coeficiente = termino.get("coeficiente", 0)
+            indice_vector = termino.get("vector", 0)
+            terminos.append(
+                f"({formatear_numero(coeficiente)})v{indice_vector + 1}"
+            )
+
+        if terminos:
+            lbl_relacion = QLabel(
+                " + ".join(terminos) + " = 0"
+            )
+            lbl_relacion.setWordWrap(True)
+            lbl_relacion.setStyleSheet("""
+                color: #475569;
+                font-family: 'Consolas', monospace;
+                font-size: 13px;
+                background-color: #FFFFFF;
+                border: 1px solid #E2E8F0;
+                border-radius: 10px;
+                padding: 12px;
+            """)
+            layout_principal.addWidget(lbl_relacion)
+
     def _mostrar_resultados(self, resultado):
         """Construye la vista de resultado mostrando únicamente el Banner de Estado."""
         # 1. Ocultar la tarjeta de captura principal y la mascota
@@ -4959,7 +5338,13 @@ class VistaVectores(QWidget):
         # --- BANNER DE ESTADO ---
 
         modo = resultado.get("operacion", "")
+        es_independencia_lineal = (
+            modo == "Independencia lineal"
+            or "es_independiente" in resultado
+        )
         es_combinacion_lineal = (
+            not es_independencia_lineal
+            and (
             modo in (
                 "Combinacion lineal",
                 "Combinación lineal"
@@ -4967,6 +5352,7 @@ class VistaVectores(QWidget):
             or "es_combinacion" in resultado
             or resultado.get("solucion_parametrica") is not None
             or resultado.get("coeficientes") is not None
+            )
         )
 
         banner = QFrame()
@@ -4991,6 +5377,50 @@ class VistaVectores(QWidget):
             titulo_estado = "Operación realizada exitosamente"
             sub_estado = "El resultado se calculó correctamente."
             texto_icono = "✓"
+
+        # =========================================================
+        # INDEPENDENCIA LINEAL
+        # =========================================================
+
+        elif es_independencia_lineal:
+
+            if resultado.get("es_independiente", False):
+
+                banner.setStyleSheet("""
+                    QFrame#BannerEstado {
+                        background-color: #ECFDF5;
+                        border: 1px solid #A7F3D0;
+                        border-radius: 12px;
+                        padding: 6px 16px;
+                    }
+                """)
+
+                color_icono = "#059669"
+                titulo_estado = "Vectores independientes"
+                sub_estado = (
+                    "La ecuacion homogenea solo tiene "
+                    "la solucion trivial."
+                )
+                texto_icono = "OK"
+
+            else:
+
+                banner.setStyleSheet("""
+                    QFrame#BannerEstado {
+                        background-color: #FEF2F2;
+                        border: 1px solid #FECACA;
+                        border-radius: 12px;
+                        padding: 6px 16px;
+                    }
+                """)
+
+                color_icono = "#DC2626"
+                titulo_estado = "Vectores dependientes"
+                sub_estado = (
+                    "Existe una relacion no trivial entre "
+                    "los vectores."
+                )
+                texto_icono = "X"
 
         # =========================================================
         # COMBINACIÓN LINEAL
@@ -5087,6 +5517,39 @@ class VistaVectores(QWidget):
         b_layout.addStretch()
 
         self.results_layout.addWidget(banner)
+
+        if es_independencia_lineal:
+
+            self.results_layout.addWidget(
+                self._crear_card_info_sistema(
+                    resultado
+                )
+            )
+
+            if resultado.get("matriz_aumentada"):
+
+                self.results_layout.addWidget(
+                    self._crear_card_matriz_aumentada(
+                        resultado
+                    )
+                )
+
+            self.results_layout.addWidget(
+                self._crear_card_proceso_eliminacion(
+                    resultado
+                )
+            )
+
+            self.card_solucion = self._crear_card_solucion()
+
+            self.results_layout.addWidget(
+                self.card_solucion
+            )
+
+            self.renderizar_tarjeta_solucion(
+                resultado
+            )
+
         # =========================================================
         # OPERACIONES CON VECTORES
         # =========================================================

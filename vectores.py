@@ -298,6 +298,9 @@ def combinacion_lineal(vectores, b):
         "solucion_parametrica":
             sistema["solucion_parametrica"],
 
+        "conjunto_solucion":
+            sistema["conjunto_solucion"],
+
         # Matriz formada por los vectores generadores.
         "matriz_generadores":
             A,
@@ -663,6 +666,9 @@ def verificar_independencia_lineal(vectores):
 
         "solucion_parametrica":
             sistema["solucion_parametrica"],
+
+        "conjunto_solucion":
+            sistema["conjunto_solucion"],
 
         "relacion_dependencia":
             relacion_dependencia,

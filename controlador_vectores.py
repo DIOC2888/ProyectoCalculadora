@@ -174,6 +174,98 @@ class ControladorVectores:
     # ========================================================
 
     @staticmethod
+    def evaluar_independencia_lineal(
+        vectores
+    ):
+        """
+        Determina si un conjunto de vectores es linealmente
+        independiente usando el backend de vectores.py.
+        """
+
+        try:
+
+            resultado = (
+                backend_vectores
+                .verificar_independencia_lineal(
+                    vectores
+                )
+            )
+
+            return {
+                "exito": True,
+                "operacion": "Independencia lineal",
+                "es_independiente": resultado.get(
+                    "es_independiente",
+                    False
+                ),
+                "tipo": resultado.get("tipo"),
+                "mensaje": resultado.get(
+                    "mensaje",
+                    "Resultado calculado."
+                ),
+                "vectores": resultado.get("vectores", []),
+                "matriz_generadores": resultado.get("matriz"),
+                "matriz_aumentada": resultado.get("matriz_aumentada"),
+                "matriz_reducida": resultado.get("matriz_reducida"),
+                "proceso": resultado.get("proceso", []),
+                "rango_A": resultado.get("rango"),
+                "rango_Ab": resultado.get("rango"),
+                "num_variables": resultado.get("cantidad_vectores"),
+                "num_ecuaciones": resultado.get("dimension"),
+                "columnas_pivote": resultado.get(
+                    "columnas_pivote",
+                    []
+                ),
+                "variables_basicas": resultado.get(
+                    "variables_basicas",
+                    []
+                ),
+                "variables_libres": resultado.get(
+                    "variables_libres",
+                    []
+                ),
+                "solucion_parametrica": resultado.get(
+                    "solucion_parametrica"
+                ),
+                "conjunto_solucion": resultado.get(
+                    "conjunto_solucion"
+                ),
+                "relacion_dependencia": resultado.get(
+                    "relacion_dependencia"
+                ),
+                "p_mayor_que_n": resultado.get(
+                    "p_mayor_que_n",
+                    False
+                )
+            }
+
+        except (ValueError, TypeError) as e:
+
+            return {
+                "exito": False,
+                "operacion": "Independencia lineal",
+                "es_independiente": False,
+                "tipo": None,
+                "mensaje": str(e),
+                "vectores": vectores,
+                "matriz_generadores": None,
+                "matriz_aumentada": None,
+                "matriz_reducida": None,
+                "proceso": [],
+                "rango_A": None,
+                "rango_Ab": None,
+                "num_variables": None,
+                "num_ecuaciones": None,
+                "columnas_pivote": [],
+                "variables_basicas": [],
+                "variables_libres": [],
+                "solucion_parametrica": None,
+                "conjunto_solucion": None,
+                "relacion_dependencia": None,
+                "p_mayor_que_n": False
+            }
+
+    @staticmethod
     def evaluar_combinacion_lineal(
         vectores,
         b
@@ -927,180 +1019,109 @@ class ControladorVectores:
                 "proceso":
                     []
             }
-    # ========================================================
-#              MATRIZ POR VECTOR
-# ========================================================
+    @staticmethod
+    def multiplicar_matriz_vector(
+        A,
+        vector
+    ):
+        """
+        Calcula el producto A por vector usando matrices.py.
+        """
 
-@staticmethod
-def multiplicar_matriz_vector(
-    A,
-    vector
-):
-    """
-    Calcula el producto:
+        try:
 
-        A · vector
-
-    utilizando la operación existente en matrices.py.
-
-    Devuelve el resultado y el proceso necesario
-    para que la interfaz pueda mostrar los pasos.
-    """
-
-    try:
-
-        resultado = (
-            backend_matrices
-            .multiplicar_matriz_vector(
-                A,
-                vector
-            )
-        )
-
-        return {
-
-            "exito": True,
-
-            "operacion":
-                "Matriz por vector",
-
-            "matriz":
-                A,
-
-            "vector":
-                vector,
-
-            "resultado":
-                resultado["resultado"],
-
-            "proceso":
-                resultado["proceso"],
-
-            "mensaje":
-                "El producto de la matriz por el vector "
-                "se realizó correctamente."
-        }
-
-    except (ValueError, TypeError) as e:
-
-        return {
-
-            "exito": False,
-
-            "operacion":
-                "Matriz por vector",
-
-            "matriz":
-                A,
-
-            "vector":
-                vector,
-
-            "resultado":
-                None,
-
-            "proceso":
-                [],
-
-            "mensaje":
-                str(e)
-        }
-    # ========================================================
-#          PROPIEDAD A(cu) = c(Au)
-# ========================================================
-
-@staticmethod
-def verificar_homogeneidad_matriz_vector(
-    A,
-    u,
-    escalar
-):
-    """
-    Verifica la propiedad:
-
-        A(cu) = c(Au)
-
-    utilizando el backend de matrices.py.
-    """
-
-    try:
-
-        resultado = (
-            backend_matrices
-            .verificar_homogeneidad_matriz_vector(
-                A,
-                u,
-                escalar
-            )
-        )
-
-        if resultado["igualdad"]:
-
-            mensaje = (
-                "Se cumple la propiedad: "
-                "A(cu) = c(Au)."
+            resultado = (
+                backend_matrices
+                .multiplicar_matriz_vector(
+                    A,
+                    vector
+                )
             )
 
-        else:
+            return {
+                "exito": True,
+                "operacion": "Matriz por vector",
+                "matriz": A,
+                "vector": vector,
+                "resultado": resultado["resultado"],
+                "proceso": resultado["proceso"],
+                "mensaje": (
+                    "El producto de la matriz por el vector "
+                    "se realizo correctamente."
+                )
+            }
 
-            mensaje = (
-                "La igualdad A(cu) = c(Au) "
-                "no se cumple para los datos ingresados."
+        except (ValueError, TypeError) as e:
+
+            return {
+                "exito": False,
+                "operacion": "Matriz por vector",
+                "matriz": A,
+                "vector": vector,
+                "resultado": None,
+                "proceso": [],
+                "mensaje": str(e)
+            }
+
+    @staticmethod
+    def verificar_homogeneidad_matriz_vector(
+        A,
+        u,
+        escalar
+    ):
+        """
+        Verifica la propiedad A(cu) = c(Au).
+        """
+
+        try:
+
+            resultado = (
+                backend_matrices
+                .verificar_homogeneidad_matriz_vector(
+                    A,
+                    u,
+                    escalar
+                )
             )
 
-        return {
+            expresion = (
+                resultado["proceso"][-1].get(
+                    "operacion",
+                    "A(cu) = c(Au)"
+                )
+                if resultado.get("proceso")
+                else "A(cu) = c(Au)"
+            )
 
-            "exito": True,
+            if resultado["igualdad"]:
+                mensaje = f"Se cumple la propiedad: {expresion}."
+            else:
+                mensaje = (
+                    f"La igualdad {expresion} no se cumple "
+                    "para los datos ingresados."
+                )
 
-            "operacion":
-                "Propiedad homogénea",
+            return {
+                "exito": True,
+                "operacion": "Propiedad homogenea",
+                "igualdad": resultado["igualdad"],
+                "mensaje": mensaje,
+                "matriz": resultado["matriz"],
+                "u": resultado["u"],
+                "escalar": resultado["escalar"],
+                "cu": resultado["cu"],
+                "Au": resultado["Au"],
+                "lado_izquierdo": resultado["lado_izquierdo"],
+                "lado_derecho": resultado["lado_derecho"],
+                "proceso": resultado["proceso"]
+            }
 
-            "igualdad":
-                resultado["igualdad"],
+        except (ValueError, TypeError) as e:
 
-            "mensaje":
-                mensaje,
-
-            "matriz":
-                resultado["matriz"],
-
-            "u":
-                resultado["u"],
-
-            "escalar":
-                resultado["escalar"],
-
-            "cu":
-                resultado["cu"],
-
-            "Au":
-                resultado["Au"],
-
-            "lado_izquierdo":
-                resultado["lado_izquierdo"],
-
-            "lado_derecho":
-                resultado["lado_derecho"],
-
-            "proceso":
-                resultado["proceso"]
-        }
-
-    except (ValueError, TypeError) as e:
-
-        return {
-
-            "exito": False,
-
-            "operacion":
-                "Propiedad homogénea",
-
-            "igualdad":
-                False,
-
-            "mensaje":
-                str(e),
-
-            "proceso":
-                []
-        }
+            return {
+                "exito": False,
+                "operacion": "Propiedad homogenea",
+                "igualdad": False,
+                "mensaje": str(e),
+                "proceso": []
+            }

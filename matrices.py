@@ -1153,6 +1153,7 @@ def verificar_homogeneidad_matriz_vector(
         )
 
     proceso = []
+    k_texto = _formatear_numero(escalar)
 
     # ========================================================
     # PASO 1: CALCULAR cu
@@ -1171,7 +1172,7 @@ def verificar_homogeneidad_matriz_vector(
         "numero": 1,
         "tipo": "producto_escalar_vector",
         "titulo": "MULTIPLICACIÓN DEL ESCALAR POR EL VECTOR",
-        "operacion": "cu",
+        "operacion": f"{k_texto}u",
         "escalar": escalar,
         "vector": u[:],
         "resultado": resultado_cu[:]
@@ -1192,7 +1193,7 @@ def verificar_homogeneidad_matriz_vector(
         "numero": 2,
         "tipo": "lado_izquierdo",
         "titulo": "LADO IZQUIERDO",
-        "operacion": "A(cu)",
+        "operacion": f"A({k_texto}u)",
         "resultado": A_cu[:],
         "subproceso": resultado_A_cu["proceso"]
     })
@@ -1232,7 +1233,7 @@ def verificar_homogeneidad_matriz_vector(
         "numero": 4,
         "tipo": "lado_derecho",
         "titulo": "LADO DERECHO",
-        "operacion": "c(Au)",
+        "operacion": f"{k_texto}(Au)",
         "escalar": escalar,
         "vector": Au[:],
         "resultado": c_Au[:]
@@ -1264,7 +1265,7 @@ def verificar_homogeneidad_matriz_vector(
         "numero": 5,
         "tipo": "verificacion",
         "titulo": "VERIFICACIÓN DE LA PROPIEDAD",
-        "operacion": "A(cu) = c(Au)",
+        "operacion": f"A({k_texto}u) = {k_texto}(Au)",
         "resultado": igualdad
     })
 

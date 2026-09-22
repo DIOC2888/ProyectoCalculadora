@@ -821,6 +821,69 @@ class VistaMatriz(QWidget):
         self.card_proceso.is_expanded = True
         self.card_proceso.content_widget.setVisible(True)
         self.card_proceso.btn_toggle.setText("−")
+
+    def _agregar_titulo_seccion(self, layout, texto):
+        lbl = QLabel(texto)
+        lbl.setStyleSheet(
+            "color: #64748B; font-weight: 700; font-size: 11px;"
+            " letter-spacing: 0.5px; border: none;"
+        )
+        layout.addWidget(lbl)
+
+    def _formatear_vector_texto(self, vector):
+        return (
+            "["
+            + "; ".join(
+                formatear_numero(valor)
+                if isinstance(valor, (int, float))
+                else str(valor)
+                for valor in vector
+            )
+            + "]"
+        )
+
+    def _texto_conjunto_solucion(self, conjunto, variable="x"):
+        if not conjunto:
+            return ""
+
+        forma_vectorial = conjunto.get("forma_vectorial")
+
+        if isinstance(forma_vectorial, list):
+            return (
+                f"{variable} = "
+                + self._formatear_vector_texto(forma_vectorial)
+            )
+
+        solucion_particular = conjunto.get(
+            "solucion_particular",
+            []
+        )
+        vectores_direccion = conjunto.get(
+            "vectores_direccion",
+            []
+        )
+        parametros = conjunto.get("parametros", [])
+
+        if not solucion_particular and not vectores_direccion:
+            return ""
+
+        partes = [
+            self._formatear_vector_texto(solucion_particular)
+        ]
+
+        for indice, vector in enumerate(vectores_direccion):
+            parametro = (
+                parametros[indice]
+                if indice < len(parametros)
+                else f"t{indice + 1}"
+            )
+            partes.append(
+                f"{parametro}"
+                f"{self._formatear_vector_texto(vector)}"
+            )
+
+        return f"{variable} = " + " + ".join(partes)
+
     def renderizar_tarjeta_solucion(self, resultado):
         """Pobla la tarjeta desplegable 'Solución' arreglando bordes heredados y proporciones de tarjetas."""
         if not hasattr(self, "card_solucion") or not self.card_solucion:
@@ -850,6 +913,8 @@ class VistaMatriz(QWidget):
         vars_basicas = resultado.get("variables_basicas", [])
         vars_libres = resultado.get("variables_libres", [])
         soluciones_valores = resultado.get("soluciones_valores", [])
+        solucion_parametrica = resultado.get("solucion_parametrica")
+        conjunto_solucion = resultado.get("conjunto_solucion")
         verificaciones = resultado.get("verificacion", [])
         matriz_orig = resultado.get("matriz_inicial", [])
         
@@ -973,7 +1038,62 @@ class VistaMatriz(QWidget):
             hbox_cards_valores.addStretch()  # Evita que las tarjetas se estiren a los lados
             vbox_valores.addLayout(hbox_cards_valores)
             layout_principal.addLayout(vbox_valores)
-            # =========================================================================
+
+        if tipo_sistema == "indeterminado" and solucion_parametrica:
+            self._agregar_titulo_seccion(
+                layout_principal,
+                "SOLUCIÓN PARAMÉTRICA"
+            )
+
+            soluciones = solucion_parametrica.get("soluciones", [])
+            texto_parametrico = "\n".join(
+                f"x{sub(item.get('variable', i))} = "
+                f"{item.get('expresion', '')}"
+                for i, item in enumerate(soluciones)
+                if isinstance(item, dict)
+            )
+
+            if not texto_parametrico:
+                texto_parametrico = "Sin datos de solución paramétrica."
+
+            lbl_param = QLabel(texto_parametrico)
+            lbl_param.setWordWrap(True)
+            lbl_param.setStyleSheet("""
+                color: #0F172A;
+                font-family: 'Consolas', 'Courier New', monospace;
+                font-size: 13px;
+                background-color: #F8FAFC;
+                border: 1px solid #E2E8F0;
+                border-radius: 10px;
+                padding: 12px;
+            """)
+            layout_principal.addWidget(lbl_param)
+
+        texto_conjunto = self._texto_conjunto_solucion(
+            conjunto_solucion,
+            "x"
+        )
+
+        if tipo_sistema != "inconsistente" and texto_conjunto:
+            self._agregar_titulo_seccion(
+                layout_principal,
+                "CONJUNTO SOLUCIÓN VECTORIAL"
+            )
+
+            lbl_conjunto = QLabel(texto_conjunto)
+            lbl_conjunto.setWordWrap(True)
+            lbl_conjunto.setStyleSheet("""
+                color: #0F172A;
+                font-family: 'Consolas', 'Courier New', monospace;
+                font-size: 13px;
+                background-color: #F8FAFC;
+                border: 1px solid #E2E8F0;
+                border-radius: 10px;
+                padding: 12px;
+            """)
+            layout_principal.addWidget(lbl_conjunto)
+
+        # =========================================================================
         # 3. SECCIÓN: VERIFICACIÓN (Muestra sustitución completa en una línea)
         # =========================================================================
         if tipo_sistema == "determinado" and verificaciones:

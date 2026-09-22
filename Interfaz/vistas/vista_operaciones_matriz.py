@@ -440,8 +440,16 @@ class VistaOperacionesMatriz(QWidget):
         btn_clear_mops.clicked.connect(self._clear_matrix_ops_inputs)
         
         self.combo_mops_metodo = QComboBox()
-        self.combo_mops_metodo.addItems(["Sumar", "Restar", "Escalar", "Multiplicar"])
-        self.combo_mops_metodo.setFixedWidth(120)
+        self.combo_mops_metodo.addItems([
+            "Sumar",
+            "Restar",
+            "Escalar",
+            "Multiplicar",
+            "Matriz por vector",
+            "Distributividad",
+            "Homogeneidad"
+        ])
+        self.combo_mops_metodo.setFixedWidth(170)
         self.combo_mops_metodo.setFixedHeight(38)
         self.combo_mops_metodo.setCurrentIndex(0)
         combo_popup_style = """
@@ -682,13 +690,22 @@ class VistaOperacionesMatriz(QWidget):
 
         metodo = self.combo_mops_metodo.currentText()
 
-        es_escalar = metodo == "Escalar"
+        es_escalar = metodo in ("Escalar", "Homogeneidad")
+        usa_vector = metodo in (
+            "Matriz por vector",
+            "Distributividad",
+            "Homogeneidad"
+        )
 
-        # Mostrar escalar solamente en Escalar
-        self.mops_escalar_container.setVisible(es_escalar)
+        # Mostrar escalar solamente cuando la operacion lo usa.
+        self.mops_escalar_container.setVisible(
+            es_escalar or metodo == "Homogeneidad"
+        )
 
-        # Cantidad de matrices no aplica para Escalar
-        self.stepper_mops_count.setEnabled(not es_escalar)
+        # Cantidad de matrices no aplica para estas operaciones.
+        self.stepper_mops_count.setEnabled(
+            not es_escalar and not usa_vector
+        )
 
         # Reconstruir matrices
         self._rebuild_matrix_ops_grid()
@@ -714,6 +731,21 @@ class VistaOperacionesMatriz(QWidget):
                     matriz_valores.append(fila_valores)
 
                 valores_actuales.append(matriz_valores)
+
+        valores_vector_u = []
+        valores_vector_v = []
+
+        if hasattr(self, "mops_vector_inputs"):
+            valores_vector_u = [
+                inp.text()
+                for inp in self.mops_vector_inputs
+            ]
+
+        if hasattr(self, "mops_vector_v_inputs"):
+            valores_vector_v = [
+                inp.text()
+                for inp in self.mops_vector_v_inputs
+            ]
 
         # ============================================================
         # 2. RECREAR EL CONTENEDOR INTERNO DEL SCROLL
@@ -757,17 +789,23 @@ class VistaOperacionesMatriz(QWidget):
 
         metodo = self.combo_mops_metodo.currentText()
 
-        es_escalar = metodo == "Escalar"
+        es_escalar = metodo in ("Escalar", "Homogeneidad")
+        usa_vector = metodo in (
+            "Matriz por vector",
+            "Distributividad",
+            "Homogeneidad"
+        )
 
-        # Escalar -> solamente A1
-        # Sumar/Restar/Multiplicar -> cantidad seleccionada
-        if es_escalar:
+        # Escalar y operaciones matriz-vector usan solamente A1.
+        if es_escalar or usa_vector:
             num_matrices = 1
         else:
             num_matrices = self.stepper_mops_count.value
 
         # Lista nueva
         self.mops_inputs_list = []
+        self.mops_vector_inputs = []
+        self.mops_vector_v_inputs = []
 
         # ============================================================
         # 4. ESTILO
@@ -806,11 +844,33 @@ class VistaOperacionesMatriz(QWidget):
             + bracket_gap * 2
         )
         matrix_height = label_height + label_gap + bracket_height
+        vector_count = (
+            2
+            if metodo == "Distributividad"
+            else 1
+            if usa_vector
+            else 0
+        )
+        vector_bracket_height = (
+            cols * input_height
+            + max(0, cols - 1) * grid_spacing
+        )
+        vector_width = (
+            bracket_width * 2
+            + input_width
+            + bracket_gap * 2
+        )
+        vector_height = (
+            label_height
+            + label_gap
+            + vector_bracket_height
+        )
         content_width = (
             num_matrices * matrix_width
-            + max(0, num_matrices - 1) * matrix_spacing
+            + vector_count * vector_width
+            + max(0, num_matrices + vector_count - 1) * matrix_spacing
         )
-        content_height = matrix_height
+        content_height = max(matrix_height, vector_height)
 
         # ============================================================
         # 5. CREAR A1, A2, A3...
@@ -917,6 +977,100 @@ class VistaOperacionesMatriz(QWidget):
             self.mops_layout_inner.addWidget(mat_widget)
 
         # ============================================================
+        # 5.1 CREAR VECTORES u / v PARA OPERACIONES MATRIZ-VECTOR
+        # ============================================================
+
+        def crear_vector_columna(
+            etiqueta,
+            valores_previos
+        ):
+            vec_widget = QWidget()
+            vec_widget.setStyleSheet("background-color: transparent;")
+            vec_widget.setSizePolicy(
+                QSizePolicy.Policy.Fixed,
+                QSizePolicy.Policy.Fixed
+            )
+
+            vec_box = QVBoxLayout(vec_widget)
+            vec_box.setSpacing(6)
+            vec_box.setContentsMargins(0, 0, 0, 0)
+            vec_box.setAlignment(Qt.AlignmentFlag.AlignTop)
+
+            lbl_vec = QLabel(etiqueta)
+            lbl_vec.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lbl_vec.setStyleSheet("""
+                color: #64748B;
+                font-size: 11px;
+                font-weight: 600;
+                background: transparent;
+            """)
+            vec_box.addWidget(lbl_vec)
+
+            vec_row_layout = QHBoxLayout()
+            vec_row_layout.setSpacing(4)
+            vec_row_layout.setContentsMargins(0, 0, 0, 0)
+
+            b_left = BracketWidget(is_left=True)
+            b_left.setFixedHeight(vector_bracket_height)
+
+            vec_inputs_col = QVBoxLayout()
+            vec_inputs_col.setSpacing(grid_spacing)
+            vec_inputs_col.setContentsMargins(0, 0, 0, 0)
+
+            inputs = []
+
+            for r in range(cols):
+                valor = (
+                    valores_previos[r]
+                    if r < len(valores_previos)
+                    else "0"
+                )
+
+                inp = QLineEdit(valor)
+                inp.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                inp.setFixedSize(input_width, input_height)
+                inp.setStyleSheet(input_style)
+                vec_inputs_col.addWidget(inp)
+                inputs.append(inp)
+
+            b_right = BracketWidget(is_left=False)
+            b_right.setFixedHeight(vector_bracket_height)
+
+            vec_row_layout.addWidget(b_left)
+            vec_row_layout.addLayout(vec_inputs_col)
+            vec_row_layout.addWidget(b_right)
+
+            vec_box.addLayout(vec_row_layout)
+            vec_widget.setFixedSize(vector_width, vector_height)
+
+            return vec_widget, inputs
+
+        if usa_vector:
+            etiqueta_u = "u"
+
+            if metodo == "Matriz por vector":
+                etiqueta_u = "x"
+
+            vec_u_widget, self.mops_vector_inputs = (
+                crear_vector_columna(
+                    etiqueta_u,
+                    valores_vector_u
+                )
+            )
+
+            self.mops_layout_inner.addWidget(vec_u_widget)
+
+        if metodo == "Distributividad":
+            vec_v_widget, self.mops_vector_v_inputs = (
+                crear_vector_columna(
+                    "v",
+                    valores_vector_v
+                )
+            )
+
+            self.mops_layout_inner.addWidget(vec_v_widget)
+
+        # ============================================================
         # 6. ESCALAR
         # ============================================================
 
@@ -946,6 +1100,10 @@ class VistaOperacionesMatriz(QWidget):
             for row in mat:
                 for inp in row:
                     inp.setText("0")
+        for inp in getattr(self, "mops_vector_inputs", []):
+            inp.setText("0")
+        for inp in getattr(self, "mops_vector_v_inputs", []):
+            inp.setText("0")
         self.inp_mops_escalar.setText("1")
     def _rebuild_mat_eqs_grid(self):
         # Guardar valores antes de reconstruir la grilla.
@@ -1151,6 +1309,12 @@ class VistaOperacionesMatriz(QWidget):
 
         return matrices
 
+    def _leer_vector_mops(self, inputs):
+        return [
+            self._leer_float(inp)
+            for inp in inputs
+        ]
+
     def _leer_matriz_meqs(self):
         matriz = []
 
@@ -1183,6 +1347,18 @@ class VistaOperacionesMatriz(QWidget):
                 )
                 return
 
+            if modo in (
+                "Matriz por vector",
+                "Distributividad",
+                "Homogeneidad"
+            ) and not matrices:
+                QMessageBox.warning(
+                    self,
+                    "Sin matriz",
+                    "Debes ingresar la matriz A."
+                )
+                return
+
             if modo == "Sumar":
                 resultado = ControladorVectores.sumar_matrices(matrices)
 
@@ -1206,6 +1382,45 @@ class VistaOperacionesMatriz(QWidget):
 
             elif modo == "Multiplicar":
                 resultado = ControladorVectores.multiplicar_matrices(matrices)
+
+            elif modo == "Matriz por vector":
+                vector = self._leer_vector_mops(
+                    self.mops_vector_inputs
+                )
+                resultado = ControladorVectores.multiplicar_matriz_vector(
+                    matrices[0],
+                    vector
+                )
+
+            elif modo == "Distributividad":
+                u = self._leer_vector_mops(
+                    self.mops_vector_inputs
+                )
+                v = self._leer_vector_mops(
+                    self.mops_vector_v_inputs
+                )
+                resultado = (
+                    ControladorVectores
+                    .verificar_distributividad_matriz_vector(
+                        matrices[0],
+                        u,
+                        v
+                    )
+                )
+
+            elif modo == "Homogeneidad":
+                u = self._leer_vector_mops(
+                    self.mops_vector_inputs
+                )
+                escalar = self._leer_float(self.inp_mops_escalar)
+                resultado = (
+                    ControladorVectores
+                    .verificar_homogeneidad_matriz_vector(
+                        matrices[0],
+                        u,
+                        escalar
+                    )
+                )
 
             else:
                 QMessageBox.warning(
@@ -1425,6 +1640,18 @@ class VistaOperacionesMatriz(QWidget):
 
         return widget
 
+    def _crear_vector_widget(self, vector, texto=False):
+        if vector is None:
+            vector = []
+
+        return self._crear_matriz_widget(
+            [
+                [valor]
+                for valor in vector
+            ],
+            texto=texto
+        )
+
     def _crear_fila_matrices_widget(self, matrices, simbolo=None):
         widget = QWidget()
         widget.setStyleSheet("background: transparent; border: none;")
@@ -1549,6 +1776,37 @@ class VistaOperacionesMatriz(QWidget):
             body_layout.addWidget(lbl_vacio)
             return card
 
+        def envolver_con_margen(widget):
+            wrapper = QWidget()
+            wrapper.setStyleSheet("background: transparent; border: none;")
+            wrapper_layout = QHBoxLayout(wrapper)
+            wrapper_layout.setContentsMargins(40, 0, 0, 0)
+            wrapper_layout.addWidget(widget)
+            wrapper_layout.addStretch()
+            return wrapper
+
+        def crear_matriz_vector_widget(matriz, vector):
+            wrapper = QWidget()
+            wrapper.setStyleSheet("background: transparent; border: none;")
+            wrapper_layout = QHBoxLayout(wrapper)
+            wrapper_layout.setContentsMargins(40, 0, 0, 0)
+            wrapper_layout.setSpacing(18)
+            wrapper_layout.addWidget(self._crear_matriz_widget(matriz))
+
+            lbl_simbolo = QLabel("x")
+            lbl_simbolo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lbl_simbolo.setStyleSheet("""
+                color: #0F172A;
+                font-size: 18px;
+                font-weight: 800;
+                border: none;
+                background: transparent;
+            """)
+            wrapper_layout.addWidget(lbl_simbolo)
+            wrapper_layout.addWidget(self._crear_vector_widget(vector))
+            wrapper_layout.addStretch()
+            return wrapper
+
         for indice, paso in enumerate(proceso, start=1):
             numero = paso.get("numero", indice)
             titulo = paso.get("titulo", "PASO")
@@ -1574,6 +1832,12 @@ class VistaOperacionesMatriz(QWidget):
                         "x"
                     )
 
+                elif paso.get("matriz") and paso.get("vector"):
+                    contenido = crear_matriz_vector_widget(
+                        paso.get("matriz", []),
+                        paso.get("vector", [])
+                    )
+
                 elif paso.get("matriz"):
                     contenido = self._crear_fila_matrices_widget(
                         [paso.get("matriz")]
@@ -1583,22 +1847,85 @@ class VistaOperacionesMatriz(QWidget):
                     contenido = QLabel(str(etiqueta))
 
             elif tipo == "componentes":
+                es_vector_componentes = (
+                    isinstance(operacion_paso, list)
+                    and (
+                        not operacion_paso
+                        or not isinstance(operacion_paso[0], list)
+                    )
+                )
+
                 contenido = QWidget()
                 contenido.setStyleSheet("background: transparent; border: none;")
                 contenido_layout = QHBoxLayout(contenido)
                 contenido_layout.setContentsMargins(40, 0, 0, 0)
-                contenido_layout.addWidget(
-                    self._crear_matriz_widget(
-                        operacion_paso if isinstance(operacion_paso, list) else [],
-                        texto=True
+
+                if es_vector_componentes:
+                    contenido_layout.addWidget(
+                        self._crear_vector_widget(
+                            operacion_paso,
+                            texto=True
+                        )
                     )
-                )
+                else:
+                    contenido_layout.addWidget(
+                        self._crear_matriz_widget(
+                            operacion_paso
+                            if isinstance(operacion_paso, list)
+                            else [],
+                            texto=True
+                        )
+                    )
+
                 contenido_layout.addStretch()
 
             elif tipo == "resultado":
-                contenido = self._crear_fila_matrices_widget(
-                    [paso.get("matriz", [])]
+                if paso.get("vector") is not None:
+                    contenido = envolver_con_margen(
+                        self._crear_vector_widget(
+                            paso.get("vector", [])
+                        )
+                    )
+                elif paso.get("resultado") is not None:
+                    contenido = envolver_con_margen(
+                        self._crear_vector_widget(
+                            paso.get("resultado", [])
+                        )
+                    )
+                else:
+                    contenido = self._crear_fila_matrices_widget(
+                        [paso.get("matriz", [])]
+                    )
+
+            elif tipo in (
+                "suma_vectores",
+                "producto_escalar_vector",
+                "lado_izquierdo",
+                "producto_Au",
+                "producto_Av",
+                "lado_derecho"
+            ):
+                contenido = envolver_con_margen(
+                    self._crear_vector_widget(
+                        paso.get("resultado", [])
+                    )
                 )
+
+            elif tipo == "verificacion":
+                texto = (
+                    "La igualdad se cumple."
+                    if paso.get("resultado")
+                    else "La igualdad no se cumple."
+                )
+                contenido = QLabel(texto)
+                contenido.setStyleSheet("""
+                    color: #0F172A;
+                    font-size: 13px;
+                    font-weight: 700;
+                    border: none;
+                    background: transparent;
+                    padding-left: 40px;
+                """)
 
             else:
                 contenido = QLabel(str(paso))
@@ -1668,6 +1995,58 @@ class VistaOperacionesMatriz(QWidget):
         """)
         layout.addWidget(lbl)
 
+    def _formatear_vector_texto(self, vector):
+        return (
+            "["
+            + "; ".join(
+                self._formatear_valor(valor)
+                for valor in vector
+            )
+            + "]"
+        )
+
+    def _texto_conjunto_solucion(self, conjunto):
+        if not conjunto:
+            return ""
+
+        forma_vectorial = conjunto.get("forma_vectorial")
+
+        if isinstance(forma_vectorial, list):
+            return (
+                "x = "
+                + self._formatear_vector_texto(forma_vectorial)
+            )
+
+        solucion_particular = conjunto.get(
+            "solucion_particular",
+            []
+        )
+        parametros = conjunto.get("parametros", [])
+        vectores_direccion = conjunto.get(
+            "vectores_direccion",
+            []
+        )
+
+        if not solucion_particular and not vectores_direccion:
+            return ""
+
+        partes = [
+            self._formatear_vector_texto(solucion_particular)
+        ]
+
+        for indice, vector in enumerate(vectores_direccion):
+            parametro = (
+                parametros[indice]
+                if indice < len(parametros)
+                else f"t{indice + 1}"
+            )
+            partes.append(
+                f"{parametro}"
+                f"{self._formatear_vector_texto(vector)}"
+            )
+
+        return "x = " + " + ".join(partes)
+
     def renderizar_tarjeta_solucion(self, resultado):
         if not hasattr(self, "card_solucion") or not self.card_solucion:
             return
@@ -1709,10 +2088,122 @@ class VistaOperacionesMatriz(QWidget):
             wrapper_layout.addStretch()
             layout_principal.addWidget(wrapper)
 
+        elif operacion == "Matriz por vector":
+            self._agregar_titulo_seccion(layout_principal, "RESULTADO")
+
+            wrapper = QWidget()
+            wrapper.setStyleSheet("background: transparent; border: none;")
+            wrapper_layout = QHBoxLayout(wrapper)
+            wrapper_layout.setContentsMargins(0, 0, 0, 0)
+            wrapper_layout.addWidget(
+                self._crear_vector_widget(
+                    resultado.get("resultado", [])
+                )
+            )
+            wrapper_layout.addStretch()
+            layout_principal.addWidget(wrapper)
+
+        elif operacion in (
+            "Propiedad distributiva",
+            "Propiedad homogenea",
+            "Propiedad homogÃ©nea"
+        ):
+            self._agregar_titulo_seccion(layout_principal, "COMPARACION")
+
+            es_homogeneidad = "homog" in operacion.lower()
+
+            if es_homogeneidad:
+                escalar_valor = resultado.get("escalar")
+                escalar_texto = (
+                    self._formatear_valor(escalar_valor)
+                    if escalar_valor is not None
+                    else "k"
+                )
+                expresion = (
+                    f"A({escalar_texto}u) = "
+                    f"{escalar_texto}(Au)"
+                )
+                titulos_lados = (
+                    (
+                        f"A({escalar_texto}u)",
+                        resultado.get("lado_izquierdo", [])
+                    ),
+                    (
+                        f"{escalar_texto}(Au)",
+                        resultado.get("lado_derecho", [])
+                    )
+                )
+            else:
+                expresion = "A(u + v) = Au + Av"
+                titulos_lados = (
+                    (
+                        "A(u + v)",
+                        resultado.get("lado_izquierdo", [])
+                    ),
+                    (
+                        "Au + Av",
+                        resultado.get("lado_derecho", [])
+                    )
+                )
+
+            lbl_expresion = QLabel(expresion)
+            lbl_expresion.setStyleSheet("""
+                color: #0F172A;
+                font-family: 'Consolas', 'Courier New', monospace;
+                font-size: 14px;
+                font-weight: 700;
+                background-color: #F8FAFC;
+                border: 1px solid #E2E8F0;
+                border-radius: 10px;
+                padding: 10px 12px;
+            """)
+            layout_principal.addWidget(lbl_expresion)
+
+            igualdad = resultado.get("igualdad", False)
+            lbl_estado = QLabel(
+                "La igualdad se cumple."
+                if igualdad
+                else "La igualdad no se cumple."
+            )
+            lbl_estado.setStyleSheet("""
+                color: #0F172A;
+                font-size: 13px;
+                font-weight: 700;
+                background-color: #F8FAFC;
+                border: 1px solid #E2E8F0;
+                border-radius: 10px;
+                padding: 12px;
+            """)
+            layout_principal.addWidget(lbl_estado)
+
+            lados_layout = QHBoxLayout()
+            lados_layout.setSpacing(18)
+
+            for titulo, vector in titulos_lados:
+                columna = QVBoxLayout()
+                columna.setSpacing(8)
+                lbl_titulo = QLabel(titulo)
+                lbl_titulo.setStyleSheet("""
+                    color: #64748B;
+                    font-weight: 700;
+                    font-size: 11px;
+                    letter-spacing: 0.5px;
+                    border: none;
+                """)
+                columna.addWidget(lbl_titulo)
+                columna.addWidget(
+                    self._crear_vector_widget(vector)
+                )
+                lados_layout.addLayout(columna)
+
+            lados_layout.addStretch()
+            layout_principal.addLayout(lados_layout)
+
         elif operacion == "ecuacion_matricial":
             tipo = resultado.get("tipo")
             solucion = resultado.get("solucion") or []
             solucion_parametrica = resultado.get("solucion_parametrica")
+            conjunto_solucion = resultado.get("conjunto_solucion")
 
             layout_vars = QHBoxLayout()
             layout_vars.setSpacing(16)
@@ -1859,6 +2350,29 @@ class VistaOperacionesMatriz(QWidget):
                     background: transparent;
                 """)
                 layout_principal.addWidget(lbl_none)
+
+            texto_conjunto = self._texto_conjunto_solucion(
+                conjunto_solucion
+            )
+
+            if tipo != "ninguna" and texto_conjunto:
+                self._agregar_titulo_seccion(
+                    layout_principal,
+                    "CONJUNTO SOLUCION VECTORIAL"
+                )
+
+                lbl_conjunto = QLabel(texto_conjunto)
+                lbl_conjunto.setWordWrap(True)
+                lbl_conjunto.setStyleSheet("""
+                    color: #0F172A;
+                    font-family: 'Consolas', 'Courier New', monospace;
+                    font-size: 13px;
+                    background-color: #F8FAFC;
+                    border: 1px solid #E2E8F0;
+                    border-radius: 10px;
+                    padding: 12px;
+                """)
+                layout_principal.addWidget(lbl_conjunto)
 
         self.card_solucion.is_expanded = True
         self.card_solucion.content_widget.setVisible(True)
@@ -2208,7 +2722,11 @@ class VistaOperacionesMatriz(QWidget):
             "Sumar matrices",
             "Restar matrices",
             "Multiplicar matriz por escalar",
-            "Multiplicar matrices"
+            "Multiplicar matrices",
+            "Matriz por vector",
+            "Propiedad distributiva",
+            "Propiedad homogenea",
+            "Propiedad homogÃ©nea"
         ):
             self.results_layout.addWidget(
                 self._crear_card_proceso_matricial(resultado)
