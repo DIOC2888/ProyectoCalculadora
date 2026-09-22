@@ -17,9 +17,11 @@
 from validaciones import (
     validar_matriz,
     validar_mismas_dimensiones_matrices,
-    validar_multiplicacion_matrices
+    validar_multiplicacion_matrices,
+    validar_vector
 )
 from formato import formatear_numero
+from config import TOLERANCIA
 
 
 # ============================================================
@@ -735,3 +737,359 @@ def _multiplicar_dos_matrices_con_proceso(
         resultado,
         componentes
     )
+# ============================================================
+# MULTIPLICACIÓN DE MATRIZ POR VECTOR
+# ============================================================
+
+def multiplicar_matriz_vector(A, vector):
+    """
+    Multiplica una matriz A por un vector.
+
+    Si:
+
+        A es una matriz m x n
+
+        vector pertenece a R^n
+
+    entonces:
+
+        A · vector
+
+    produce un vector de R^m.
+
+    Ejemplo:
+
+        A = [[1, 2],
+             [3, 4]]
+
+        v = [5, 6]
+
+        A·v =
+
+        [1(5) + 2(6)]
+        [3(5) + 4(6)]
+
+        = [17, 39]
+
+    Devuelve:
+        {
+            "resultado": vector_resultado,
+            "proceso": [...]
+        }
+    """
+
+    validar_matriz(A)
+    validar_vector(vector)
+
+    filas = len(A)
+    columnas = len(A[0])
+
+    # --------------------------------------------------------
+    # VALIDAR DIMENSIONES
+    # --------------------------------------------------------
+
+    if columnas != len(vector):
+
+        raise ValueError(
+            "La cantidad de columnas de la matriz "
+            "debe coincidir con la cantidad de componentes "
+            "del vector."
+        )
+
+    proceso = []
+
+    # --------------------------------------------------------
+    # PASO 1: OPERACIÓN
+    # --------------------------------------------------------
+
+    proceso.append({
+        "numero": 1,
+        "tipo": "operacion",
+        "titulo": "PRODUCTO MATRIZ POR VECTOR",
+        "operacion": "A · v",
+        "matriz": _copiar_matriz(A),
+        "vector": vector[:]
+    })
+
+    # --------------------------------------------------------
+    # PASO 2: FILA POR VECTOR
+    # --------------------------------------------------------
+
+    componentes = []
+
+    resultado = []
+
+    for i in range(filas):
+
+        suma = 0
+
+        terminos = []
+
+        for j in range(columnas):
+
+            producto = A[i][j] * vector[j]
+
+            suma += producto
+
+            terminos.append(
+                f"{_formatear_numero(A[i][j])} · "
+                f"{_formatear_numero(vector[j])}"
+            )
+
+        expresion = " + ".join(terminos)
+
+        componentes.append(
+            expresion
+        )
+
+        resultado.append(
+            suma
+        )
+
+    proceso.append({
+        "numero": 2,
+        "tipo": "componentes",
+        "titulo": "PRODUCTO FILA POR VECTOR",
+        "operacion": componentes
+    })
+
+    # --------------------------------------------------------
+    # PASO 3: RESULTADO
+    # --------------------------------------------------------
+
+    proceso.append({
+        "numero": 3,
+        "tipo": "resultado",
+        "titulo": "RESULTADO",
+        "vector": resultado[:]
+    })
+
+    return {
+        "resultado": resultado,
+        "proceso": proceso
+    }
+
+
+# ============================================================
+# PROPIEDAD DISTRIBUTIVA
+# A(u + v) = Au + Av
+# ============================================================
+
+def verificar_distributividad_matriz_vector(
+    A,
+    u,
+    v
+):
+    """
+    Verifica la propiedad distributiva:
+
+        A(u + v) = Au + Av
+
+    donde:
+
+        A = matriz
+        u = vector
+        v = vector
+
+    El procedimiento calcula ambos lados de la igualdad:
+
+        Lado izquierdo:
+
+            A(u + v)
+
+        Lado derecho:
+
+            Au + Av
+
+    y comprueba que ambos resultados sean iguales.
+
+    Devuelve:
+
+        {
+            "igualdad": True/False,
+            "lado_izquierdo": [...],
+            "lado_derecho": [...],
+            "u_mas_v": [...],
+            "Au": [...],
+            "Av": [...],
+            "proceso": [...]
+        }
+    """
+
+    validar_matriz(A)
+    validar_vector(u)
+    validar_vector(v)
+
+    columnas = len(A[0])
+
+    # --------------------------------------------------------
+    # VALIDAR DIMENSIONES
+    # --------------------------------------------------------
+
+    if len(u) != columnas:
+
+        raise ValueError(
+            "El vector u debe tener la misma cantidad "
+            "de componentes que columnas tiene A."
+        )
+
+    if len(v) != columnas:
+
+        raise ValueError(
+            "El vector v debe tener la misma cantidad "
+            "de componentes que columnas tiene A."
+        )
+
+    proceso = []
+
+    # --------------------------------------------------------
+    # PASO 1: SUMAR u + v
+    # --------------------------------------------------------
+
+    u_mas_v = []
+
+    for i in range(len(u)):
+
+        u_mas_v.append(
+            u[i] + v[i]
+        )
+
+    proceso.append({
+        "numero": 1,
+        "tipo": "suma_vectores",
+        "titulo": "SUMA DE VECTORES",
+        "operacion": "u + v",
+        "resultado": u_mas_v[:]
+    })
+
+    # --------------------------------------------------------
+    # PASO 2: CALCULAR A(u + v)
+    # --------------------------------------------------------
+
+    resultado_izquierdo = multiplicar_matriz_vector(
+        A,
+        u_mas_v
+    )
+
+    lado_izquierdo = resultado_izquierdo["resultado"]
+
+    proceso.append({
+        "numero": 2,
+        "tipo": "lado_izquierdo",
+        "titulo": "LADO IZQUIERDO",
+        "operacion": "A(u + v)",
+        "resultado": lado_izquierdo[:],
+        "subproceso": resultado_izquierdo["proceso"]
+    })
+
+    # --------------------------------------------------------
+    # PASO 3: CALCULAR Au
+    # --------------------------------------------------------
+
+    resultado_Au = multiplicar_matriz_vector(
+        A,
+        u
+    )
+
+    Au = resultado_Au["resultado"]
+
+    proceso.append({
+        "numero": 3,
+        "tipo": "producto_Au",
+        "titulo": "PRODUCTO Au",
+        "operacion": "Au",
+        "resultado": Au[:],
+        "subproceso": resultado_Au["proceso"]
+    })
+
+    # --------------------------------------------------------
+    # PASO 4: CALCULAR Av
+    # --------------------------------------------------------
+
+    resultado_Av = multiplicar_matriz_vector(
+        A,
+        v
+    )
+
+    Av = resultado_Av["resultado"]
+
+    proceso.append({
+        "numero": 4,
+        "tipo": "producto_Av",
+        "titulo": "PRODUCTO Av",
+        "operacion": "Av",
+        "resultado": Av[:],
+        "subproceso": resultado_Av["proceso"]
+    })
+
+    # --------------------------------------------------------
+    # PASO 5: CALCULAR Au + Av
+    # --------------------------------------------------------
+
+    lado_derecho = []
+
+    for i in range(len(Au)):
+
+        lado_derecho.append(
+            Au[i] + Av[i]
+        )
+
+    proceso.append({
+        "numero": 5,
+        "tipo": "lado_derecho",
+        "titulo": "LADO DERECHO",
+        "operacion": "Au + Av",
+        "resultado": lado_derecho[:]
+    })
+
+    # --------------------------------------------------------
+    # PASO 6: COMPARAR
+    # --------------------------------------------------------
+
+    igualdad = True
+
+    if len(lado_izquierdo) != len(lado_derecho):
+
+        igualdad = False
+
+    else:
+
+        for i in range(len(lado_izquierdo)):
+
+             if abs(
+                lado_izquierdo[i] - lado_derecho[i]
+            ) > TOLERANCIA:
+
+                igualdad = False
+
+                break
+
+    proceso.append({
+        "numero": 6,
+        "tipo": "verificacion",
+        "titulo": "VERIFICACIÓN DE LA PROPIEDAD",
+        "operacion": "A(u + v) = Au + Av",
+        "resultado": igualdad
+    })
+
+    return {
+        "igualdad": igualdad,
+
+        "matriz": _copiar_matriz(A),
+
+        "u": u[:],
+
+        "v": v[:],
+
+        "u_mas_v": u_mas_v,
+
+        "Au": Au,
+
+        "Av": Av,
+
+        "lado_izquierdo": lado_izquierdo,
+
+        "lado_derecho": lado_derecho,
+
+        "proceso": proceso
+    }
