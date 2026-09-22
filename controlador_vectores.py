@@ -810,4 +810,282 @@ class ControladorVectores:
         return (
             "Estado de solución no determinado."
         )
+    # ========================================================
+#       PROPIEDAD DISTRIBUTIVA A(u + v) = Au + Av
+# ========================================================
 
+    @staticmethod
+    def verificar_distributividad_matriz_vector(
+        A,
+        u,
+        v
+    ):
+        """
+        Verifica la propiedad:
+
+            A(u + v) = Au + Av
+
+        utilizando el backend de matrices.py.
+        """
+
+        try:
+
+            resultado = (
+                backend_matrices
+                .verificar_distributividad_matriz_vector(
+                    A,
+                    u,
+                    v
+                )
+            )
+
+            if resultado["igualdad"]:
+
+                mensaje = (
+                    "Se cumple la propiedad distributiva: "
+                    "A(u + v) = Au + Av."
+                )
+
+            else:
+
+                mensaje = (
+                    "La igualdad A(u + v) = Au + Av "
+                    "no se cumple para los datos ingresados."
+                )
+
+            return {
+
+                "exito": True,
+
+                "operacion":
+                    "Propiedad distributiva",
+
+                "igualdad":
+                    resultado["igualdad"],
+
+                "mensaje":
+                    mensaje,
+
+                "matriz":
+                    resultado["matriz"],
+
+                "u":
+                    resultado["u"],
+
+                "v":
+                    resultado["v"],
+
+                "u_mas_v":
+                    resultado["u_mas_v"],
+
+                "Au":
+                    resultado["Au"],
+
+                "Av":
+                    resultado["Av"],
+
+                "lado_izquierdo":
+                    resultado["lado_izquierdo"],
+
+                "lado_derecho":
+                    resultado["lado_derecho"],
+
+                "proceso":
+                    resultado["proceso"]
+            }
+
+        except (ValueError, TypeError) as e:
+
+            return {
+
+                "exito": False,
+
+                "operacion":
+                    "Propiedad distributiva",
+
+                "igualdad":
+                    False,
+
+                "mensaje":
+                    str(e),
+
+                "proceso":
+                    []
+            }
+    # ========================================================
+#              MATRIZ POR VECTOR
+# ========================================================
+
+@staticmethod
+def multiplicar_matriz_vector(
+    A,
+    vector
+):
+    """
+    Calcula el producto:
+
+        A · vector
+
+    utilizando la operación existente en matrices.py.
+
+    Devuelve el resultado y el proceso necesario
+    para que la interfaz pueda mostrar los pasos.
+    """
+
+    try:
+
+        resultado = (
+            backend_matrices
+            .multiplicar_matriz_vector(
+                A,
+                vector
+            )
+        )
+
+        return {
+
+            "exito": True,
+
+            "operacion":
+                "Matriz por vector",
+
+            "matriz":
+                A,
+
+            "vector":
+                vector,
+
+            "resultado":
+                resultado["resultado"],
+
+            "proceso":
+                resultado["proceso"],
+
+            "mensaje":
+                "El producto de la matriz por el vector "
+                "se realizó correctamente."
+        }
+
+    except (ValueError, TypeError) as e:
+
+        return {
+
+            "exito": False,
+
+            "operacion":
+                "Matriz por vector",
+
+            "matriz":
+                A,
+
+            "vector":
+                vector,
+
+            "resultado":
+                None,
+
+            "proceso":
+                [],
+
+            "mensaje":
+                str(e)
+        }
+    # ========================================================
+#          PROPIEDAD A(cu) = c(Au)
+# ========================================================
+
+@staticmethod
+def verificar_homogeneidad_matriz_vector(
+    A,
+    u,
+    escalar
+):
+    """
+    Verifica la propiedad:
+
+        A(cu) = c(Au)
+
+    utilizando el backend de matrices.py.
+    """
+
+    try:
+
+        resultado = (
+            backend_matrices
+            .verificar_homogeneidad_matriz_vector(
+                A,
+                u,
+                escalar
+            )
+        )
+
+        if resultado["igualdad"]:
+
+            mensaje = (
+                "Se cumple la propiedad: "
+                "A(cu) = c(Au)."
+            )
+
+        else:
+
+            mensaje = (
+                "La igualdad A(cu) = c(Au) "
+                "no se cumple para los datos ingresados."
+            )
+
+        return {
+
+            "exito": True,
+
+            "operacion":
+                "Propiedad homogénea",
+
+            "igualdad":
+                resultado["igualdad"],
+
+            "mensaje":
+                mensaje,
+
+            "matriz":
+                resultado["matriz"],
+
+            "u":
+                resultado["u"],
+
+            "escalar":
+                resultado["escalar"],
+
+            "cu":
+                resultado["cu"],
+
+            "Au":
+                resultado["Au"],
+
+            "lado_izquierdo":
+                resultado["lado_izquierdo"],
+
+            "lado_derecho":
+                resultado["lado_derecho"],
+
+            "proceso":
+                resultado["proceso"]
+        }
+
+    except (ValueError, TypeError) as e:
+
+        return {
+
+            "exito": False,
+
+            "operacion":
+                "Propiedad homogénea",
+
+            "igualdad":
+                False,
+
+            "mensaje":
+                str(e),
+
+            "proceso":
+                []
+        }

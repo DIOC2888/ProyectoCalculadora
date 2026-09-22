@@ -7,6 +7,7 @@
 # en el Programa 3 de Álgebra Lineal.
 
 
+from config import TOLERANCIA
 from validaciones import (
     validar_vector,
     validar_mismos_tamanos_vectores
@@ -337,4 +338,335 @@ def combinacion_lineal(vectores, b):
     }
 
     return resultado
+# ============================================================
+# INDEPENDENCIA LINEAL
+# ============================================================
 
+def verificar_independencia_lineal(vectores):
+    """
+    Determina si un conjunto de vectores es linealmente
+    independiente.
+
+    Se utiliza la definición:
+
+        c1*v1 + c2*v2 + ... + cp*vp = 0
+
+    colocando los vectores como columnas de una matriz A:
+
+        A = [v1 v2 ... vp]
+
+    y resolviendo el sistema homogéneo:
+
+        A*c = 0
+
+    Si la única solución es:
+
+        c1 = c2 = ... = cp = 0
+
+    entonces los vectores son linealmente independientes.
+
+    Si existen variables libres, existen soluciones no triviales
+    y los vectores son linealmente dependientes.
+
+    La eliminación de Gauss-Jordan NO se implementa nuevamente.
+    Se reutiliza resolver_sistema() de ecuaciones.py.
+    """
+
+    # ---------------------------------------------------------
+    # VALIDAR CONJUNTO
+    # ---------------------------------------------------------
+
+    if not isinstance(vectores, list):
+
+        raise TypeError(
+            "Los vectores deben proporcionarse como una lista."
+        )
+
+    if len(vectores) == 0:
+
+        raise ValueError(
+            "Debe proporcionar al menos un vector."
+        )
+
+    # Validar cada vector
+    for vector in vectores:
+
+        validar_vector(vector)
+
+    # ---------------------------------------------------------
+    # VERIFICAR QUE TODOS PERTENEZCAN AL MISMO R^n
+    # ---------------------------------------------------------
+
+    dimension = len(vectores[0])
+
+    for vector in vectores[1:]:
+
+        if len(vector) != dimension:
+
+            raise ValueError(
+                "Todos los vectores deben tener la misma dimensión."
+            )
+
+    cantidad_vectores = len(vectores)
+
+    # ---------------------------------------------------------
+    # CASO p > n
+    # ---------------------------------------------------------
+    #
+    # Si existen más vectores que la dimensión:
+    #
+    #       p > n
+    #
+    # entonces el conjunto necesariamente es dependiente.
+    #
+    # Aun así construimos y resolvemos el sistema para
+    # conservar el proceso matemático completo.
+    # ---------------------------------------------------------
+
+    p_mayor_que_n = (
+        cantidad_vectores > dimension
+    )
+
+    # ---------------------------------------------------------
+    # CONSTRUIR A CON LOS VECTORES COMO COLUMNAS
+    # ---------------------------------------------------------
+
+    A = []
+
+    for i in range(dimension):
+
+        fila = []
+
+        for j in range(cantidad_vectores):
+
+            fila.append(
+                vectores[j][i]
+            )
+
+        A.append(fila)
+
+    # ---------------------------------------------------------
+    # SISTEMA HOMOGÉNEO
+    #
+    #       A*c = 0
+    # ---------------------------------------------------------
+
+    vector_cero = [
+        0
+        for _ in range(dimension)
+    ]
+
+    # ---------------------------------------------------------
+    # RESOLVER SISTEMA UTILIZANDO EL BACKEND EXISTENTE
+    # ---------------------------------------------------------
+
+    from ecuaciones import resolver_sistema
+
+    sistema = resolver_sistema(
+        A,
+        vector_cero
+    )
+
+    # ---------------------------------------------------------
+    # ANALIZAR RESULTADO
+    # ---------------------------------------------------------
+
+    variables_libres = sistema[
+        "variables_libres"
+    ]
+
+    es_independiente = (
+        len(variables_libres) == 0
+    )
+
+    # ---------------------------------------------------------
+    # SOLUCIÓN / RELACIÓN DE DEPENDENCIA
+    # ---------------------------------------------------------
+
+    relacion_dependencia = None
+
+    if not es_independiente:
+
+        # -----------------------------------------------------
+        # Elegimos una variable libre y le damos valor 1.
+        #
+        # Las demás variables libres reciben 0.
+        #
+        # Esto produce una solución no trivial concreta.
+        # -----------------------------------------------------
+
+        solucion = [
+            0
+            for _ in range(cantidad_vectores)
+        ]
+
+        variable_libre = variables_libres[0]
+
+        solucion[variable_libre] = 1
+
+        matriz_reducida = sistema[
+            "matriz_reducida"
+        ]
+
+        columnas_pivote = sistema[
+            "columnas_pivote"
+        ]
+
+        # -----------------------------------------------------
+        # Calcular las variables básicas utilizando
+        # la matriz reducida.
+        #
+        # Para cada ecuación:
+        #
+        # xp + a1*x1 + ... + ak*xk = 0
+        #
+        # entonces:
+        #
+        # xp = -(a1*x1 + ... + ak*xk)
+        # -----------------------------------------------------
+
+        for fila in matriz_reducida:
+
+            columna_pivote = None
+
+            # Buscar el pivote de la fila.
+            for j in range(cantidad_vectores):
+
+                if abs(
+                    fila[j]
+                ) > TOLERANCIA:
+
+                    if j in columnas_pivote:
+
+                        columna_pivote = j
+
+                    break
+
+            if columna_pivote is None:
+
+                continue
+
+            valor = 0
+
+            for j in variables_libres:
+
+                valor += (
+                    fila[j] * solucion[j]
+                )
+
+            solucion[columna_pivote] = -valor
+
+        # -----------------------------------------------------
+        # Construir relación de dependencia
+        # -----------------------------------------------------
+
+        relacion_terminos = []
+
+        for i in range(cantidad_vectores):
+
+            coeficiente = solucion[i]
+
+            if abs(coeficiente) < TOLERANCIA:
+
+                continue
+
+            relacion_terminos.append({
+                "vector": i,
+                "coeficiente": coeficiente
+            })
+
+        relacion_dependencia = {
+            "coeficientes": solucion,
+            "terminos": relacion_terminos
+        }
+
+    # ---------------------------------------------------------
+    # MENSAJE
+    # ---------------------------------------------------------
+
+    if es_independiente:
+
+        mensaje = (
+            "Los vectores son linealmente independientes. "
+            "La ecuación homogénea Ac = 0 tiene únicamente "
+            "la solución trivial."
+        )
+
+    elif p_mayor_que_n:
+
+        mensaje = (
+            "Los vectores son linealmente dependientes porque "
+            "la cantidad de vectores es mayor que la dimensión: "
+            "p > n."
+        )
+
+    else:
+
+        mensaje = (
+            "Los vectores son linealmente dependientes porque "
+            "la ecuación homogénea Ac = 0 tiene soluciones "
+            "no triviales."
+        )
+
+    # ---------------------------------------------------------
+    # RETORNO
+    # ---------------------------------------------------------
+
+    return {
+
+        "es_independiente":
+            es_independiente,
+
+        "tipo":
+            "independiente"
+            if es_independiente
+            else "dependiente",
+
+        "mensaje":
+            mensaje,
+
+        "vectores":
+            [vector[:] for vector in vectores],
+
+        "matriz":
+            A,
+
+        "vector_cero":
+            vector_cero,
+
+        "matriz_aumentada":
+            sistema["matriz_aumentada"],
+
+        "matriz_reducida":
+            sistema["matriz_reducida"],
+
+        "proceso":
+            sistema["proceso"],
+
+        "rango":
+            sistema["rango_A"],
+
+        "cantidad_vectores":
+            cantidad_vectores,
+
+        "dimension":
+            dimension,
+
+        "columnas_pivote":
+            sistema["columnas_pivote"],
+
+        "variables_basicas":
+            sistema["variables_basicas"],
+
+        "variables_libres":
+            sistema["variables_libres"],
+
+        "solucion_parametrica":
+            sistema["solucion_parametrica"],
+
+        "relacion_dependencia":
+            relacion_dependencia,
+
+        "p_mayor_que_n":
+            p_mayor_que_n
+    }

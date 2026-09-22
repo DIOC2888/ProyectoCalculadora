@@ -1093,3 +1093,197 @@ def verificar_distributividad_matriz_vector(
 
         "proceso": proceso
     }
+    # ============================================================
+# PROPIEDAD HOMOGÉNEA
+# A(cu) = c(Au)
+# ============================================================
+
+def verificar_homogeneidad_matriz_vector(
+    A,
+    u,
+    escalar
+):
+    """
+    Verifica la propiedad:
+
+        A(cu) = c(Au)
+
+    donde:
+
+        A      = matriz
+        u      = vector
+        c      = escalar
+
+    Se calculan ambos lados de la igualdad:
+
+        Lado izquierdo:
+            A(cu)
+
+        Lado derecho:
+            c(Au)
+
+    La función reutiliza las operaciones existentes:
+
+        multiplicar_matriz_vector()
+        multiplicar_vector_escalar()
+
+    Devuelve los resultados y todos los pasos necesarios
+    para que la interfaz pueda mostrar el procedimiento.
+    """
+
+    validar_matriz(A)
+    validar_vector(u)
+
+    if not isinstance(escalar, (int, float)):
+        raise TypeError(
+            "El escalar debe ser un número."
+        )
+
+    columnas = len(A[0])
+
+    # --------------------------------------------------------
+    # VALIDAR DIMENSIONES
+    # --------------------------------------------------------
+
+    if len(u) != columnas:
+
+        raise ValueError(
+            "El vector u debe tener la misma cantidad "
+            "de componentes que columnas tiene A."
+        )
+
+    proceso = []
+
+    # ========================================================
+    # PASO 1: CALCULAR cu
+    # ========================================================
+
+    from vectores import (
+        multiplicar_vector_escalar
+    )
+
+    resultado_cu = multiplicar_vector_escalar(
+        u,
+        escalar
+    )
+
+    proceso.append({
+        "numero": 1,
+        "tipo": "producto_escalar_vector",
+        "titulo": "MULTIPLICACIÓN DEL ESCALAR POR EL VECTOR",
+        "operacion": "cu",
+        "escalar": escalar,
+        "vector": u[:],
+        "resultado": resultado_cu[:]
+    })
+
+    # ========================================================
+    # PASO 2: CALCULAR A(cu)
+    # ========================================================
+
+    resultado_A_cu = multiplicar_matriz_vector(
+        A,
+        resultado_cu
+    )
+
+    A_cu = resultado_A_cu["resultado"]
+
+    proceso.append({
+        "numero": 2,
+        "tipo": "lado_izquierdo",
+        "titulo": "LADO IZQUIERDO",
+        "operacion": "A(cu)",
+        "resultado": A_cu[:],
+        "subproceso": resultado_A_cu["proceso"]
+    })
+
+    # ========================================================
+    # PASO 3: CALCULAR Au
+    # ========================================================
+
+    resultado_Au = multiplicar_matriz_vector(
+        A,
+        u
+    )
+
+    Au = resultado_Au["resultado"]
+
+    proceso.append({
+        "numero": 3,
+        "tipo": "producto_Au",
+        "titulo": "PRODUCTO Au",
+        "operacion": "Au",
+        "resultado": Au[:],
+        "subproceso": resultado_Au["proceso"]
+    })
+
+    # ========================================================
+    # PASO 4: CALCULAR c(Au)
+    # ========================================================
+
+    resultado_c_Au = multiplicar_vector_escalar(
+        Au,
+        escalar
+    )
+
+    c_Au = resultado_c_Au[:]
+
+    proceso.append({
+        "numero": 4,
+        "tipo": "lado_derecho",
+        "titulo": "LADO DERECHO",
+        "operacion": "c(Au)",
+        "escalar": escalar,
+        "vector": Au[:],
+        "resultado": c_Au[:]
+    })
+
+    # ========================================================
+    # PASO 5: COMPARAR
+    # ========================================================
+
+    igualdad = True
+
+    if len(A_cu) != len(c_Au):
+
+        igualdad = False
+
+    else:
+
+        for i in range(len(A_cu)):
+
+            if abs(
+                A_cu[i] - c_Au[i]
+            ) > TOLERANCIA:
+
+                igualdad = False
+
+                break
+
+    proceso.append({
+        "numero": 5,
+        "tipo": "verificacion",
+        "titulo": "VERIFICACIÓN DE LA PROPIEDAD",
+        "operacion": "A(cu) = c(Au)",
+        "resultado": igualdad
+    })
+
+    return {
+        "igualdad": igualdad,
+
+        "matriz": _copiar_matriz(A),
+
+        "u": u[:],
+
+        "escalar": escalar,
+
+        "cu": resultado_cu,
+
+        "Au": Au,
+
+        "lado_izquierdo": A_cu,
+
+        "lado_derecho": c_Au,
+
+        "proceso": proceso
+    }
