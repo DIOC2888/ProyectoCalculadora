@@ -801,7 +801,222 @@ def obtener_solucion_parametrica(
         "parametros": parametros,
         "soluciones": soluciones
     }
+def obtener_conjunto_solucion(
+    matriz_reducida,
+    cantidad_variables,
+    tipo,
+    solucion=None
+):
+    """
+    Construye el conjunto solución en forma vectorial.
 
+    Para un sistema homogéneo:
+
+        Ax = 0
+
+    devuelve:
+
+        x = t1*v1 + t2*v2 + ... + tk*vk
+
+    Para un sistema no homogéneo:
+
+        Ax = b
+
+    devuelve:
+
+        x = xp + t1*v1 + ... + tk*vk
+
+    donde xp es una solución particular y los vectores
+    vi pertenecen al espacio solución del sistema homogéneo
+    asociado.
+
+    No realiza Gauss-Jordan nuevamente.
+    Utiliza directamente la matriz reducida que ya fue
+    calculada por resolver_sistema().
+    """
+
+    if tipo == "ninguna":
+        return None
+
+    columnas_pivote, variables_libres = (
+        obtener_pivotes_y_libres(
+            matriz_reducida,
+            cantidad_variables
+        )
+    )
+
+    # --------------------------------------------------------
+    # SISTEMA CON SOLUCIÓN ÚNICA
+    # --------------------------------------------------------
+
+    if tipo == "unica":
+
+        return {
+            "tipo": "unica",
+            "solucion_particular": solucion,
+            "vectores_direccion": [],
+            "parametros": [],
+            "forma_vectorial": solucion
+        }
+
+    # --------------------------------------------------------
+    # SOLUCIONES INFINITAS
+    # --------------------------------------------------------
+
+    parametros = []
+
+    for posicion, variable in enumerate(
+        variables_libres
+    ):
+        parametros.append(
+            nombre_parametro(posicion)
+        )
+
+    # --------------------------------------------------------
+    # SOLUCIÓN PARTICULAR
+    #
+    # Todas las variables libres se hacen 0.
+    # Entonces obtenemos una solución particular
+    # del sistema no homogéneo.
+    # --------------------------------------------------------
+
+    solucion_particular = [
+        0
+        for _ in range(cantidad_variables)
+    ]
+
+    for fila in matriz_reducida:
+
+        columna_pivote = None
+
+        for j in range(cantidad_variables):
+
+            if not es_cero(fila[j]):
+
+                if j in columnas_pivote:
+
+                    columna_pivote = j
+
+                break
+
+        if columna_pivote is None:
+            continue
+
+        solucion_particular[
+            columna_pivote
+        ] = fila[cantidad_variables]
+
+    # --------------------------------------------------------
+    # VECTORES DIRECCIÓN
+    #
+    # Cada variable libre genera un vector.
+    #
+    # Ejemplo:
+    #
+    # x3 = t
+    #
+    # genera:
+    #
+    # [4/3, 0, 1]
+    #
+    # --------------------------------------------------------
+
+    vectores_direccion = []
+
+    for variable_libre in variables_libres:
+
+        vector = [
+            0
+            for _ in range(cantidad_variables)
+        ]
+
+        # La variable libre toma valor 1.
+        vector[variable_libre] = 1
+
+        # Las variables básicas se calculan
+        # a partir de la matriz reducida.
+        for fila in matriz_reducida:
+
+            columna_pivote = None
+
+            for j in range(cantidad_variables):
+
+                if not es_cero(fila[j]):
+
+                    if j in columnas_pivote:
+                        columna_pivote = j
+
+                    break
+
+            if columna_pivote is None:
+                continue
+
+            coeficiente = fila[
+                variable_libre
+            ]
+
+            vector[columna_pivote] = -coeficiente
+
+        vector = [
+            limpiar_numero(x)
+            for x in vector
+        ]
+
+        vectores_direccion.append(
+            vector
+        )
+
+    # --------------------------------------------------------
+    # FORMA VECTORIAL
+    # --------------------------------------------------------
+
+    if tipo == "infinitas":
+
+        if len(variables_libres) == 1:
+
+            forma_vectorial = {
+                "solucion_particular":
+                    solucion_particular,
+
+                "parametros":
+                    parametros,
+
+                "vectores_direccion":
+                    vectores_direccion
+            }
+
+        else:
+
+            forma_vectorial = {
+                "solucion_particular":
+                    solucion_particular,
+
+                "parametros":
+                    parametros,
+
+                "vectores_direccion":
+                    vectores_direccion
+            }
+
+    else:
+
+        forma_vectorial = solucion_particular
+
+    return {
+        "tipo": tipo,
+
+        "solucion_particular":
+            solucion_particular,
+
+        "vectores_direccion":
+            vectores_direccion,
+
+        "parametros":
+            parametros,
+
+        "forma_vectorial":
+            forma_vectorial
+    }
 
 def resolver_sistema(A, b):
     """
@@ -895,7 +1110,6 @@ def resolver_sistema(A, b):
     # ---------------------------------------------------------
 
     solucion = None
-
     solucion_parametrica = None
 
     if tipo == "unica":
@@ -914,6 +1128,16 @@ def resolver_sistema(A, b):
             )
         )
 
+    # --------------------------------------------------------
+    # CONJUNTO SOLUCIÓN EN FORMA VECTORIAL
+    # --------------------------------------------------------
+
+    conjunto_solucion = obtener_conjunto_solucion(
+        matriz_reducida,
+        num_variables,
+        tipo,
+        solucion
+    )
     # ---------------------------------------------------------
     # RETORNO
     # ---------------------------------------------------------
@@ -946,6 +1170,9 @@ def resolver_sistema(A, b):
         # Solución paramétrica
         "solucion_parametrica":
             solucion_parametrica,
+
+        "conjunto_solucion":
+        conjunto_solucion,
 
         # Rangos
         "rango_A":

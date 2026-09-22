@@ -282,6 +282,10 @@ class ControladorVectores:
                     resultado.get(
                         "solucion_parametrica"
                     ),
+                "conjunto_solucion":
+                resultado.get(
+                    "conjunto_solucion"
+                ),
 
                 # Información del sistema
                 "rango_A":
@@ -363,6 +367,9 @@ class ControladorVectores:
 
                 "solucion_parametrica":
                     None,
+                "conjunto_solucion":
+                    None,
+    
 
                 "rango_A":
                     None,
@@ -660,6 +667,11 @@ class ControladorVectores:
                         "solucion_parametrica"
                     ),
 
+                "conjunto_solucion":
+                resultado.get(
+                    "conjunto_solucion"
+                ),
+
                 # --------------------------------------------
                 # MATRICES
                 # --------------------------------------------
@@ -741,6 +753,9 @@ class ControladorVectores:
 
                 "solucion_parametrica":
                     None,
+                "conjunto_solucion":
+                   None,
+    
 
                 "matriz_aumentada":
                     None,
