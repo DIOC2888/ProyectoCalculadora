@@ -1125,3 +1125,42 @@ class ControladorVectores:
                 "mensaje": str(e),
                 "proceso": []
             }
+    def evaluar_independencia_columnas(self, A):
+        """
+         Evalúa la independencia lineal de las columnas de una matriz.
+        """
+
+        resultado = backend_matrices.verificar_independencia_columnas(A)
+
+        return {
+            "es_independiente": resultado["es_independiente"],
+            "tipo": resultado["tipo"],
+            "mensaje": resultado["mensaje"],
+
+            # Matriz y dimensiones
+            "matriz": resultado["matriz"],
+            "cantidad_filas": resultado["cantidad_filas"],
+            "cantidad_columnas": resultado["cantidad_columnas"],
+            "columnas_mayor_que_filas": resultado["columnas_mayor_que_filas"],
+
+            # Sistema homogéneo
+            "vector_cero": resultado["vector_cero"],
+            "matriz_aumentada": resultado["matriz_aumentada"],
+            "matriz_reducida": resultado["matriz_reducida"],
+
+            # Información del proceso
+            "proceso": resultado["proceso"],
+
+             # Información del sistema
+            "rango": resultado["rango"],
+            "columnas_pivote": resultado["columnas_pivote"],
+            "variables_basicas": resultado["variables_basicas"],
+            "variables_libres": resultado["variables_libres"],
+
+            # Solución
+            "solucion_parametrica": resultado["solucion_parametrica"],
+            "conjunto_solucion": resultado["conjunto_solucion"],
+
+            # Dependencia
+            "relaciones_dependencia": resultado["relaciones_dependencia"]
+    }

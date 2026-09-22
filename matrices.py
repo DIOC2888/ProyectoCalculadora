@@ -1288,3 +1288,105 @@ def verificar_homogeneidad_matriz_vector(
 
         "proceso": proceso
     }
+def verificar_independencia_columnas(A):
+    """
+    Verifica si las columnas de una matriz son linealmente independientes.
+
+    Las columnas de A son linealmente independientes si el sistema
+    homogéneo:
+
+        A x = 0
+
+    tiene únicamente la solución trivial.
+    """
+
+    # Importación local para evitar dependencias innecesarias
+    from ecuaciones import resolver_sistema
+
+    # Validar matriz
+    validar_matriz(A)
+
+    cantidad_filas = len(A)
+    cantidad_columnas = len(A[0])
+
+    # Vector cero del tamaño del número de columnas
+    vector_cero = [0] * cantidad_filas
+
+    # Resolver A*x = 0
+    resultado = resolver_sistema(A, vector_cero)
+
+    es_independiente = resultado["tipo"] == "unica"
+
+    if es_independiente:
+        tipo = "independiente"
+        mensaje = (
+            "Las columnas de A son linealmente independientes "
+            "porque Ax = 0 tiene únicamente la solución trivial."
+        )
+        relaciones_dependencia = []
+    else:
+        tipo = "dependiente"
+        mensaje = (
+            "Las columnas de A son linealmente dependientes "
+            "porque Ax = 0 tiene soluciones no triviales."
+        )
+
+        # Las direcciones del conjunto solución representan
+        # relaciones de dependencia entre las columnas.
+        conjunto_solucion = resultado.get("conjunto_solucion")
+
+        if conjunto_solucion:
+            relaciones_dependencia = []
+
+            parametros = conjunto_solucion.get("parametros", [])
+            vectores_direccion = conjunto_solucion.get("vectores_direccion", [])
+
+            for i, vector in enumerate(vectores_direccion):
+                parametro = (
+                    parametros[i]
+                    if i < len(parametros)
+                    else f"t{i + 1}"
+                )
+
+                relaciones_dependencia.append({
+                    "parametro": parametro,
+                    "coeficientes": vector
+                })
+        else:
+            relaciones_dependencia = []
+
+    return {
+        "es_independiente": es_independiente,
+        "tipo": tipo,
+        "mensaje": mensaje,
+
+        # Datos de entrada
+        "matriz": A,
+        "vector_cero": vector_cero,
+
+        # Información del sistema homogéneo
+        "matriz_aumentada": resultado["matriz_aumentada"],
+        "matriz_reducida": resultado["matriz_reducida"],
+        "proceso": resultado["proceso"],
+
+        # Información sobre rango y pivotes
+        "rango": resultado["rango_A"],
+        "columnas_pivote": resultado["columnas_pivote"],
+        "variables_basicas": resultado["variables_basicas"],
+        "variables_libres": resultado["variables_libres"],
+
+        # Solución del sistema homogéneo
+        "solucion_parametrica": resultado["solucion_parametrica"],
+        "conjunto_solucion": resultado.get("conjunto_solucion"),
+
+        # Relaciones de dependencia
+        "relaciones_dependencia": relaciones_dependencia,
+
+        # Dimensiones
+        "cantidad_filas": cantidad_filas,
+        "cantidad_columnas": cantidad_columnas,
+
+        # Si hay más columnas que filas, automáticamente
+        # no pueden ser linealmente independientes.
+        "columnas_mayor_que_filas": cantidad_columnas > cantidad_filas
+    }
