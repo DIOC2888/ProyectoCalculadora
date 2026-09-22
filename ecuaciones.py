@@ -1198,4 +1198,54 @@ def resolver_sistema(A, b):
         "variables_libres":
             variables_libres
     }
+def resolver_sistema_homogeneo(A):
+    """
+    Resuelve un sistema homogéneo:
+
+        Ax = 0
+
+    Determina si existen soluciones no triviales y
+    describe el conjunto solución.
+
+    Reutiliza resolver_sistema(), por lo que no duplica
+    el algoritmo de Gauss-Jordan.
+    """
+
+    validar_matriz(A)
+
+    cantidad_filas = len(A)
+
+    # Vector cero del lado derecho
+    b = [0] * cantidad_filas
+
+    resultado = resolver_sistema(A, b)
+
+    tiene_soluciones_no_triviales = (
+        len(resultado["variables_libres"]) > 0
+    )
+
+    if tiene_soluciones_no_triviales:
+
+        mensaje = (
+            "El sistema homogéneo tiene soluciones "
+            "no triviales porque tiene al menos una "
+            "variable libre."
+        )
+
+    else:
+
+        mensaje = (
+            "El sistema homogéneo solo tiene la "
+            "solución trivial."
+        )
+
+    resultado["es_homogeneo"] = True
+
+    resultado["tiene_soluciones_no_triviales"] = (
+        tiene_soluciones_no_triviales
+    )
+
+    resultado["mensaje_homogeneo"] = mensaje
+
+    return resultado
 

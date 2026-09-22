@@ -21,7 +21,7 @@
 import vectores as backend_vectores
 import matrices as backend_matrices
 
-from ecuaciones import resolver_sistema
+from ecuaciones import resolver_sistema,resolver_sistema_homogeneo
 
 class ControladorVectores:
     """Clase encargada de conectar la interfaz en PySide6
@@ -748,7 +748,7 @@ class ControladorVectores:
                 # --------------------------------------------
                 # SOLUCIONES
                 # --------------------------------------------
-
+              
                 "solucion":
                     resultado.get(
                         "solucion"
@@ -760,9 +760,45 @@ class ControladorVectores:
                     ),
 
                 "conjunto_solucion":
-                resultado.get(
-                    "conjunto_solucion"
-                ),
+                    resultado.get(
+                        "conjunto_solucion"
+                    ),
+
+                # --------------------------------------------
+                # FORMA VECTORIAL
+                # --------------------------------------------
+
+                "solucion_particular":
+                    (
+                        resultado.get("conjunto_solucion", {})
+                        .get("solucion_particular")
+                        if resultado.get("conjunto_solucion")
+                        else None
+                    ),
+
+                "vectores_direccion":
+                    (
+                        resultado.get("conjunto_solucion", {})
+                        .get("vectores_direccion", [])
+                        if resultado.get("conjunto_solucion")
+                        else []
+                    ),
+
+                "parametros":
+                    (
+                        resultado.get("conjunto_solucion", {})
+                        .get("parametros", [])
+                        if resultado.get("conjunto_solucion")
+                        else []
+                    ),
+
+                "forma_vectorial":
+                    (
+                        resultado.get("conjunto_solucion", {})
+                        .get("forma_vectorial")
+                        if resultado.get("conjunto_solucion")
+                        else None
+                    ),
 
                 # --------------------------------------------
                 # MATRICES
@@ -847,7 +883,17 @@ class ControladorVectores:
                     None,
                 "conjunto_solucion":
                    None,
-    
+                "solucion_particular":
+                    None,
+
+                "vectores_direccion":
+                    [],
+
+                "parametros":
+                    [],
+
+                "forma_vectorial":
+                    None,
 
                 "matriz_aumentada":
                     None,
@@ -1125,6 +1171,7 @@ class ControladorVectores:
                 "mensaje": str(e),
                 "proceso": []
             }
+    @staticmethod
     def evaluar_independencia_columnas(self, A):
         """
          Evalúa la independencia lineal de las columnas de una matriz.
@@ -1164,3 +1211,213 @@ class ControladorVectores:
             # Dependencia
             "relaciones_dependencia": resultado["relaciones_dependencia"]
     }
+        # ========================================================
+    #              SISTEMA HOMOGÉNEO Ax = 0
+    # ========================================================
+
+    @staticmethod
+    def resolver_sistema_homogeneo(A):
+        """
+        Resuelve un sistema homogéneo:
+
+            Ax = 0
+
+        utilizando el backend de ecuaciones.py.
+
+        Devuelve la información necesaria para mostrar:
+
+        - matriz aumentada
+        - matriz reducida
+        - proceso de Gauss-Jordan
+        - rango
+        - columnas pivote
+        - variables básicas
+        - variables libres
+        - solución paramétrica
+        - conjunto solución
+        - soluciones no triviales
+        """
+
+        try:
+
+            resultado = resolver_sistema_homogeneo(A)
+
+            tiene_soluciones_no_triviales = (
+                resultado.get(
+                    "tiene_soluciones_no_triviales",
+                    False
+                )
+            )
+
+            return {
+
+                "exito": True,
+
+                "operacion":
+                    "Sistema homogéneo",
+
+                # --------------------------------------------
+                # INFORMACIÓN PRINCIPAL
+                # --------------------------------------------
+
+                "es_homogeneo":
+                    True,
+
+                "tiene_soluciones_no_triviales":
+                    tiene_soluciones_no_triviales,
+
+                "mensaje":
+                    resultado.get(
+                        "mensaje_homogeneo",
+                        "Sistema homogéneo resuelto correctamente."
+                    ),
+
+                # --------------------------------------------
+                # MATRIZ
+                # --------------------------------------------
+
+                "matriz":
+                    A,
+
+                "matriz_aumentada":
+                    resultado.get(
+                        "matriz_aumentada"
+                    ),
+
+                "matriz_reducida":
+                    resultado.get(
+                        "matriz_reducida"
+                    ),
+
+                # --------------------------------------------
+                # PROCESO GAUSS-JORDAN
+                # --------------------------------------------
+
+                "proceso":
+                    resultado.get(
+                        "proceso",
+                        []
+                    ),
+
+                # --------------------------------------------
+                # INFORMACIÓN DEL SISTEMA
+                # --------------------------------------------
+
+                "rango_A":
+                    resultado.get(
+                        "rango_A"
+                    ),
+
+                "rango_Ab":
+                    resultado.get(
+                        "rango_Ab"
+                    ),
+
+                "num_variables":
+                    resultado.get(
+                        "num_variables"
+                    ),
+
+                "num_ecuaciones":
+                    resultado.get(
+                        "num_ecuaciones"
+                    ),
+
+                "columnas_pivote":
+                    resultado.get(
+                        "columnas_pivote",
+                        []
+                    ),
+
+                "variables_basicas":
+                    resultado.get(
+                        "variables_basicas",
+                        []
+                    ),
+
+                "variables_libres":
+                    resultado.get(
+                        "variables_libres",
+                        []
+                    ),
+
+                # --------------------------------------------
+                # SOLUCIONES
+                # --------------------------------------------
+
+                "solucion":
+                    resultado.get(
+                        "solucion"
+                    ),
+
+                "solucion_parametrica":
+                    resultado.get(
+                        "solucion_parametrica"
+                    ),
+
+                "conjunto_solucion":
+                    resultado.get(
+                        "conjunto_solucion"
+                    )
+            }
+
+        except (ValueError, TypeError) as e:
+
+            return {
+
+                "exito": False,
+
+                "operacion":
+                    "Sistema homogéneo",
+
+                "es_homogeneo":
+                    True,
+
+                "tiene_soluciones_no_triviales":
+                    False,
+
+                "matriz":
+                    A,
+
+                "matriz_aumentada":
+                    None,
+
+                "matriz_reducida":
+                    None,
+
+                "proceso":
+                    [],
+
+                "rango_A":
+                    None,
+
+                "rango_Ab":
+                    None,
+
+                "num_variables":
+                    None,
+
+                "num_ecuaciones":
+                    None,
+
+                "columnas_pivote":
+                    [],
+
+                "variables_basicas":
+                    [],
+
+                "variables_libres":
+                    [],
+
+                "solucion":
+                    None,
+
+                "solucion_parametrica":
+                    None,
+
+                "conjunto_solucion":
+                    None,
+
+                "mensaje":
+                    str(e)
+            }
