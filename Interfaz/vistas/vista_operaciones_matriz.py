@@ -447,9 +447,10 @@ class VistaOperacionesMatriz(QWidget):
             "Multiplicar",
             "Matriz por vector",
             "Distributividad",
-            "Homogeneidad"
+            "Homogeneidad",
+            "Independencia columnas"
         ])
-        self.combo_mops_metodo.setFixedWidth(170)
+        self.combo_mops_metodo.setFixedWidth(220)
         self.combo_mops_metodo.setFixedHeight(38)
         self.combo_mops_metodo.setCurrentIndex(0)
         combo_popup_style = """
@@ -563,9 +564,35 @@ class VistaOperacionesMatriz(QWidget):
         vars_box.addWidget(lbl_vars)
         vars_box.addWidget(self.stepper_meqs_vars)
 
+        tipo_box = QVBoxLayout()
+        tipo_box.setSpacing(6)
+        lbl_tipo = QLabel("TIPO DE SISTEMA")
+        lbl_tipo.setStyleSheet("color: #64748B; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; background: transparent;")
+        self.combo_meqs_tipo = QComboBox()
+        self.combo_meqs_tipo.addItems([
+            "Ax = b",
+            "Sistema homogeneo Ax = 0"
+        ])
+        self.combo_meqs_tipo.setFixedWidth(240)
+        self.combo_meqs_tipo.setFixedHeight(38)
+        self.combo_meqs_tipo.setStyleSheet(self.combo_mops_metodo.styleSheet())
+        self.combo_meqs_tipo.view().setStyleSheet(combo_popup_style)
+        self.combo_meqs_tipo.currentIndexChanged.connect(
+            self._on_meqs_tipo_changed
+        )
+        for i in range(self.combo_meqs_tipo.count()):
+            self.combo_meqs_tipo.setItemData(
+                i,
+                Qt.AlignmentFlag.AlignCenter,
+                Qt.ItemDataRole.TextAlignmentRole
+            )
+        tipo_box.addWidget(lbl_tipo)
+        tipo_box.addWidget(self.combo_meqs_tipo)
+
         meqs_controls.addLayout(rows_box)
         meqs_controls.addLayout(cols_box)
         meqs_controls.addLayout(vars_box)
+        meqs_controls.addLayout(tipo_box)
         meqs_controls.addStretch()
         meqs_layout.addLayout(meqs_controls)
 
@@ -686,6 +713,18 @@ class VistaOperacionesMatriz(QWidget):
             self.btn_matrix_ops.setStyleSheet(inactive_style)
             self.btn_mat_eqs.setStyleSheet(active_style)
        
+    def _meqs_es_homogeneo(self):
+        return (
+            hasattr(self, "combo_meqs_tipo")
+            and "homogeneo" in self.combo_meqs_tipo.currentText().lower()
+        )
+
+    def _on_meqs_tipo_changed(self):
+        es_homogeneo = self._meqs_es_homogeneo()
+
+        self.stepper_meqs_vars.setEnabled(not es_homogeneo)
+        self._rebuild_mat_eqs_grid()
+
     def _on_mops_operation_changed(self):
 
         metodo = self.combo_mops_metodo.currentText()
@@ -696,6 +735,11 @@ class VistaOperacionesMatriz(QWidget):
             "Distributividad",
             "Homogeneidad"
         )
+        usa_una_matriz = (
+            es_escalar
+            or usa_vector
+            or metodo == "Independencia columnas"
+        )
 
         # Mostrar escalar solamente cuando la operacion lo usa.
         self.mops_escalar_container.setVisible(
@@ -704,7 +748,7 @@ class VistaOperacionesMatriz(QWidget):
 
         # Cantidad de matrices no aplica para estas operaciones.
         self.stepper_mops_count.setEnabled(
-            not es_escalar and not usa_vector
+            not usa_una_matriz
         )
 
         # Reconstruir matrices
@@ -795,9 +839,14 @@ class VistaOperacionesMatriz(QWidget):
             "Distributividad",
             "Homogeneidad"
         )
+        usa_una_matriz = (
+            es_escalar
+            or usa_vector
+            or metodo == "Independencia columnas"
+        )
 
-        # Escalar y operaciones matriz-vector usan solamente A1.
-        if es_escalar or usa_vector:
+        # Estas operaciones usan solamente A1.
+        if usa_una_matriz:
             num_matrices = 1
         else:
             num_matrices = self.stepper_mops_count.value
@@ -1129,6 +1178,11 @@ class VistaOperacionesMatriz(QWidget):
         rows = self.stepper_meqs_rows.value  # Filas de la Matriz A
         cols = self.stepper_meqs_cols.value  # Columnas de la Matriz A
         vars_count = self.stepper_meqs_vars.value  # Filas del Vector x
+        es_homogeneo = self._meqs_es_homogeneo()
+        if es_homogeneo and self.stepper_meqs_vars.value != cols:
+            self.stepper_meqs_vars.value = cols
+            self.stepper_meqs_vars.lbl_val.setText(str(cols))
+        vector_count = rows if es_homogeneo else vars_count
 
         input_style = """
             QLineEdit {
@@ -1210,7 +1264,7 @@ class VistaOperacionesMatriz(QWidget):
         # Separador horizontal entre la matriz y el vector
         self.meqs_layout_inner.addSpacing(16)
 
-        # --- 2. VECTOR x ---
+        # --- 2. VECTOR b / 0 ---
         vec_widget = QWidget()
         vec_widget.setStyleSheet("background-color: transparent;")
         vec_widget.setSizePolicy(
@@ -1223,7 +1277,7 @@ class VistaOperacionesMatriz(QWidget):
         vec_box.setContentsMargins(0, 0, 0, 0)
         vec_box.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        lbl_x = QLabel("b")
+        lbl_x = QLabel("0 fijo" if es_homogeneo else "b")
         lbl_x.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_x.setStyleSheet("color: #64748B; font-size: 11px; font-weight: 600; background: transparent;")
         vec_box.addWidget(lbl_x)
@@ -1232,7 +1286,7 @@ class VistaOperacionesMatriz(QWidget):
         vec_row_layout.setSpacing(4)
         vec_row_layout.setContentsMargins(0, 0, 0, 0)
 
-        vec_height = vars_count * 36 + (vars_count - 1) * 8
+        vec_height = vector_count * 36 + (vector_count - 1) * 8
         b_left_vec = BracketWidget(is_left=True)
         b_left_vec.setFixedHeight(vec_height)
 
@@ -1240,17 +1294,32 @@ class VistaOperacionesMatriz(QWidget):
         vec_inputs_col.setSpacing(8)
         vec_inputs_col.setContentsMargins(0, 0, 0, 0)
 
-        for r in range(vars_count):
-            valor = (
-                valores_vector[r]
-                if r < len(valores_vector)
-                else "0"
-            )
+        for r in range(vector_count):
+            if es_homogeneo:
+                valor = "0"
+            else:
+                valor = (
+                    valores_vector[r]
+                    if r < len(valores_vector)
+                    else "0"
+                )
 
             inp = QLineEdit(valor)
             inp.setAlignment(Qt.AlignmentFlag.AlignCenter)
             inp.setFixedSize(54, 36)
-            inp.setStyleSheet(input_style)
+            inp.setReadOnly(es_homogeneo)
+            input_final_style = input_style
+            if es_homogeneo:
+                input_final_style += """
+                QLineEdit {
+                    color: #64748B;
+                    background-color: #F1F5F9;
+                }
+                """
+                inp.setToolTip(
+                    "En un sistema homogeneo el lado derecho es 0."
+                )
+            inp.setStyleSheet(input_final_style)
             vec_inputs_col.addWidget(inp)
             self.meqs_vector_inputs.append(inp)
 
@@ -1350,7 +1419,8 @@ class VistaOperacionesMatriz(QWidget):
             if modo in (
                 "Matriz por vector",
                 "Distributividad",
-                "Homogeneidad"
+                "Homogeneidad",
+                "Independencia columnas"
             ) and not matrices:
                 QMessageBox.warning(
                     self,
@@ -1422,6 +1492,14 @@ class VistaOperacionesMatriz(QWidget):
                     )
                 )
 
+            elif modo == "Independencia columnas":
+                resultado = (
+                    ControladorVectores
+                    .evaluar_independencia_columnas(
+                        matrices[0]
+                    )
+                )
+
             else:
                 QMessageBox.warning(
                     self,
@@ -1461,14 +1539,23 @@ class VistaOperacionesMatriz(QWidget):
     def on_solved_clicked_meqs(self):
         try:
             matriz = self._leer_matriz_meqs()
-            vector_b = self._leer_vector_meqs()
 
-            resultado = ControladorVectores.resolver_ecuacion_matricial(
-                matriz,
-                vector_b
-            )
+            if self._meqs_es_homogeneo():
+                resultado = ControladorVectores.resolver_sistema_homogeneo(
+                    matriz
+                )
 
-            resultado["operacion"] = "ecuacion_matricial"
+                resultado["operacion"] = "sistema_homogeneo"
+
+            else:
+                vector_b = self._leer_vector_meqs()
+
+                resultado = ControladorVectores.resolver_ecuacion_matricial(
+                    matriz,
+                    vector_b
+                )
+
+                resultado["operacion"] = "ecuacion_matricial"
 
             if not resultado.get("exito", False):
                 QMessageBox.warning(
@@ -2199,11 +2286,43 @@ class VistaOperacionesMatriz(QWidget):
             lados_layout.addStretch()
             layout_principal.addLayout(lados_layout)
 
-        elif operacion == "ecuacion_matricial":
+        elif (
+            operacion == "ecuacion_matricial"
+            or operacion == "sistema_homogeneo"
+            or resultado.get("es_homogeneo", False)
+        ):
             tipo = resultado.get("tipo")
             solucion = resultado.get("solucion") or []
             solucion_parametrica = resultado.get("solucion_parametrica")
             conjunto_solucion = resultado.get("conjunto_solucion")
+
+            if resultado.get("es_homogeneo", False):
+                self._agregar_titulo_seccion(
+                    layout_principal,
+                    (
+                        "INDEPENDENCIA DE COLUMNAS"
+                        if operacion == "Independencia columnas"
+                        else "SISTEMA HOMOGENEO"
+                    )
+                )
+
+                lbl_mensaje = QLabel(
+                    resultado.get(
+                        "mensaje",
+                        "Sistema homogeneo resuelto correctamente."
+                    )
+                )
+                lbl_mensaje.setWordWrap(True)
+                lbl_mensaje.setStyleSheet("""
+                    color: #0F172A;
+                    font-size: 13px;
+                    font-weight: 700;
+                    background-color: #F8FAFC;
+                    border: 1px solid #E2E8F0;
+                    border-radius: 10px;
+                    padding: 12px;
+                """)
+                layout_principal.addWidget(lbl_mensaje)
 
             layout_vars = QHBoxLayout()
             layout_vars.setSpacing(16)
@@ -2413,6 +2532,7 @@ class VistaOperacionesMatriz(QWidget):
         layout.addLayout(header_layout)
 
         # --- DATOS EXTRAÍDOS ---
+        es_homogeneo = resultado.get("es_homogeneo", False)
         rango_a = resultado.get("rango_A", 0)
         rango_ab = resultado.get("rango_Ab", 0)
         num_vars = resultado.get("num_variables", 0)
@@ -2440,6 +2560,16 @@ class VistaOperacionesMatriz(QWidget):
         self._add_info_row(grid, 0, 2, "Columnas pivote", str_pivotes)
         self._add_info_row(grid, 1, 2, "Variables básicas", str_basicas)
         self._add_info_row(grid, 2, 2, "Variables libres", str_libres)
+        if es_homogeneo:
+            self._add_info_row(
+                grid,
+                3,
+                2,
+                "Soluciones no triviales",
+                "Si"
+                if resultado.get("tiene_soluciones_no_triviales")
+                else "No"
+            )
 
         layout.addLayout(grid)
 
@@ -2451,14 +2581,21 @@ class VistaOperacionesMatriz(QWidget):
 
         # --- RESUMEN EN CÓDIGO ---
         tipo_sol = resultado.get("tipo", "ninguna")
-        if tipo_sol == "unica":
+        if es_homogeneo:
+            texto_conclusion = (
+                "soluciones no triviales"
+                if resultado.get("tiene_soluciones_no_triviales")
+                else "solo solucion trivial"
+            )
+        elif tipo_sol == "unica":
             texto_conclusion = "solución única"
         elif tipo_sol == "infinitas":
             texto_conclusion = "infinitas soluciones"
         else:
             texto_conclusion = "sin solución"
 
-        resumen_txt = f"rango(A) = {rango_a}  |  rango(A|b) = {rango_ab}  |  n = {num_vars}  →  {texto_conclusion}"
+        prefijo = "Ax = 0  |  " if es_homogeneo else ""
+        resumen_txt = f"{prefijo}rango(A) = {rango_a}  |  rango(A|b) = {rango_ab}  |  n = {num_vars}  →  {texto_conclusion}"
 
         lbl_resumen = QLabel(resumen_txt)
         lbl_resumen.setStyleSheet("""
@@ -2512,7 +2649,12 @@ class VistaOperacionesMatriz(QWidget):
 
         num_eqs = resultado.get("num_ecuaciones", 0)
         num_vars = resultado.get("num_variables", 0)
-        lbl_sub = QLabel(f"SISTEMA ORIGINAL · {num_eqs} ECUACIONES, {num_vars} VARIABLES")
+        subtitulo = (
+            f"SISTEMA HOMOGENEO Ax = 0 · {num_eqs} ECUACIONES, {num_vars} VARIABLES"
+            if resultado.get("es_homogeneo", False)
+            else f"SISTEMA ORIGINAL · {num_eqs} ECUACIONES, {num_vars} VARIABLES"
+        )
+        lbl_sub = QLabel(subtitulo)
         lbl_sub.setStyleSheet("color: #64748B; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; border: none;")
 
         title_container.addWidget(lbl_title)
@@ -2639,32 +2781,54 @@ class VistaOperacionesMatriz(QWidget):
         banner = QFrame()
         banner.setObjectName("BannerEstado")
 
-        if modo == "ecuacion_matricial":
-            tipo = resultado.get("tipo")
-
-            if tipo == "unica":
+        if modo == "Independencia columnas":
+            if resultado.get("es_independiente", False):
                 color_icono = "#059669"
-                titulo_estado = "Sistema consistente determinado"
-                sub_estado = "Solucion unica"
+                titulo_estado = "Columnas independientes"
+                sub_estado = "Ax = 0 solo tiene solucion trivial"
+                texto_icono = "OK"
+                banner_bg = "#ECFDF5"
+                banner_border = "#A7F3D0"
+            else:
+                color_icono = "#2563EB"
+                titulo_estado = "Columnas dependientes"
+                sub_estado = "Ax = 0 tiene soluciones no triviales"
+                texto_icono = "DEP"
+                banner_bg = "#EFF6FF"
+                banner_border = "#BFDBFE"
+
+        elif modo == "sistema_homogeneo" or resultado.get("es_homogeneo", False):
+            tiene_no_triviales = resultado.get(
+                "tiene_soluciones_no_triviales",
+                False
+            )
+
+            if tiene_no_triviales:
+                color_icono = "#2563EB"
+                titulo_estado = "Sistema homogeneo con soluciones no triviales"
+                sub_estado = "Tiene variables libres"
+                texto_icono = "INF"
+                banner_bg = "#EFF6FF"
+                banner_border = "#BFDBFE"
+            else:
+                color_icono = "#059669"
+                titulo_estado = "Sistema homogeneo con solucion trivial"
+                sub_estado = "Solo x = 0"
                 texto_icono = "OK"
                 banner_bg = "#ECFDF5"
                 banner_border = "#A7F3D0"
 
-            elif tipo == "infinitas":
-                color_icono = "#2563EB"
-                titulo_estado = "Sistema consistente indeterminado"
-                sub_estado = "Infinitas soluciones"
-                texto_icono = "INF"
-                banner_bg = "#EFF6FF"
-                banner_border = "#BFDBFE"
-
-            else:
-                color_icono = "#DC2626"
-                titulo_estado = "Sistema inconsistente"
-                sub_estado = "Sin solucion"
-                texto_icono = "X"
-                banner_bg = "#FEF2F2"
-                banner_border = "#FECACA"
+        elif (
+            modo == "ecuacion_matricial"
+            or modo == "sistema_homogeneo"
+            or resultado.get("es_homogeneo", False)
+        ):
+            color_icono = "#2563EB"
+            titulo_estado = "Sistema no homogeneo"
+            sub_estado = "Ax = b"
+            texto_icono = "NOH"
+            banner_bg = "#EFF6FF"
+            banner_border = "#BFDBFE"
 
         else:
             color_icono = "#059669"
@@ -2736,7 +2900,11 @@ class VistaOperacionesMatriz(QWidget):
             self.results_layout.addWidget(self.card_solucion)
             self.renderizar_tarjeta_solucion(resultado)
 
-        elif modo == "ecuacion_matricial":
+        elif (
+            modo == "ecuacion_matricial"
+            or modo == "sistema_homogeneo"
+            or resultado.get("es_homogeneo", False)
+        ):
             self.results_layout.addWidget(
                 self._crear_card_info_sistema(resultado)
             )

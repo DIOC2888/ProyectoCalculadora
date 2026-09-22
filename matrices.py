@@ -1288,6 +1288,95 @@ def verificar_homogeneidad_matriz_vector(
 
         "proceso": proceso
     }
+
+
+def resolver_sistema_no_homogeneo(A, b):
+    """
+    Resuelve un sistema no homogeneo:
+
+        Ax = b
+
+    Esta funcion deja disponible desde matrices.py el flujo de
+    ecuaciones matriciales sin duplicar Gauss-Jordan; reutiliza
+    ecuaciones.resolver_sistema().
+    """
+
+    from ecuaciones import resolver_sistema
+
+    validar_matriz(A)
+    validar_vector(b)
+
+    if len(A) != len(b):
+        raise ValueError(
+            "A y b deben tener la misma cantidad de filas/componentes."
+        )
+
+    resultado = resolver_sistema(A, b)
+    resultado["es_homogeneo"] = False
+
+    tipo = resultado.get("tipo")
+
+    if tipo == "unica":
+        mensaje = "El sistema no homogeneo tiene solucion unica."
+    elif tipo == "infinitas":
+        mensaje = "El sistema no homogeneo tiene infinitas soluciones."
+    elif tipo == "ninguna":
+        mensaje = "El sistema no homogeneo no tiene solucion."
+    else:
+        mensaje = "Estado de solucion no determinado."
+
+    resultado["mensaje_sistema"] = mensaje
+
+    return resultado
+
+
+def resolver_sistema_homogeneo(A):
+    """
+    Resuelve un sistema homogeneo:
+
+        Ax = 0
+
+    Construye automaticamente el vector cero y reutiliza el
+    resolutor no homogeneo Ax = b con b = 0.
+    """
+
+    validar_matriz(A)
+
+    vector_cero = [
+        0
+        for _ in range(len(A))
+    ]
+
+    resultado = resolver_sistema_no_homogeneo(
+        A,
+        vector_cero
+    )
+
+    tiene_soluciones_no_triviales = (
+        len(resultado.get("variables_libres", [])) > 0
+    )
+
+    if tiene_soluciones_no_triviales:
+        mensaje = (
+            "El sistema homogeneo tiene soluciones no triviales "
+            "porque tiene al menos una variable libre."
+        )
+    else:
+        mensaje = (
+            "El sistema homogeneo solo tiene la solucion trivial."
+        )
+
+    resultado["es_homogeneo"] = True
+    resultado["vector_cero"] = vector_cero
+    resultado["tiene_soluciones_no_triviales"] = (
+        tiene_soluciones_no_triviales
+    )
+    resultado["mensaje_homogeneo"] = mensaje
+    resultado["mensaje_sistema"] = mensaje
+
+    return resultado
+
+
 def verificar_independencia_columnas(A):
     """
     Verifica si las columnas de una matriz son linealmente independientes.
@@ -1300,9 +1389,6 @@ def verificar_independencia_columnas(A):
     tiene únicamente la solución trivial.
     """
 
-    # Importación local para evitar dependencias innecesarias
-    from ecuaciones import resolver_sistema
-
     # Validar matriz
     validar_matriz(A)
 
@@ -1313,7 +1399,7 @@ def verificar_independencia_columnas(A):
     vector_cero = [0] * cantidad_filas
 
     # Resolver A*x = 0
-    resultado = resolver_sistema(A, vector_cero)
+    resultado = resolver_sistema_homogeneo(A)
 
     es_independiente = resultado["tipo"] == "unica"
 
@@ -1389,4 +1475,245 @@ def verificar_independencia_columnas(A):
         # Si hay más columnas que filas, automáticamente
         # no pueden ser linealmente independientes.
         "columnas_mayor_que_filas": cantidad_columnas > cantidad_filas
+    }
+
+
+def verificar_dependencia_columna(A, indice_columna):
+    """
+    Verifica si una columna especifica de A depende linealmente
+    de las demas columnas.
+
+    Se toma la columna Cj como vector objetivo y se resuelve:
+
+        Bc = Cj
+
+    donde B es la matriz formada por todas las columnas de A,
+    excepto Cj. Si el sistema tiene solucion, entonces Cj es
+    combinacion lineal de las demas columnas.
+
+    El indice de columna es base 0.
+    """
+
+    validar_matriz(A)
+
+    if not isinstance(indice_columna, int):
+        raise TypeError(
+            "El indice de columna debe ser un numero entero."
+        )
+
+    cantidad_filas = len(A)
+    cantidad_columnas = len(A[0])
+
+    if indice_columna < 0 or indice_columna >= cantidad_columnas:
+        raise ValueError(
+            "El indice de columna esta fuera del rango de la matriz."
+        )
+
+    columna_objetivo = [
+        fila[indice_columna]
+        for fila in A
+    ]
+
+    indices_generadores = [
+        j
+        for j in range(cantidad_columnas)
+        if j != indice_columna
+    ]
+
+    es_columna_cero = all(
+        abs(valor) <= TOLERANCIA
+        for valor in columna_objetivo
+    )
+
+    def construir_expresion(coeficientes):
+        terminos = []
+
+        for posicion, coeficiente in enumerate(coeficientes):
+            if abs(coeficiente) <= TOLERANCIA:
+                continue
+
+            indice = indices_generadores[posicion]
+            magnitud = abs(coeficiente)
+            nombre_columna = f"C{indice + 1}"
+
+            if abs(magnitud - 1) <= TOLERANCIA:
+                termino = nombre_columna
+            else:
+                termino = (
+                    f"{_formatear_numero(magnitud)}{nombre_columna}"
+                )
+
+            signo = "-" if coeficiente < 0 else "+"
+            terminos.append((signo, termino))
+
+        if not terminos:
+            return "0"
+
+        primer_signo, primer_termino = terminos[0]
+        expresion = (
+            f"- {primer_termino}"
+            if primer_signo == "-"
+            else primer_termino
+        )
+
+        for signo, termino in terminos[1:]:
+            expresion += f" {signo} {termino}"
+
+        return expresion
+
+    if not indices_generadores:
+        es_dependiente = es_columna_cero
+        tipo = "dependiente" if es_dependiente else "independiente"
+
+        relacion_dependencia = None
+        expresion = None
+
+        if es_dependiente:
+            expresion = f"C{indice_columna + 1} = 0"
+            relacion_dependencia = {
+                "columna_dependiente": indice_columna,
+                "coeficientes_generadores": [],
+                "coeficientes_homogeneos": [1],
+                "expresion": expresion
+            }
+
+        mensaje = (
+            "La columna es el vector cero y forma una relacion "
+            "de dependencia lineal."
+            if es_dependiente
+            else "La matriz solo tiene una columna no nula, por lo que "
+            "no depende de otras columnas."
+        )
+
+        return {
+            "es_dependiente": es_dependiente,
+            "tipo": tipo,
+            "mensaje": mensaje,
+            "matriz": _copiar_matriz(A),
+            "indice_columna": indice_columna,
+            "columna": columna_objetivo,
+            "indices_columnas_generadoras": indices_generadores,
+            "matriz_generadora": [
+                []
+                for _ in range(cantidad_filas)
+            ],
+            "coeficientes": [],
+            "coeficientes_por_columna": [],
+            "relacion_dependencia": relacion_dependencia,
+            "expresion": expresion,
+            "tipo_solucion": None,
+            "matriz_aumentada": None,
+            "matriz_reducida": None,
+            "proceso": [],
+            "rango_A": 0,
+            "rango_Ab": 0 if es_columna_cero else 1,
+            "columnas_pivote": [],
+            "variables_basicas": [],
+            "variables_libres": [],
+            "solucion_parametrica": None,
+            "conjunto_solucion": None,
+            "cantidad_filas": cantidad_filas,
+            "cantidad_columnas": cantidad_columnas,
+            "es_columna_cero": es_columna_cero
+        }
+
+    matriz_generadora = []
+
+    for fila in A:
+        matriz_generadora.append([
+            fila[indice]
+            for indice in indices_generadores
+        ])
+
+    resultado = resolver_sistema_no_homogeneo(
+        matriz_generadora,
+        columna_objetivo
+    )
+
+    es_dependiente = resultado["tipo"] != "ninguna"
+    tipo = "dependiente" if es_dependiente else "independiente"
+
+    coeficientes = []
+    coeficientes_por_columna = []
+    relacion_dependencia = None
+    expresion = None
+
+    if es_dependiente:
+        if resultado["tipo"] == "unica":
+            coeficientes = resultado.get("solucion") or []
+        else:
+            conjunto_solucion = resultado.get("conjunto_solucion") or {}
+            coeficientes = (
+                conjunto_solucion.get("solucion_particular")
+                or [
+                    0
+                    for _ in indices_generadores
+                ]
+            )
+
+        coeficientes_por_columna = [
+            {
+                "columna": indice,
+                "coeficiente": coeficientes[posicion]
+            }
+            for posicion, indice in enumerate(indices_generadores)
+        ]
+
+        coeficientes_homogeneos = [
+            0
+            for _ in range(cantidad_columnas)
+        ]
+
+        for posicion, indice in enumerate(indices_generadores):
+            coeficientes_homogeneos[indice] = coeficientes[posicion]
+
+        coeficientes_homogeneos[indice_columna] = -1
+
+        expresion = (
+            f"C{indice_columna + 1} = "
+            f"{construir_expresion(coeficientes)}"
+        )
+
+        relacion_dependencia = {
+            "columna_dependiente": indice_columna,
+            "coeficientes_generadores": coeficientes_por_columna,
+            "coeficientes_homogeneos": coeficientes_homogeneos,
+            "expresion": expresion
+        }
+
+    mensaje = (
+        f"La columna C{indice_columna + 1} depende linealmente "
+        "de las demas columnas."
+        if es_dependiente
+        else f"La columna C{indice_columna + 1} no depende "
+        "linealmente de las demas columnas."
+    )
+
+    return {
+        "es_dependiente": es_dependiente,
+        "tipo": tipo,
+        "mensaje": mensaje,
+        "matriz": _copiar_matriz(A),
+        "indice_columna": indice_columna,
+        "columna": columna_objetivo,
+        "indices_columnas_generadoras": indices_generadores,
+        "matriz_generadora": matriz_generadora,
+        "coeficientes": coeficientes,
+        "coeficientes_por_columna": coeficientes_por_columna,
+        "relacion_dependencia": relacion_dependencia,
+        "expresion": expresion,
+        "tipo_solucion": resultado["tipo"],
+        "matriz_aumentada": resultado["matriz_aumentada"],
+        "matriz_reducida": resultado["matriz_reducida"],
+        "proceso": resultado["proceso"],
+        "rango_A": resultado["rango_A"],
+        "rango_Ab": resultado["rango_Ab"],
+        "columnas_pivote": resultado["columnas_pivote"],
+        "variables_basicas": resultado["variables_basicas"],
+        "variables_libres": resultado["variables_libres"],
+        "solucion_parametrica": resultado["solucion_parametrica"],
+        "conjunto_solucion": resultado.get("conjunto_solucion"),
+        "cantidad_filas": cantidad_filas,
+        "cantidad_columnas": cantidad_columnas,
+        "es_columna_cero": es_columna_cero
     }

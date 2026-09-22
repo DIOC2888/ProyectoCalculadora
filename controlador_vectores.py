@@ -21,8 +21,6 @@
 import vectores as backend_vectores
 import matrices as backend_matrices
 
-from ecuaciones import resolver_sistema,resolver_sistema_homogeneo
-
 class ControladorVectores:
     """Clase encargada de conectar la interfaz en PySide6
     con la lógica del backend para operaciones vectoriales.
@@ -716,7 +714,7 @@ class ControladorVectores:
 
         try:
 
-            resultado = resolver_sistema(
+            resultado = backend_matrices.resolver_sistema_no_homogeneo(
                 A,
                 b
             )
@@ -1172,7 +1170,7 @@ class ControladorVectores:
                 "proceso": []
             }
     @staticmethod
-    def evaluar_independencia_columnas(self, A):
+    def _evaluar_independencia_columnas_legacy(self, A):
         """
          Evalúa la independencia lineal de las columnas de una matriz.
         """
@@ -1211,6 +1209,92 @@ class ControladorVectores:
             # Dependencia
             "relaciones_dependencia": resultado["relaciones_dependencia"]
     }
+
+    @staticmethod
+    def evaluar_independencia_columnas(A):
+        """
+        Evalua la independencia lineal de las columnas de una matriz.
+        """
+
+        try:
+            resultado = backend_matrices.verificar_independencia_columnas(A)
+            es_independiente = resultado.get("es_independiente", False)
+            cantidad_columnas = resultado.get("cantidad_columnas", 0)
+            tipo_sistema = "unica" if es_independiente else "infinitas"
+
+            return {
+                "exito": True,
+                "operacion": "Independencia columnas",
+                "es_homogeneo": True,
+                "es_independiente": es_independiente,
+                "tipo_independencia": resultado.get("tipo"),
+                "tipo": tipo_sistema,
+                "tiene_soluciones_no_triviales": not es_independiente,
+                "mensaje": resultado.get("mensaje"),
+                "matriz": resultado.get("matriz"),
+                "cantidad_filas": resultado.get("cantidad_filas"),
+                "cantidad_columnas": cantidad_columnas,
+                "columnas_mayor_que_filas": resultado.get(
+                    "columnas_mayor_que_filas",
+                    False
+                ),
+                "vector_cero": resultado.get("vector_cero"),
+                "matriz_aumentada": resultado.get("matriz_aumentada"),
+                "matriz_reducida": resultado.get("matriz_reducida"),
+                "proceso": resultado.get("proceso", []),
+                "rango_A": resultado.get("rango"),
+                "rango_Ab": resultado.get("rango"),
+                "num_variables": cantidad_columnas,
+                "num_ecuaciones": resultado.get("cantidad_filas"),
+                "columnas_pivote": resultado.get("columnas_pivote", []),
+                "variables_basicas": resultado.get("variables_basicas", []),
+                "variables_libres": resultado.get("variables_libres", []),
+                "solucion": (
+                    [0 for _ in range(cantidad_columnas)]
+                    if es_independiente
+                    else None
+                ),
+                "solucion_parametrica": resultado.get(
+                    "solucion_parametrica"
+                ),
+                "conjunto_solucion": resultado.get("conjunto_solucion"),
+                "relaciones_dependencia": resultado.get(
+                    "relaciones_dependencia",
+                    []
+                )
+            }
+
+        except (ValueError, TypeError) as e:
+            return {
+                "exito": False,
+                "operacion": "Independencia columnas",
+                "es_homogeneo": True,
+                "es_independiente": False,
+                "tipo_independencia": None,
+                "tipo": None,
+                "tiene_soluciones_no_triviales": False,
+                "mensaje": str(e),
+                "matriz": A,
+                "cantidad_filas": None,
+                "cantidad_columnas": None,
+                "columnas_mayor_que_filas": False,
+                "vector_cero": None,
+                "matriz_aumentada": None,
+                "matriz_reducida": None,
+                "proceso": [],
+                "rango_A": None,
+                "rango_Ab": None,
+                "num_variables": None,
+                "num_ecuaciones": None,
+                "columnas_pivote": [],
+                "variables_basicas": [],
+                "variables_libres": [],
+                "solucion": None,
+                "solucion_parametrica": None,
+                "conjunto_solucion": None,
+                "relaciones_dependencia": []
+            }
+
         # ========================================================
     #              SISTEMA HOMOGÉNEO Ax = 0
     # ========================================================
@@ -1240,7 +1324,7 @@ class ControladorVectores:
 
         try:
 
-            resultado = resolver_sistema_homogeneo(A)
+            resultado = backend_matrices.resolver_sistema_homogeneo(A)
 
             tiene_soluciones_no_triviales = (
                 resultado.get(
@@ -1265,6 +1349,11 @@ class ControladorVectores:
 
                 "tiene_soluciones_no_triviales":
                     tiene_soluciones_no_triviales,
+
+                "tipo":
+                    resultado.get(
+                        "tipo"
+                    ),
 
                 "mensaje":
                     resultado.get(
@@ -1358,6 +1447,38 @@ class ControladorVectores:
                 "conjunto_solucion":
                     resultado.get(
                         "conjunto_solucion"
+                    ),
+
+                "solucion_particular":
+                    (
+                        resultado.get("conjunto_solucion", {})
+                        .get("solucion_particular")
+                        if resultado.get("conjunto_solucion")
+                        else None
+                    ),
+
+                "vectores_direccion":
+                    (
+                        resultado.get("conjunto_solucion", {})
+                        .get("vectores_direccion", [])
+                        if resultado.get("conjunto_solucion")
+                        else []
+                    ),
+
+                "parametros":
+                    (
+                        resultado.get("conjunto_solucion", {})
+                        .get("parametros", [])
+                        if resultado.get("conjunto_solucion")
+                        else []
+                    ),
+
+                "forma_vectorial":
+                    (
+                        resultado.get("conjunto_solucion", {})
+                        .get("forma_vectorial")
+                        if resultado.get("conjunto_solucion")
+                        else None
                     )
             }
 
@@ -1375,6 +1496,9 @@ class ControladorVectores:
 
                 "tiene_soluciones_no_triviales":
                     False,
+
+                "tipo":
+                    None,
 
                 "matriz":
                     A,
@@ -1416,6 +1540,18 @@ class ControladorVectores:
                     None,
 
                 "conjunto_solucion":
+                    None,
+
+                "solucion_particular":
+                    None,
+
+                "vectores_direccion":
+                    [],
+
+                "parametros":
+                    [],
+
+                "forma_vectorial":
                     None,
 
                 "mensaje":
