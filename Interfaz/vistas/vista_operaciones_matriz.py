@@ -448,7 +448,12 @@ class VistaOperacionesMatriz(QWidget):
             "Matriz por vector",
             "Distributividad",
             "Homogeneidad",
-            "Independencia columnas"
+            "Independencia columnas",
+            "Asociatividad matrices",
+            "Distributiva izquierda",
+            "Distributiva derecha",
+            "Escalar producto",
+            "Identidad"
         ])
         self.combo_mops_metodo.setFixedWidth(220)
         self.combo_mops_metodo.setFixedHeight(38)
@@ -725,11 +730,51 @@ class VistaOperacionesMatriz(QWidget):
         self.stepper_meqs_vars.setEnabled(not es_homogeneo)
         self._rebuild_mat_eqs_grid()
 
+    def _mops_propiedades_matriciales(self):
+        return (
+            "Asociatividad matrices",
+            "Distributiva izquierda",
+            "Distributiva derecha",
+            "Escalar producto",
+            "Identidad"
+        )
+
+    def _mops_matrices_requeridas(self, metodo):
+        if metodo in (
+            "Asociatividad matrices",
+            "Distributiva izquierda",
+            "Distributiva derecha"
+        ):
+            return 3
+
+        if metodo == "Escalar producto":
+            return 2
+
+        if metodo == "Identidad":
+            return 1
+
+        return None
+
+    def _set_stepper_value(self, stepper, value):
+        stepper.value = value
+        stepper.lbl_val.setText(str(value))
+
     def _on_mops_operation_changed(self):
 
         metodo = self.combo_mops_metodo.currentText()
 
-        es_escalar = metodo in ("Escalar", "Homogeneidad")
+        matrices_requeridas = self._mops_matrices_requeridas(metodo)
+        if matrices_requeridas is not None:
+            self._set_stepper_value(
+                self.stepper_mops_count,
+                matrices_requeridas
+            )
+
+        es_escalar = metodo in (
+            "Escalar",
+            "Homogeneidad",
+            "Escalar producto"
+        )
         usa_vector = metodo in (
             "Matriz por vector",
             "Distributividad",
@@ -739,6 +784,7 @@ class VistaOperacionesMatriz(QWidget):
             es_escalar
             or usa_vector
             or metodo == "Independencia columnas"
+            or metodo == "Identidad"
         )
 
         # Mostrar escalar solamente cuando la operacion lo usa.
@@ -749,6 +795,7 @@ class VistaOperacionesMatriz(QWidget):
         # Cantidad de matrices no aplica para estas operaciones.
         self.stepper_mops_count.setEnabled(
             not usa_una_matriz
+            and matrices_requeridas is None
         )
 
         # Reconstruir matrices
@@ -833,7 +880,12 @@ class VistaOperacionesMatriz(QWidget):
 
         metodo = self.combo_mops_metodo.currentText()
 
-        es_escalar = metodo in ("Escalar", "Homogeneidad")
+        matrices_requeridas = self._mops_matrices_requeridas(metodo)
+        es_escalar = metodo in (
+            "Escalar",
+            "Homogeneidad",
+            "Escalar producto"
+        )
         usa_vector = metodo in (
             "Matriz por vector",
             "Distributividad",
@@ -843,10 +895,13 @@ class VistaOperacionesMatriz(QWidget):
             es_escalar
             or usa_vector
             or metodo == "Independencia columnas"
+            or metodo == "Identidad"
         )
 
         # Estas operaciones usan solamente A1.
-        if usa_una_matriz:
+        if matrices_requeridas is not None:
+            num_matrices = matrices_requeridas
+        elif usa_una_matriz:
             num_matrices = 1
         else:
             num_matrices = self.stepper_mops_count.value
@@ -943,7 +998,17 @@ class VistaOperacionesMatriz(QWidget):
             # Etiqueta A1, A2, A3...
             # --------------------------------------------------------
 
-            lbl_m = QLabel(f"A<sub>{m + 1}</sub>")
+            if metodo in self._mops_propiedades_matriciales():
+                etiquetas_matrices = ("A", "B", "C")
+                etiqueta_matriz = (
+                    etiquetas_matrices[m]
+                    if m < len(etiquetas_matrices)
+                    else f"A<sub>{m + 1}</sub>"
+                )
+            else:
+                etiqueta_matriz = f"A<sub>{m + 1}</sub>"
+
+            lbl_m = QLabel(etiqueta_matriz)
 
             lbl_m.setAlignment(
                 Qt.AlignmentFlag.AlignCenter
@@ -1407,6 +1472,7 @@ class VistaOperacionesMatriz(QWidget):
         try:
             modo = self.combo_mops_metodo.currentText()
             matrices = self._leer_matrices_mops()
+            matrices_requeridas = self._mops_matrices_requeridas(modo)
 
             if modo in ("Sumar", "Restar", "Multiplicar") and len(matrices) < 2:
                 QMessageBox.warning(
@@ -1416,11 +1482,27 @@ class VistaOperacionesMatriz(QWidget):
                 )
                 return
 
+            if (
+                matrices_requeridas is not None
+                and len(matrices) < matrices_requeridas
+            ):
+                QMessageBox.warning(
+                    self,
+                    "Matrices insuficientes",
+                    (
+                        "Esta propiedad necesita "
+                        f"{matrices_requeridas} "
+                        f"{'matrices' if matrices_requeridas != 1 else 'matriz'}."
+                    )
+                )
+                return
+
             if modo in (
                 "Matriz por vector",
                 "Distributividad",
                 "Homogeneidad",
-                "Independencia columnas"
+                "Independencia columnas",
+                "Identidad"
             ) and not matrices:
                 QMessageBox.warning(
                     self,
@@ -1496,6 +1578,55 @@ class VistaOperacionesMatriz(QWidget):
                 resultado = (
                     ControladorVectores
                     .evaluar_independencia_columnas(
+                        matrices[0]
+                    )
+                )
+
+            elif modo == "Asociatividad matrices":
+                resultado = (
+                    ControladorVectores
+                    .verificar_asociatividad_matrices(
+                        matrices[0],
+                        matrices[1],
+                        matrices[2]
+                    )
+                )
+
+            elif modo == "Distributiva izquierda":
+                resultado = (
+                    ControladorVectores
+                    .verificar_distributividad_izquierda_matrices(
+                        matrices[0],
+                        matrices[1],
+                        matrices[2]
+                    )
+                )
+
+            elif modo == "Distributiva derecha":
+                resultado = (
+                    ControladorVectores
+                    .verificar_distributividad_derecha_matrices(
+                        matrices[0],
+                        matrices[1],
+                        matrices[2]
+                    )
+                )
+
+            elif modo == "Escalar producto":
+                escalar = self._leer_float(self.inp_mops_escalar)
+                resultado = (
+                    ControladorVectores
+                    .verificar_escalar_producto_matrices(
+                        matrices[0],
+                        matrices[1],
+                        escalar
+                    )
+                )
+
+            elif modo == "Identidad":
+                resultado = (
+                    ControladorVectores
+                    .verificar_identidad_matrices(
                         matrices[0]
                     )
                 )
@@ -2154,6 +2285,13 @@ class VistaOperacionesMatriz(QWidget):
                 self._clear_layout(child_layout)
 
         operacion = resultado.get("operacion", "")
+        propiedades_multiplicacion_matrices = (
+            "Propiedad asociativa matrices",
+            "Propiedad distributiva izquierda matrices",
+            "Propiedad distributiva derecha matrices",
+            "Propiedad escalar producto matrices",
+            "Propiedad identidad matrices"
+        )
 
         if operacion in (
             "Sumar matrices",
@@ -2280,6 +2418,65 @@ class VistaOperacionesMatriz(QWidget):
                 columna.addWidget(lbl_titulo)
                 columna.addWidget(
                     self._crear_vector_widget(vector)
+                )
+                lados_layout.addLayout(columna)
+
+            lados_layout.addStretch()
+            layout_principal.addLayout(lados_layout)
+
+        elif operacion in propiedades_multiplicacion_matrices:
+            self._agregar_titulo_seccion(layout_principal, "COMPARACION")
+
+            lbl_expresion = QLabel(resultado.get("expresion", ""))
+            lbl_expresion.setStyleSheet("""
+                color: #0F172A;
+                font-family: 'Consolas', 'Courier New', monospace;
+                font-size: 14px;
+                font-weight: 700;
+                background-color: #F8FAFC;
+                border: 1px solid #E2E8F0;
+                border-radius: 10px;
+                padding: 10px 12px;
+            """)
+            layout_principal.addWidget(lbl_expresion)
+
+            igualdad = resultado.get("igualdad", False)
+            lbl_estado = QLabel(
+                "La igualdad se cumple."
+                if igualdad
+                else "La igualdad no se cumple."
+            )
+            lbl_estado.setStyleSheet("""
+                color: #0F172A;
+                font-size: 13px;
+                font-weight: 700;
+                background-color: #F8FAFC;
+                border: 1px solid #E2E8F0;
+                border-radius: 10px;
+                padding: 12px;
+            """)
+            layout_principal.addWidget(lbl_estado)
+
+            comparaciones = resultado.get("comparaciones", [])
+
+            lados_layout = QHBoxLayout()
+            lados_layout.setSpacing(18)
+
+            for titulo, matriz in comparaciones:
+                columna = QVBoxLayout()
+                columna.setSpacing(8)
+
+                lbl_titulo = QLabel(str(titulo))
+                lbl_titulo.setStyleSheet("""
+                    color: #64748B;
+                    font-weight: 700;
+                    font-size: 11px;
+                    letter-spacing: 0.5px;
+                    border: none;
+                """)
+                columna.addWidget(lbl_titulo)
+                columna.addWidget(
+                    self._crear_matriz_widget(matriz)
                 )
                 lados_layout.addLayout(columna)
 
@@ -2890,7 +3087,12 @@ class VistaOperacionesMatriz(QWidget):
             "Matriz por vector",
             "Propiedad distributiva",
             "Propiedad homogenea",
-            "Propiedad homogÃ©nea"
+            "Propiedad homogÃ©nea",
+            "Propiedad asociativa matrices",
+            "Propiedad distributiva izquierda matrices",
+            "Propiedad distributiva derecha matrices",
+            "Propiedad escalar producto matrices",
+            "Propiedad identidad matrices"
         ):
             self.results_layout.addWidget(
                 self._crear_card_proceso_matricial(resultado)

@@ -682,6 +682,198 @@ class ControladorVectores:
                 "proceso": [],
                 "mensaje": str(e)
             }
+
+    @staticmethod
+    def verificar_asociatividad_matrices(A, B, C):
+        """
+        Verifica A(BC) = (AB)C usando el backend.
+        """
+
+        try:
+            datos = (
+                backend_matrices
+                .verificar_asociatividad_multiplicacion_matrices(
+                    A,
+                    B,
+                    C
+                )
+            )
+
+            return {
+                "exito": True,
+                "operacion": "Propiedad asociativa matrices",
+                "igualdad": datos["igualdad"],
+                "mensaje": (
+                    "Se cumple la propiedad A(BC) = (AB)C."
+                    if datos["igualdad"]
+                    else "La igualdad A(BC) = (AB)C no se cumple."
+                ),
+                **datos
+            }
+
+        except (ValueError, TypeError) as e:
+            return {
+                "exito": False,
+                "operacion": "Propiedad asociativa matrices",
+                "igualdad": False,
+                "mensaje": str(e),
+                "proceso": []
+            }
+
+    @staticmethod
+    def verificar_distributividad_izquierda_matrices(A, B, C):
+        """
+        Verifica A(B + C) = AB + AC usando el backend.
+        """
+
+        try:
+            datos = (
+                backend_matrices
+                .verificar_distributividad_izquierda_matrices(
+                    A,
+                    B,
+                    C
+                )
+            )
+
+            return {
+                "exito": True,
+                "operacion": "Propiedad distributiva izquierda matrices",
+                "igualdad": datos["igualdad"],
+                "mensaje": (
+                    "Se cumple la propiedad A(B + C) = AB + AC."
+                    if datos["igualdad"]
+                    else "La igualdad A(B + C) = AB + AC no se cumple."
+                ),
+                **datos
+            }
+
+        except (ValueError, TypeError) as e:
+            return {
+                "exito": False,
+                "operacion": "Propiedad distributiva izquierda matrices",
+                "igualdad": False,
+                "mensaje": str(e),
+                "proceso": []
+            }
+
+    @staticmethod
+    def verificar_distributividad_derecha_matrices(A, B, C):
+        """
+        Verifica (B + C)A = BA + CA usando el backend.
+        """
+
+        try:
+            datos = (
+                backend_matrices
+                .verificar_distributividad_derecha_matrices(
+                    A,
+                    B,
+                    C
+                )
+            )
+
+            return {
+                "exito": True,
+                "operacion": "Propiedad distributiva derecha matrices",
+                "igualdad": datos["igualdad"],
+                "mensaje": (
+                    "Se cumple la propiedad (B + C)A = BA + CA."
+                    if datos["igualdad"]
+                    else "La igualdad (B + C)A = BA + CA no se cumple."
+                ),
+                **datos
+            }
+
+        except (ValueError, TypeError) as e:
+            return {
+                "exito": False,
+                "operacion": "Propiedad distributiva derecha matrices",
+                "igualdad": False,
+                "mensaje": str(e),
+                "proceso": []
+            }
+
+    @staticmethod
+    def verificar_escalar_producto_matrices(A, B, escalar):
+        """
+        Verifica r(AB) = (rA)B = A(rB) usando el backend.
+        """
+
+        try:
+            escalar = float(escalar)
+
+            datos = (
+                backend_matrices
+                .verificar_escalar_producto_matrices(
+                    A,
+                    B,
+                    escalar
+                )
+            )
+
+            return {
+                "exito": True,
+                "operacion": "Propiedad escalar producto matrices",
+                "igualdad": datos["igualdad"],
+                "mensaje": (
+                    "Se cumple la propiedad r(AB) = (rA)B = A(rB)."
+                    if datos["igualdad"]
+                    else "La igualdad r(AB) = (rA)B = A(rB) no se cumple."
+                ),
+                **datos
+            }
+
+        except ValueError:
+            return {
+                "exito": False,
+                "operacion": "Propiedad escalar producto matrices",
+                "igualdad": False,
+                "mensaje": "El escalar debe ser un numero valido.",
+                "proceso": []
+            }
+
+        except TypeError as e:
+            return {
+                "exito": False,
+                "operacion": "Propiedad escalar producto matrices",
+                "igualdad": False,
+                "mensaje": str(e),
+                "proceso": []
+            }
+
+    @staticmethod
+    def verificar_identidad_matrices(A):
+        """
+        Verifica I_m A = A = A I_n usando el backend.
+        """
+
+        try:
+            datos = (
+                backend_matrices
+                .verificar_identidad_multiplicacion_matrices(A)
+            )
+
+            return {
+                "exito": True,
+                "operacion": "Propiedad identidad matrices",
+                "igualdad": datos["igualdad"],
+                "mensaje": (
+                    "Se cumple la propiedad I_m A = A = A I_n."
+                    if datos["igualdad"]
+                    else "La igualdad I_m A = A = A I_n no se cumple."
+                ),
+                **datos
+            }
+
+        except (ValueError, TypeError) as e:
+            return {
+                "exito": False,
+                "operacion": "Propiedad identidad matrices",
+                "igualdad": False,
+                "mensaje": str(e),
+                "proceso": []
+            }
     # ========================================================
     #                  ECUACIONES Ax = b
     # ========================================================

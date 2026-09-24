@@ -57,6 +57,42 @@ def _copiar_matriz(matriz):
     ]
 
 
+def _matrices_son_iguales(A, B):
+    """
+    Compara dos matrices usando la tolerancia configurada.
+    """
+
+    if len(A) != len(B):
+        return False
+
+    if not A and not B:
+        return True
+
+    if len(A[0]) != len(B[0]):
+        return False
+
+    for i in range(len(A)):
+        for j in range(len(A[0])):
+            if abs(A[i][j] - B[i][j]) > TOLERANCIA:
+                return False
+
+    return True
+
+
+def _crear_matriz_identidad(tamano):
+    """
+    Crea una matriz identidad de tamano n x n.
+    """
+
+    return [
+        [
+            1 if i == j else 0
+            for j in range(tamano)
+        ]
+        for i in range(tamano)
+    ]
+
+
 # ============================================================
 # SUMA DE MATRICES
 # ============================================================
@@ -738,7 +774,583 @@ def _multiplicar_dos_matrices_con_proceso(
         componentes
     )
 # ============================================================
-# MULTIPLICACIÓN DE MATRIZ POR VECTOR
+# PROPIEDADES DE LA MULTIPLICACION DE MATRICES
+# ============================================================
+
+def verificar_asociatividad_multiplicacion_matrices(A, B, C):
+    """
+    Verifica la propiedad:
+
+        A(BC) = (AB)C
+    """
+
+    validar_matriz(A)
+    validar_matriz(B)
+    validar_matriz(C)
+
+    proceso = []
+
+    BC = _multiplicar_dos_matrices(B, C)
+    proceso.append({
+        "numero": 1,
+        "tipo": "operacion",
+        "titulo": "PRODUCTO BC",
+        "operacion": "B x C",
+        "matriz_izquierda": _copiar_matriz(B),
+        "matriz_derecha": _copiar_matriz(C)
+    })
+    proceso.append({
+        "numero": 2,
+        "tipo": "resultado",
+        "titulo": "RESULTADO BC",
+        "matriz": _copiar_matriz(BC)
+    })
+
+    lado_izquierdo = _multiplicar_dos_matrices(A, BC)
+    proceso.append({
+        "numero": 3,
+        "tipo": "operacion",
+        "titulo": "LADO IZQUIERDO",
+        "operacion": "A x (BC)",
+        "matriz_izquierda": _copiar_matriz(A),
+        "matriz_derecha": _copiar_matriz(BC)
+    })
+    proceso.append({
+        "numero": 4,
+        "tipo": "resultado",
+        "titulo": "A(BC)",
+        "matriz": _copiar_matriz(lado_izquierdo)
+    })
+
+    AB = _multiplicar_dos_matrices(A, B)
+    proceso.append({
+        "numero": 5,
+        "tipo": "operacion",
+        "titulo": "PRODUCTO AB",
+        "operacion": "A x B",
+        "matriz_izquierda": _copiar_matriz(A),
+        "matriz_derecha": _copiar_matriz(B)
+    })
+    proceso.append({
+        "numero": 6,
+        "tipo": "resultado",
+        "titulo": "RESULTADO AB",
+        "matriz": _copiar_matriz(AB)
+    })
+
+    lado_derecho = _multiplicar_dos_matrices(AB, C)
+    proceso.append({
+        "numero": 7,
+        "tipo": "operacion",
+        "titulo": "LADO DERECHO",
+        "operacion": "(AB) x C",
+        "matriz_izquierda": _copiar_matriz(AB),
+        "matriz_derecha": _copiar_matriz(C)
+    })
+    proceso.append({
+        "numero": 8,
+        "tipo": "resultado",
+        "titulo": "(AB)C",
+        "matriz": _copiar_matriz(lado_derecho)
+    })
+
+    igualdad = _matrices_son_iguales(lado_izquierdo, lado_derecho)
+
+    proceso.append({
+        "numero": 9,
+        "tipo": "verificacion",
+        "titulo": "VERIFICACION DE LA PROPIEDAD",
+        "operacion": "A(BC) = (AB)C",
+        "resultado": igualdad
+    })
+
+    return {
+        "igualdad": igualdad,
+        "expresion": "A(BC) = (AB)C",
+        "matrices": [
+            _copiar_matriz(A),
+            _copiar_matriz(B),
+            _copiar_matriz(C)
+        ],
+        "BC": BC,
+        "AB": AB,
+        "lado_izquierdo": lado_izquierdo,
+        "lado_derecho": lado_derecho,
+        "comparaciones": [
+            ("A(BC)", lado_izquierdo),
+            ("(AB)C", lado_derecho)
+        ],
+        "proceso": proceso
+    }
+
+
+def verificar_distributividad_izquierda_matrices(A, B, C):
+    """
+    Verifica la propiedad:
+
+        A(B + C) = AB + AC
+    """
+
+    validar_matriz(A)
+    validar_matriz(B)
+    validar_matriz(C)
+    validar_mismas_dimensiones_matrices(B, C)
+
+    proceso = []
+
+    B_mas_C = sumar_matrices([B, C])["resultado"]
+    proceso.append({
+        "numero": 1,
+        "tipo": "operacion",
+        "titulo": "SUMA B + C",
+        "operacion": "B + C",
+        "matrices": [
+            _copiar_matriz(B),
+            _copiar_matriz(C)
+        ]
+    })
+    proceso.append({
+        "numero": 2,
+        "tipo": "resultado",
+        "titulo": "RESULTADO B + C",
+        "matriz": _copiar_matriz(B_mas_C)
+    })
+
+    lado_izquierdo = _multiplicar_dos_matrices(A, B_mas_C)
+    proceso.append({
+        "numero": 3,
+        "tipo": "operacion",
+        "titulo": "LADO IZQUIERDO",
+        "operacion": "A x (B + C)",
+        "matriz_izquierda": _copiar_matriz(A),
+        "matriz_derecha": _copiar_matriz(B_mas_C)
+    })
+    proceso.append({
+        "numero": 4,
+        "tipo": "resultado",
+        "titulo": "A(B + C)",
+        "matriz": _copiar_matriz(lado_izquierdo)
+    })
+
+    AB = _multiplicar_dos_matrices(A, B)
+    AC = _multiplicar_dos_matrices(A, C)
+    proceso.append({
+        "numero": 5,
+        "tipo": "operacion",
+        "titulo": "PRODUCTO AB",
+        "operacion": "A x B",
+        "matriz_izquierda": _copiar_matriz(A),
+        "matriz_derecha": _copiar_matriz(B)
+    })
+    proceso.append({
+        "numero": 6,
+        "tipo": "resultado",
+        "titulo": "RESULTADO AB",
+        "matriz": _copiar_matriz(AB)
+    })
+    proceso.append({
+        "numero": 7,
+        "tipo": "operacion",
+        "titulo": "PRODUCTO AC",
+        "operacion": "A x C",
+        "matriz_izquierda": _copiar_matriz(A),
+        "matriz_derecha": _copiar_matriz(C)
+    })
+    proceso.append({
+        "numero": 8,
+        "tipo": "resultado",
+        "titulo": "RESULTADO AC",
+        "matriz": _copiar_matriz(AC)
+    })
+
+    lado_derecho = sumar_matrices([AB, AC])["resultado"]
+    proceso.append({
+        "numero": 9,
+        "tipo": "operacion",
+        "titulo": "LADO DERECHO",
+        "operacion": "AB + AC",
+        "matrices": [
+            _copiar_matriz(AB),
+            _copiar_matriz(AC)
+        ]
+    })
+    proceso.append({
+        "numero": 10,
+        "tipo": "resultado",
+        "titulo": "AB + AC",
+        "matriz": _copiar_matriz(lado_derecho)
+    })
+
+    igualdad = _matrices_son_iguales(lado_izquierdo, lado_derecho)
+
+    proceso.append({
+        "numero": 11,
+        "tipo": "verificacion",
+        "titulo": "VERIFICACION DE LA PROPIEDAD",
+        "operacion": "A(B + C) = AB + AC",
+        "resultado": igualdad
+    })
+
+    return {
+        "igualdad": igualdad,
+        "expresion": "A(B + C) = AB + AC",
+        "matrices": [
+            _copiar_matriz(A),
+            _copiar_matriz(B),
+            _copiar_matriz(C)
+        ],
+        "B_mas_C": B_mas_C,
+        "AB": AB,
+        "AC": AC,
+        "lado_izquierdo": lado_izquierdo,
+        "lado_derecho": lado_derecho,
+        "comparaciones": [
+            ("A(B + C)", lado_izquierdo),
+            ("AB + AC", lado_derecho)
+        ],
+        "proceso": proceso
+    }
+
+
+def verificar_distributividad_derecha_matrices(A, B, C):
+    """
+    Verifica la propiedad:
+
+        (B + C)A = BA + CA
+    """
+
+    validar_matriz(A)
+    validar_matriz(B)
+    validar_matriz(C)
+    validar_mismas_dimensiones_matrices(B, C)
+
+    proceso = []
+
+    B_mas_C = sumar_matrices([B, C])["resultado"]
+    proceso.append({
+        "numero": 1,
+        "tipo": "operacion",
+        "titulo": "SUMA B + C",
+        "operacion": "B + C",
+        "matrices": [
+            _copiar_matriz(B),
+            _copiar_matriz(C)
+        ]
+    })
+    proceso.append({
+        "numero": 2,
+        "tipo": "resultado",
+        "titulo": "RESULTADO B + C",
+        "matriz": _copiar_matriz(B_mas_C)
+    })
+
+    lado_izquierdo = _multiplicar_dos_matrices(B_mas_C, A)
+    proceso.append({
+        "numero": 3,
+        "tipo": "operacion",
+        "titulo": "LADO IZQUIERDO",
+        "operacion": "(B + C) x A",
+        "matriz_izquierda": _copiar_matriz(B_mas_C),
+        "matriz_derecha": _copiar_matriz(A)
+    })
+    proceso.append({
+        "numero": 4,
+        "tipo": "resultado",
+        "titulo": "(B + C)A",
+        "matriz": _copiar_matriz(lado_izquierdo)
+    })
+
+    BA = _multiplicar_dos_matrices(B, A)
+    CA = _multiplicar_dos_matrices(C, A)
+    proceso.append({
+        "numero": 5,
+        "tipo": "operacion",
+        "titulo": "PRODUCTO BA",
+        "operacion": "B x A",
+        "matriz_izquierda": _copiar_matriz(B),
+        "matriz_derecha": _copiar_matriz(A)
+    })
+    proceso.append({
+        "numero": 6,
+        "tipo": "resultado",
+        "titulo": "RESULTADO BA",
+        "matriz": _copiar_matriz(BA)
+    })
+    proceso.append({
+        "numero": 7,
+        "tipo": "operacion",
+        "titulo": "PRODUCTO CA",
+        "operacion": "C x A",
+        "matriz_izquierda": _copiar_matriz(C),
+        "matriz_derecha": _copiar_matriz(A)
+    })
+    proceso.append({
+        "numero": 8,
+        "tipo": "resultado",
+        "titulo": "RESULTADO CA",
+        "matriz": _copiar_matriz(CA)
+    })
+
+    lado_derecho = sumar_matrices([BA, CA])["resultado"]
+    proceso.append({
+        "numero": 9,
+        "tipo": "operacion",
+        "titulo": "LADO DERECHO",
+        "operacion": "BA + CA",
+        "matrices": [
+            _copiar_matriz(BA),
+            _copiar_matriz(CA)
+        ]
+    })
+    proceso.append({
+        "numero": 10,
+        "tipo": "resultado",
+        "titulo": "BA + CA",
+        "matriz": _copiar_matriz(lado_derecho)
+    })
+
+    igualdad = _matrices_son_iguales(lado_izquierdo, lado_derecho)
+
+    proceso.append({
+        "numero": 11,
+        "tipo": "verificacion",
+        "titulo": "VERIFICACION DE LA PROPIEDAD",
+        "operacion": "(B + C)A = BA + CA",
+        "resultado": igualdad
+    })
+
+    return {
+        "igualdad": igualdad,
+        "expresion": "(B + C)A = BA + CA",
+        "matrices": [
+            _copiar_matriz(A),
+            _copiar_matriz(B),
+            _copiar_matriz(C)
+        ],
+        "B_mas_C": B_mas_C,
+        "BA": BA,
+        "CA": CA,
+        "lado_izquierdo": lado_izquierdo,
+        "lado_derecho": lado_derecho,
+        "comparaciones": [
+            ("(B + C)A", lado_izquierdo),
+            ("BA + CA", lado_derecho)
+        ],
+        "proceso": proceso
+    }
+
+
+def verificar_escalar_producto_matrices(A, B, escalar):
+    """
+    Verifica la propiedad:
+
+        r(AB) = (rA)B = A(rB)
+    """
+
+    validar_matriz(A)
+    validar_matriz(B)
+
+    if not isinstance(escalar, (int, float)):
+        raise TypeError(
+            "El escalar debe ser un numero."
+        )
+
+    proceso = []
+    r_texto = _formatear_numero(escalar)
+
+    AB = _multiplicar_dos_matrices(A, B)
+    proceso.append({
+        "numero": 1,
+        "tipo": "operacion",
+        "titulo": "PRODUCTO AB",
+        "operacion": "A x B",
+        "matriz_izquierda": _copiar_matriz(A),
+        "matriz_derecha": _copiar_matriz(B)
+    })
+    proceso.append({
+        "numero": 2,
+        "tipo": "resultado",
+        "titulo": "RESULTADO AB",
+        "matriz": _copiar_matriz(AB)
+    })
+
+    lado_izquierdo = multiplicar_matriz_escalar(
+        AB,
+        escalar
+    )["resultado"]
+    proceso.append({
+        "numero": 3,
+        "tipo": "resultado",
+        "titulo": "r(AB)",
+        "operacion": f"{r_texto}(AB)",
+        "matriz": _copiar_matriz(lado_izquierdo)
+    })
+
+    rA = multiplicar_matriz_escalar(A, escalar)["resultado"]
+    lado_central = _multiplicar_dos_matrices(rA, B)
+    proceso.append({
+        "numero": 4,
+        "tipo": "resultado",
+        "titulo": "rA",
+        "operacion": f"{r_texto}A",
+        "matriz": _copiar_matriz(rA)
+    })
+    proceso.append({
+        "numero": 5,
+        "tipo": "operacion",
+        "titulo": "(rA)B",
+        "operacion": "(rA) x B",
+        "matriz_izquierda": _copiar_matriz(rA),
+        "matriz_derecha": _copiar_matriz(B)
+    })
+    proceso.append({
+        "numero": 6,
+        "tipo": "resultado",
+        "titulo": "RESULTADO (rA)B",
+        "matriz": _copiar_matriz(lado_central)
+    })
+
+    rB = multiplicar_matriz_escalar(B, escalar)["resultado"]
+    lado_derecho = _multiplicar_dos_matrices(A, rB)
+    proceso.append({
+        "numero": 7,
+        "tipo": "resultado",
+        "titulo": "rB",
+        "operacion": f"{r_texto}B",
+        "matriz": _copiar_matriz(rB)
+    })
+    proceso.append({
+        "numero": 8,
+        "tipo": "operacion",
+        "titulo": "A(rB)",
+        "operacion": "A x (rB)",
+        "matriz_izquierda": _copiar_matriz(A),
+        "matriz_derecha": _copiar_matriz(rB)
+    })
+    proceso.append({
+        "numero": 9,
+        "tipo": "resultado",
+        "titulo": "RESULTADO A(rB)",
+        "matriz": _copiar_matriz(lado_derecho)
+    })
+
+    igualdad = (
+        _matrices_son_iguales(lado_izquierdo, lado_central)
+        and _matrices_son_iguales(lado_central, lado_derecho)
+    )
+
+    proceso.append({
+        "numero": 10,
+        "tipo": "verificacion",
+        "titulo": "VERIFICACION DE LA PROPIEDAD",
+        "operacion": f"{r_texto}(AB) = ({r_texto}A)B = A({r_texto}B)",
+        "resultado": igualdad
+    })
+
+    return {
+        "igualdad": igualdad,
+        "expresion": f"{r_texto}(AB) = ({r_texto}A)B = A({r_texto}B)",
+        "matrices": [
+            _copiar_matriz(A),
+            _copiar_matriz(B)
+        ],
+        "escalar": escalar,
+        "AB": AB,
+        "rA": rA,
+        "rB": rB,
+        "lado_izquierdo": lado_izquierdo,
+        "lado_central": lado_central,
+        "lado_derecho": lado_derecho,
+        "comparaciones": [
+            (f"{r_texto}(AB)", lado_izquierdo),
+            (f"({r_texto}A)B", lado_central),
+            (f"A({r_texto}B)", lado_derecho)
+        ],
+        "proceso": proceso
+    }
+
+
+def verificar_identidad_multiplicacion_matrices(A):
+    """
+    Verifica la propiedad:
+
+        I_m A = A = A I_n
+    """
+
+    validar_matriz(A)
+
+    filas = len(A)
+    columnas = len(A[0])
+    I_m = _crear_matriz_identidad(filas)
+    I_n = _crear_matriz_identidad(columnas)
+
+    proceso = []
+
+    lado_izquierdo = _multiplicar_dos_matrices(I_m, A)
+    proceso.append({
+        "numero": 1,
+        "tipo": "operacion",
+        "titulo": "IDENTIDAD IZQUIERDA",
+        "operacion": "Im x A",
+        "matriz_izquierda": _copiar_matriz(I_m),
+        "matriz_derecha": _copiar_matriz(A)
+    })
+    proceso.append({
+        "numero": 2,
+        "tipo": "resultado",
+        "titulo": "Im A",
+        "matriz": _copiar_matriz(lado_izquierdo)
+    })
+
+    lado_derecho = _multiplicar_dos_matrices(A, I_n)
+    proceso.append({
+        "numero": 3,
+        "tipo": "operacion",
+        "titulo": "IDENTIDAD DERECHA",
+        "operacion": "A x In",
+        "matriz_izquierda": _copiar_matriz(A),
+        "matriz_derecha": _copiar_matriz(I_n)
+    })
+    proceso.append({
+        "numero": 4,
+        "tipo": "resultado",
+        "titulo": "A In",
+        "matriz": _copiar_matriz(lado_derecho)
+    })
+
+    igualdad = (
+        _matrices_son_iguales(lado_izquierdo, A)
+        and _matrices_son_iguales(A, lado_derecho)
+    )
+
+    proceso.append({
+        "numero": 5,
+        "tipo": "verificacion",
+        "titulo": "VERIFICACION DE LA PROPIEDAD",
+        "operacion": "Im A = A = A In",
+        "resultado": igualdad
+    })
+
+    return {
+        "igualdad": igualdad,
+        "expresion": "I_m A = A = A I_n",
+        "matriz": _copiar_matriz(A),
+        "I_m": I_m,
+        "I_n": I_n,
+        "lado_izquierdo": lado_izquierdo,
+        "lado_central": _copiar_matriz(A),
+        "lado_derecho": lado_derecho,
+        "comparaciones": [
+            ("I_m A", lado_izquierdo),
+            ("A", _copiar_matriz(A)),
+            ("A I_n", lado_derecho)
+        ],
+        "proceso": proceso
+    }
+
+
+# ============================================================
+# MULTIPLICACION DE MATRIZ POR VECTOR
 # ============================================================
 
 def multiplicar_matriz_vector(A, vector):
