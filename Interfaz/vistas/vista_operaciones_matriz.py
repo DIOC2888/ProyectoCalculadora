@@ -455,7 +455,9 @@ class VistaOperacionesMatriz(QWidget):
             "Escalar producto",
             "Identidad",
             "Inversa",
-            "Traspuesta"
+            "Traspuesta",
+            "Determinante",
+            "Teoremas clave"
         ])
         self.combo_mops_metodo.setFixedWidth(220)
         self.combo_mops_metodo.setFixedHeight(38)
@@ -761,6 +763,12 @@ class VistaOperacionesMatriz(QWidget):
         if metodo == "Traspuesta":
             return 1
 
+        if metodo == "Determinante":
+            return 1
+
+        if metodo == "Teoremas clave":
+            return 0
+
         return None
 
     def _set_stepper_value(self, stepper, value):
@@ -772,7 +780,10 @@ class VistaOperacionesMatriz(QWidget):
         metodo = self.combo_mops_metodo.currentText()
 
         matrices_requeridas = self._mops_matrices_requeridas(metodo)
-        if matrices_requeridas is not None:
+        if (
+            matrices_requeridas is not None
+            and matrices_requeridas > 0
+        ):
             self._set_stepper_value(
                 self.stepper_mops_count,
                 matrices_requeridas
@@ -795,6 +806,8 @@ class VistaOperacionesMatriz(QWidget):
             or metodo == "Identidad"
             or metodo == "Inversa"
             or metodo == "Traspuesta"
+            or metodo == "Determinante"
+            or metodo == "Teoremas clave"
         )
 
         # Mostrar escalar solamente cuando la operacion lo usa.
@@ -810,6 +823,11 @@ class VistaOperacionesMatriz(QWidget):
 
         # Reconstruir matrices
         self._rebuild_matrix_ops_grid()
+
+        if metodo == "Teoremas clave":
+            self._mostrar_resultados(
+                ControladorVectores.ver_teoremas_clave()
+            )
 
     def _on_mops_rows_changed(self):
         self._rebuild_matrix_ops_grid()
@@ -914,6 +932,8 @@ class VistaOperacionesMatriz(QWidget):
             or metodo == "Identidad"
             or metodo == "Inversa"
             or metodo == "Traspuesta"
+            or metodo == "Determinante"
+            or metodo == "Teoremas clave"
         )
 
         # Estas operaciones usan solamente A1.
@@ -1522,7 +1542,8 @@ class VistaOperacionesMatriz(QWidget):
                 "Independencia columnas",
                 "Identidad",
                 "Inversa",
-                "Traspuesta"
+                "Traspuesta",
+                "Determinante"
             ) and not matrices:
                 QMessageBox.warning(
                     self,
@@ -1660,6 +1681,14 @@ class VistaOperacionesMatriz(QWidget):
                 resultado = ControladorVectores.transponer_matriz(
                     matrices[0]
                 )
+
+            elif modo == "Determinante":
+                resultado = ControladorVectores.calcular_determinante(
+                    matrices[0]
+                )
+
+            elif modo == "Teoremas clave":
+                resultado = ControladorVectores.ver_teoremas_clave()
 
             else:
                 QMessageBox.warning(
@@ -2370,7 +2399,105 @@ class VistaOperacionesMatriz(QWidget):
             "Propiedad identidad matrices"
         )
 
-        if operacion == "Inversa de matriz":
+        if operacion == "Determinante":
+            self._agregar_titulo_seccion(layout_principal, "DETERMINANTE")
+
+            determinante = resultado.get("determinante")
+            lbl_det = QLabel(
+                f"det(A) = {formatear_numero(determinante)}"
+                if determinante is not None
+                else "No se pudo calcular det(A)."
+            )
+            lbl_det.setStyleSheet("""
+                color: #0F172A;
+                font-family: 'Consolas', 'Courier New', monospace;
+                font-size: 22px;
+                font-weight: 800;
+                background-color: #F8FAFC;
+                border: 1px solid #E2E8F0;
+                border-radius: 10px;
+                padding: 14px 16px;
+            """)
+            layout_principal.addWidget(lbl_det)
+
+            fila_desarrollo = resultado.get("fila_desarrollo")
+            if fila_desarrollo is not None:
+                lbl_metodo = QLabel(
+                    "Metodo: desarrollo por cofactores "
+                    f"en la fila {fila_desarrollo + 1}."
+                )
+                lbl_metodo.setWordWrap(True)
+                lbl_metodo.setStyleSheet("""
+                    color: #475569;
+                    font-size: 13px;
+                    font-weight: 600;
+                    background-color: #F8FAFC;
+                    border: 1px solid #E2E8F0;
+                    border-radius: 10px;
+                    padding: 12px;
+                """)
+                layout_principal.addWidget(lbl_metodo)
+
+        elif operacion == "Teoremas clave":
+            self._agregar_titulo_seccion(
+                layout_principal,
+                "TEOREMAS Y PROPIEDADES CLAVE"
+            )
+
+            teoremas = resultado.get("teoremas", {})
+            logos = resultado.get("logos", {})
+
+            for modulo, items in teoremas.items():
+                box = QFrame()
+                box.setStyleSheet("""
+                    QFrame {
+                        background-color: #F8FAFC;
+                        border: 1px solid #E2E8F0;
+                        border-radius: 10px;
+                    }
+                """)
+                box_layout = QVBoxLayout(box)
+                box_layout.setContentsMargins(12, 12, 12, 12)
+                box_layout.setSpacing(8)
+
+                lbl_modulo = QLabel(modulo)
+                lbl_modulo.setStyleSheet("""
+                    color: #0F172A;
+                    font-size: 14px;
+                    font-weight: 800;
+                    border: none;
+                    background: transparent;
+                """)
+                box_layout.addWidget(lbl_modulo)
+
+                logo = logos.get(modulo, [])
+                if logo:
+                    lbl_logo = QLabel("\n".join(logo))
+                    lbl_logo.setStyleSheet("""
+                        color: #334155;
+                        font-family: 'Consolas', 'Courier New', monospace;
+                        font-size: 11px;
+                        border: none;
+                        background: transparent;
+                    """)
+                    box_layout.addWidget(lbl_logo)
+
+                for texto in items:
+                    lbl_item = QLabel(f"- {texto}")
+                    lbl_item.setTextFormat(Qt.TextFormat.RichText)
+                    lbl_item.setWordWrap(True)
+                    lbl_item.setStyleSheet("""
+                        color: #475569;
+                        font-size: 13px;
+                        font-weight: 600;
+                        border: none;
+                        background: transparent;
+                    """)
+                    box_layout.addWidget(lbl_item)
+
+                layout_principal.addWidget(box)
+
+        elif operacion == "Inversa de matriz":
             determinante = resultado.get("determinante")
             if determinante is not None:
                 self._agregar_titulo_seccion(
@@ -3128,6 +3255,22 @@ class VistaOperacionesMatriz(QWidget):
             banner_bg = "#ECFDF5"
             banner_border = "#A7F3D0"
 
+        elif modo == "Determinante":
+            color_icono = "#2563EB"
+            titulo_estado = "Determinante calculado"
+            sub_estado = "Desarrollo por cofactores"
+            texto_icono = "DET"
+            banner_bg = "#EFF6FF"
+            banner_border = "#BFDBFE"
+
+        elif modo == "Teoremas clave":
+            color_icono = "#2563EB"
+            titulo_estado = "Teoremas clave"
+            sub_estado = "Resumen de propiedades por modulo"
+            texto_icono = "T"
+            banner_bg = "#EFF6FF"
+            banner_border = "#BFDBFE"
+
         elif modo == "sistema_homogeneo" or resultado.get("es_homogeneo", False):
             tiene_no_triviales = resultado.get(
                 "tiene_soluciones_no_triviales",
@@ -3228,7 +3371,8 @@ class VistaOperacionesMatriz(QWidget):
             "Propiedad escalar producto matrices",
             "Propiedad identidad matrices",
             "Inversa de matriz",
-            "Traspuesta"
+            "Traspuesta",
+            "Determinante"
         ):
             self.results_layout.addWidget(
                 self._crear_card_proceso_matricial(resultado)

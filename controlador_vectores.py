@@ -20,6 +20,8 @@
 
 import vectores as backend_vectores
 import matrices as backend_matrices
+import determinantes as backend_determinantes
+from teoremas.resumen_teoremas import obtener_teoremas_clave
 
 class ControladorVectores:
     """Clase encargada de conectar la interfaz en PySide6
@@ -596,6 +598,53 @@ class ControladorVectores:
                 "proceso": [],
                 "mensaje": str(e)
             }
+
+
+    @staticmethod
+    def calcular_determinante(A):
+        """Calcula det(A) por desarrollo de cofactores."""
+        try:
+            datos = backend_determinantes.calcular_determinante(A)
+
+            return {
+                "exito": True,
+                "operacion": "Determinante",
+                "matriz": datos.get("matriz", A),
+                "resultado": datos.get("resultado"),
+                "determinante": datos.get("determinante"),
+                "metodo": datos.get("metodo"),
+                "fila_desarrollo": datos.get("fila_desarrollo"),
+                "cofactores": datos.get("cofactores", []),
+                "proceso": datos.get("proceso", []),
+                "mensaje": "Determinante calculado por cofactores."
+            }
+
+        except (ValueError, TypeError) as e:
+            return {
+                "exito": False,
+                "operacion": "Determinante",
+                "matriz": A,
+                "resultado": None,
+                "determinante": None,
+                "proceso": [],
+                "mensaje": str(e)
+            }
+
+
+    @staticmethod
+    def ver_teoremas_clave():
+        """Devuelve los teoremas clave de los modulos principales."""
+        datos = obtener_teoremas_clave()
+
+        return {
+            "exito": True,
+            "operacion": "Teoremas clave",
+            "resultado": datos,
+            "teoremas": datos.get("teoremas", {}),
+            "logos": datos.get("logos", {}),
+            "proceso": [],
+            "mensaje": "Teoremas clave cargados correctamente."
+        }
 
 
     @staticmethod
