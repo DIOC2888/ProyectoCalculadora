@@ -93,6 +93,312 @@ def _crear_matriz_identidad(tamano):
     ]
 
 
+def transponer_matriz(A):
+    """Devuelve la transpuesta de A y los pasos para mostrar el proceso.
+
+    Las filas de A se convierten en las columnas de A^T, por lo que
+    una matriz de m x n produce una matriz de n x m.
+    """
+    validar_matriz(A)
+
+    matriz_original = _copiar_matriz(A)
+    filas = len(matriz_original)
+    columnas = len(matriz_original[0])
+    transpuesta = [
+        [matriz_original[i][j] for i in range(filas)]
+        for j in range(columnas)
+    ]
+
+    return {
+        "resultado": transpuesta,
+        "transpuesta": transpuesta,
+        "matriz_original": matriz_original,
+        "proceso": [
+            {
+                "tipo": "operacion",
+                "titulo": "Matriz original",
+                "operacion": "A",
+                "matriz": matriz_original
+            },
+            {
+                "tipo": "operacion",
+                "titulo": "Intercambiar filas por columnas",
+                "operacion": "(Aᵀ)ᵢⱼ = Aⱼᵢ",
+                "matriz": transpuesta
+            }
+        ]
+    }
+
+
+def invertir_matriz(A):
+    """Calcula A^{-1} mediante Gauss-Jordan sobre [A | I].
+
+    El determinante se calcula con los pivotes antes de normalizar
+    cada fila. El resultado incluye la matriz inversa, el determinante
+    y cada operación elemental para que la interfaz pueda presentar
+    el desarrollo.
+    """
+    validar_matriz(A)
+
+    filas = len(A)
+    columnas = len(A[0])
+    if filas != columnas:
+        raise ValueError("Solo se puede invertir una matriz cuadrada.")
+
+    matriz_original = _copiar_matriz(A)
+    identidad = _crear_matriz_identidad(filas)
+    aumentada = [A[i][:] + identidad[i][:] for i in range(filas)]
+    proceso = [{
+        "tipo": "inicio",
+        "operacion": "Formar la matriz aumentada [A | I]",
+        "matriz": _copiar_matriz(aumentada)
+    }]
+
+    # Para 2x2 se aplica el procedimiento directo de la presentacion:
+    # det(A) = ad - bc y A^-1 = (1/det(A)) [[d, -b], [-c, a]].
+    if filas == 2:
+        a, b = matriz_original[0]
+        c, d = matriz_original[1]
+        determinante = a * d - b * c
+        determinante = (
+            0 if abs(determinante) < TOLERANCIA else determinante
+        )
+        proceso = [{
+            "tipo": "inicio",
+            "titulo": "Matriz original",
+            "operacion": "",
+            "matriz": _copiar_matriz(matriz_original)
+        }, {
+            "tipo": "determinante",
+            "titulo": "Calcular Determinante",
+            "operacion": "det(A) = ad - bc",
+            "detalle": (
+                f"det(A) = {_formatear_numero(a)} × "
+                f"{_formatear_numero(d)} - {_formatear_numero(b)} × "
+                f"{_formatear_numero(c)}\n"
+                f"det(A) = {_formatear_numero(a * d)} - "
+                f"{_formatear_numero(b * c)} = "
+                f"{_formatear_numero(determinante)}"
+            ),
+            "valor": determinante
+        }]
+
+        if determinante == 0:
+            proceso.append({
+                "tipo": "singular",
+                "titulo": "Matriz singular",
+                "operacion": "det(A) = 0; A no tiene inversa."
+            })
+            return {
+                "exito": True,
+                "operacion": "Inversa de matriz",
+                "matriz_original": matriz_original,
+                "matriz_aumentada": aumentada,
+                "matriz_inversa": None,
+                "inversa": None,
+                "resultado": None,
+                "determinante": 0,
+                "invertible": False,
+                "mensaje": "La matriz es singular y no tiene inversa.",
+                "proceso": proceso
+            }
+
+        matriz_cambio_posicion = [[d, b], [c, a]]
+        adjunta = [[d, -b], [-c, a]]
+        proceso.append({
+            "tipo": "multiplicar_determinante",
+            "titulo": "Cambio de posición",
+            "operacion": "Intercambiar los elementos de la diagonal principal",
+            "matriz": matriz_cambio_posicion,
+            "determinante": determinante
+        })
+        proceso.append({
+            "tipo": "multiplicar_determinante",
+            "titulo": "Intercambio de Signos",
+            "operacion": "Cambiar los signos de la diagonal secundaria",
+            "matriz": adjunta,
+            "determinante": determinante
+        })
+        proceso.append({
+            "tipo": "division_determinante",
+            "titulo": "Dividir por determinante",
+            "operacion": "Dividir cada entrada entre el determinante",
+            "matriz": [
+                [
+                    f"{_formatear_numero(valor)}/{_formatear_numero(determinante)}"
+                    for valor in fila
+                ]
+                for fila in adjunta
+            ],
+            "determinante": determinante
+        })
+        inversa = [
+            [valor / determinante for valor in fila]
+            for fila in adjunta
+        ]
+        inversa = [
+            [0 if abs(valor) < TOLERANCIA else valor for valor in fila]
+            for fila in inversa
+        ]
+        proceso.append({
+            "tipo": "resultado",
+            "titulo": "Matriz inversa",
+            "operacion": "A⁻¹",
+            "matriz": _copiar_matriz(inversa)
+        })
+        return {
+            "exito": True,
+            "operacion": "Inversa de matriz",
+            "matriz_original": matriz_original,
+            "matriz_aumentada": aumentada,
+            "matriz_inversa": inversa,
+            "inversa": inversa,
+            "resultado": inversa,
+            "determinante": determinante,
+            "invertible": True,
+            "mensaje": "La matriz es invertible.",
+            "proceso": proceso
+        }
+
+    determinante = 1
+    signo = 1
+    pivotes_determinante = []
+
+    for columna in range(filas):
+        fila_pivote = max(
+            range(columna, filas),
+            key=lambda i: abs(aumentada[i][columna])
+        )
+
+        if abs(aumentada[fila_pivote][columna]) < TOLERANCIA:
+            factores = pivotes_determinante + [0]
+            expresion = " × ".join(
+                _formatear_numero(valor)
+                for valor in factores
+            )
+            proceso.append({
+                "tipo": "determinante",
+                "titulo": "Calcular Determinante",
+                "operacion": f"det(A) = {expresion} = 0",
+                "valor": 0
+            })
+            proceso.append({
+                "tipo": "singular",
+                "operacion": (
+                    f"No hay pivote en la columna {columna + 1}; "
+                    "A no es equivalente por filas a I."
+                ),
+                "matriz": _copiar_matriz(aumentada)
+            })
+            return {
+                "exito": True,
+                "operacion": "Inversa de matriz",
+                "matriz_original": matriz_original,
+                "matriz_aumentada": aumentada,
+                "matriz_inversa": None,
+                "inversa": None,
+                "resultado": None,
+                "determinante": 0,
+                "invertible": False,
+                "mensaje": "La matriz es singular y no tiene inversa.",
+                "proceso": proceso
+            }
+
+        if fila_pivote != columna:
+            aumentada[columna], aumentada[fila_pivote] = (
+                aumentada[fila_pivote], aumentada[columna]
+            )
+            signo *= -1
+            proceso.append({
+                "tipo": "operacion_fila",
+                "operacion": f"F{columna + 1} ↔ F{fila_pivote + 1}",
+                "matriz": _copiar_matriz(aumentada)
+            })
+
+        pivote = aumentada[columna][columna]
+        pivotes_determinante.append(pivote)
+        determinante *= pivote
+        aumentada[columna] = [valor / pivote for valor in aumentada[columna]]
+        aumentada[columna] = [
+            0 if abs(valor) < TOLERANCIA else valor
+            for valor in aumentada[columna]
+        ]
+        proceso.append({
+            "tipo": "operacion_fila",
+            "operacion": (
+                f"F{columna + 1} ← F{columna + 1} / "
+                f"{_formatear_numero(pivote)}"
+            ),
+            "matriz": _copiar_matriz(aumentada)
+        })
+
+        for i in range(filas):
+            if i == columna:
+                continue
+            factor = aumentada[i][columna]
+            if abs(factor) < TOLERANCIA:
+                continue
+            aumentada[i] = [
+                aumentada[i][j] - factor * aumentada[columna][j]
+                for j in range(2 * filas)
+            ]
+            aumentada[i] = [
+                0 if abs(valor) < TOLERANCIA else valor
+                for valor in aumentada[i]
+            ]
+            proceso.append({
+                "tipo": "operacion_fila",
+                "operacion": (
+                    f"F{i + 1} ← F{i + 1} - "
+                    f"({_formatear_numero(factor)})F{columna + 1}"
+                ),
+                "matriz": _copiar_matriz(aumentada)
+            })
+
+    determinante *= signo
+    determinante = (
+        0 if abs(determinante) < TOLERANCIA else determinante
+    )
+    factores_texto = " × ".join(
+        _formatear_numero(valor)
+        for valor in pivotes_determinante
+    )
+    if signo < 0:
+        factores_texto = "(-1) × " + factores_texto
+    proceso.append({
+        "tipo": "determinante",
+        "titulo": "Calcular Determinante",
+        "operacion": (
+            f"det(A) = {factores_texto} = "
+            f"{_formatear_numero(determinante)}"
+        ),
+        "valor": determinante
+    })
+    inversa = [
+        [0 if abs(valor) < TOLERANCIA else valor for valor in fila[filas:]]
+        for fila in aumentada
+    ]
+    proceso.append({
+        "tipo": "resultado",
+        "operacion": "La parte izquierda es I; la derecha es A⁻¹",
+        "matriz": _copiar_matriz(aumentada)
+    })
+
+    return {
+        "exito": True,
+        "operacion": "Inversa de matriz",
+        "matriz_original": matriz_original,
+        "matriz_aumentada": aumentada,
+        "matriz_inversa": inversa,
+        "inversa": inversa,
+        "resultado": inversa,
+        "determinante": determinante,
+        "invertible": True,
+        "mensaje": "La matriz es invertible.",
+        "proceso": proceso
+    }
+
+
 # ============================================================
 # SUMA DE MATRICES
 # ============================================================

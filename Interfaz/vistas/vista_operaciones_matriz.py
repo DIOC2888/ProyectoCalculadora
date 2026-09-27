@@ -453,7 +453,9 @@ class VistaOperacionesMatriz(QWidget):
             "Distributiva izquierda",
             "Distributiva derecha",
             "Escalar producto",
-            "Identidad"
+            "Identidad",
+            "Inversa",
+            "Traspuesta"
         ])
         self.combo_mops_metodo.setFixedWidth(220)
         self.combo_mops_metodo.setFixedHeight(38)
@@ -525,8 +527,8 @@ class VistaOperacionesMatriz(QWidget):
         mops_layout.addLayout(mops_action_buttons)
         
         # Suscribir steppers de matrices
-        self.stepper_mops_rows.on_change_callback = self._rebuild_matrix_ops_grid
-        self.stepper_mops_cols.on_change_callback = self._rebuild_matrix_ops_grid
+        self.stepper_mops_rows.on_change_callback = self._on_mops_rows_changed
+        self.stepper_mops_cols.on_change_callback = self._on_mops_cols_changed
         self.stepper_mops_count.on_change_callback = self._rebuild_matrix_ops_grid
         
         self._rebuild_matrix_ops_grid()
@@ -753,6 +755,12 @@ class VistaOperacionesMatriz(QWidget):
         if metodo == "Identidad":
             return 1
 
+        if metodo == "Inversa":
+            return 1
+
+        if metodo == "Traspuesta":
+            return 1
+
         return None
 
     def _set_stepper_value(self, stepper, value):
@@ -785,6 +793,8 @@ class VistaOperacionesMatriz(QWidget):
             or usa_vector
             or metodo == "Independencia columnas"
             or metodo == "Identidad"
+            or metodo == "Inversa"
+            or metodo == "Traspuesta"
         )
 
         # Mostrar escalar solamente cuando la operacion lo usa.
@@ -799,6 +809,12 @@ class VistaOperacionesMatriz(QWidget):
         )
 
         # Reconstruir matrices
+        self._rebuild_matrix_ops_grid()
+
+    def _on_mops_rows_changed(self):
+        self._rebuild_matrix_ops_grid()
+
+    def _on_mops_cols_changed(self):
         self._rebuild_matrix_ops_grid()
     def _rebuild_matrix_ops_grid(self):
 
@@ -896,6 +912,8 @@ class VistaOperacionesMatriz(QWidget):
             or usa_vector
             or metodo == "Independencia columnas"
             or metodo == "Identidad"
+            or metodo == "Inversa"
+            or metodo == "Traspuesta"
         )
 
         # Estas operaciones usan solamente A1.
@@ -1502,7 +1520,9 @@ class VistaOperacionesMatriz(QWidget):
                 "Distributividad",
                 "Homogeneidad",
                 "Independencia columnas",
-                "Identidad"
+                "Identidad",
+                "Inversa",
+                "Traspuesta"
             ) and not matrices:
                 QMessageBox.warning(
                     self,
@@ -1629,6 +1649,16 @@ class VistaOperacionesMatriz(QWidget):
                     .verificar_identidad_matrices(
                         matrices[0]
                     )
+                )
+
+            elif modo == "Inversa":
+                resultado = ControladorVectores.invertir_matriz(
+                    matrices[0]
+                )
+
+            elif modo == "Traspuesta":
+                resultado = ControladorVectores.transponer_matriz(
+                    matrices[0]
                 )
 
             else:
@@ -2031,8 +2061,11 @@ class VistaOperacionesMatriz(QWidget):
             operacion_paso = paso.get("operacion", "")
             etiqueta = operacion_paso if isinstance(operacion_paso, str) else ""
             tipo = paso.get("tipo", "")
+            if tipo == "determinante" and not paso.get("detalle"):
+                # El título identifica el paso; la ecuación aparece una sola vez abajo.
+                etiqueta = ""
 
-            if tipo == "operacion":
+            if tipo in ("operacion", "inicio", "operacion_fila"):
                 if paso.get("matrices"):
                     contenido = self._crear_fila_matrices_widget(
                         paso.get("matrices", []),
@@ -2114,6 +2147,50 @@ class VistaOperacionesMatriz(QWidget):
                     contenido = self._crear_fila_matrices_widget(
                         [paso.get("matriz", [])]
                     )
+
+            elif tipo in ("determinante", "singular", "formula"):
+                contenido = QLabel(
+                    paso.get("detalle", operacion_paso)
+                )
+                contenido.setWordWrap(True)
+                contenido.setStyleSheet("""
+                    color: #0F172A;
+                    font-family: 'Consolas', 'Courier New', monospace;
+                    font-size: 13px;
+                    font-weight: 700;
+                    background-color: #F8FAFC;
+                    border: 1px solid #E2E8F0;
+                    border-radius: 8px;
+                    padding: 10px 12px;
+                    margin-left: 40px;
+                """)
+
+            elif tipo in ("multiplicar_determinante", "division_determinante"):
+                contenido = QWidget()
+                contenido.setStyleSheet("background: transparent; border: none;")
+                contenido_layout = QHBoxLayout(contenido)
+                contenido_layout.setContentsMargins(40, 0, 0, 0)
+                contenido_layout.setSpacing(12)
+
+                if tipo == "multiplicar_determinante":
+                    factor = QLabel(
+                        f"1 / {formatear_numero(paso.get('determinante', 0))}"
+                    )
+                    factor.setStyleSheet("""
+                        color: #0F172A;
+                        font-family: 'Consolas', 'Courier New', monospace;
+                        font-size: 14px;
+                        font-weight: 700;
+                        background: transparent;
+                    """)
+                    simbolo = QLabel("×")
+                    simbolo.setStyleSheet("font-size: 18px; font-weight: 800; color: #0F172A;")
+                    contenido_layout.addWidget(factor, alignment=Qt.AlignmentFlag.AlignVCenter)
+                    contenido_layout.addWidget(simbolo, alignment=Qt.AlignmentFlag.AlignVCenter)
+                contenido_layout.addWidget(
+                    self._crear_matriz_widget(paso.get("matriz", []))
+                )
+                contenido_layout.addStretch()
 
             elif tipo in (
                 "suma_vectores",
@@ -2293,11 +2370,43 @@ class VistaOperacionesMatriz(QWidget):
             "Propiedad identidad matrices"
         )
 
-        if operacion in (
+        if operacion == "Inversa de matriz":
+            determinante = resultado.get("determinante")
+            if determinante is not None:
+                self._agregar_titulo_seccion(
+                    layout_principal,
+                    f"DETERMINANTE: {formatear_numero(determinante)}"
+                )
+            mensaje = QLabel(resultado.get("mensaje", ""))
+            mensaje.setWordWrap(True)
+            mensaje.setStyleSheet("""
+                color: #0F172A;
+                font-size: 13px;
+                font-weight: 700;
+                background-color: #F8FAFC;
+                border: 1px solid #E2E8F0;
+                border-radius: 10px;
+                padding: 12px;
+            """)
+            layout_principal.addWidget(mensaje)
+
+            inversa = resultado.get("matriz_inversa")
+            if inversa is not None:
+                self._agregar_titulo_seccion(layout_principal, "MATRIZ INVERSA")
+                wrapper = QWidget()
+                wrapper.setStyleSheet("background: transparent; border: none;")
+                wrapper_layout = QHBoxLayout(wrapper)
+                wrapper_layout.setContentsMargins(0, 0, 0, 0)
+                wrapper_layout.addWidget(self._crear_matriz_widget(inversa))
+                wrapper_layout.addStretch()
+                layout_principal.addWidget(wrapper)
+
+        elif operacion in (
             "Sumar matrices",
             "Restar matrices",
             "Multiplicar matriz por escalar",
-            "Multiplicar matrices"
+            "Multiplicar matrices",
+            "Traspuesta"
         ):
             self._agregar_titulo_seccion(layout_principal, "RESULTADO")
 
@@ -3003,6 +3112,22 @@ class VistaOperacionesMatriz(QWidget):
                 banner_bg = "#EFF6FF"
                 banner_border = "#BFDBFE"
 
+        elif modo == "Inversa de matriz" and not resultado.get("invertible", False):
+            color_icono = "#B45309"
+            titulo_estado = "Matriz singular"
+            sub_estado = "El determinante es cero; no existe inversa."
+            texto_icono = "NO"
+            banner_bg = "#FFFBEB"
+            banner_border = "#FDE68A"
+
+        elif modo == "Inversa de matriz":
+            color_icono = "#059669"
+            titulo_estado = "Matriz invertible"
+            sub_estado = "Se calculo la inversa mediante Gauss-Jordan."
+            texto_icono = "OK"
+            banner_bg = "#ECFDF5"
+            banner_border = "#A7F3D0"
+
         elif modo == "sistema_homogeneo" or resultado.get("es_homogeneo", False):
             tiene_no_triviales = resultado.get(
                 "tiene_soluciones_no_triviales",
@@ -3101,7 +3226,9 @@ class VistaOperacionesMatriz(QWidget):
             "Propiedad distributiva izquierda matrices",
             "Propiedad distributiva derecha matrices",
             "Propiedad escalar producto matrices",
-            "Propiedad identidad matrices"
+            "Propiedad identidad matrices",
+            "Inversa de matriz",
+            "Traspuesta"
         ):
             self.results_layout.addWidget(
                 self._crear_card_proceso_matricial(resultado)

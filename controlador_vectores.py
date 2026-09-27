@@ -540,6 +540,65 @@ class ControladorVectores:
 
 
     @staticmethod
+    def invertir_matriz(A):
+        """Calcula la inversa y devuelve determinante y pasos para la vista."""
+        try:
+            datos = backend_matrices.invertir_matriz(A)
+            return {
+                "exito": True,
+                "operacion": "Inversa de matriz",
+                "matriz": datos.get("matriz_original", A),
+                "matriz_original": datos.get("matriz_original", A),
+                "matriz_aumentada": datos.get("matriz_aumentada"),
+                "resultado": datos.get("matriz_inversa"),
+                "matriz_inversa": datos.get("matriz_inversa"),
+                "inversa": datos.get("matriz_inversa"),
+                "determinante": datos.get("determinante"),
+                "invertible": datos.get("invertible", False),
+                "mensaje": datos.get("mensaje", ""),
+                "proceso": datos.get("proceso", [])
+            }
+        except (ValueError, TypeError) as e:
+            return {
+                "exito": False,
+                "operacion": "Inversa de matriz",
+                "matriz": A,
+                "resultado": None,
+                "determinante": None,
+                "invertible": False,
+                "mensaje": str(e),
+                "proceso": []
+            }
+
+
+    @staticmethod
+    def transponer_matriz(A):
+        """Calcula la transpuesta usando matrices.py y prepara la respuesta para la vista."""
+        try:
+            datos = backend_matrices.transponer_matriz(A)
+            transpuesta = datos["resultado"]
+            return {
+                "exito": True,
+                "operacion": "Traspuesta",
+                "matriz": datos["matriz_original"],
+                "matriz_original": datos["matriz_original"],
+                "resultado": transpuesta,
+                "transpuesta": transpuesta,
+                "proceso": datos["proceso"],
+                "mensaje": "Transpuesta calculada correctamente."
+            }
+        except (ValueError, TypeError) as e:
+            return {
+                "exito": False,
+                "operacion": "Traspuesta",
+                "matriz": A,
+                "resultado": None,
+                "proceso": [],
+                "mensaje": str(e)
+            }
+
+
+    @staticmethod
     def restar_matrices(matrices):
         """
         Resta dos o más matrices utilizando el backend.
