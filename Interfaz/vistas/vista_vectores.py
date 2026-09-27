@@ -1947,14 +1947,23 @@ class VistaVectores(QWidget):
         num_vars = resultado.get("num_variables", 0)
         num_eqs = resultado.get("num_ecuaciones", 0)
 
-        pivotes = resultado.get("columnas_pivote", [])
+        pivotes = resultado.get(
+            "columnas_pivote_matematicas",
+            [columna + 1 for columna in resultado.get("columnas_pivote", [])]
+        )
         str_pivotes = ", ".join(map(str, pivotes)) if pivotes else "Ninguna"
 
-        basicas = resultado.get("variables_basicas", [])
-        str_basicas = ", ".join([f"x{i+1}" for i in basicas]) if basicas else "Ninguna"
+        basicas = resultado.get(
+            "variables_basicas_matematicas",
+            [variable + 1 for variable in resultado.get("variables_basicas", [])]
+        )
+        str_basicas = ", ".join([f"x{i}" for i in basicas]) if basicas else "Ninguna"
 
-        libres = resultado.get("variables_libres", [])
-        str_libres = ", ".join([f"x{i+1}" for i in libres]) if libres else "Ninguna"
+        libres = resultado.get(
+            "variables_libres_matematicas",
+            [variable + 1 for variable in resultado.get("variables_libres", [])]
+        )
+        str_libres = ", ".join([f"x{i}" for i in libres]) if libres else "Ninguna"
 
         # --- GRID DE PROPIEDADES ---
         grid = QGridLayout()

@@ -1192,11 +1192,22 @@ def resolver_sistema(A, b):
         "columnas_pivote":
             columnas_pivote,
 
+        # Versiones para mostrar con numeración matemática (desde 1).
+        # Los campos anteriores conservan índices Python para los cálculos.
+        "columnas_pivote_matematicas":
+            [columna + 1 for columna in columnas_pivote],
+
         "variables_basicas":
             columnas_pivote[:],
 
+        "variables_basicas_matematicas":
+            [variable + 1 for variable in columnas_pivote],
+
         "variables_libres":
-            variables_libres
+            variables_libres,
+
+        "variables_libres_matematicas":
+            [variable + 1 for variable in variables_libres]
     }
 def resolver_sistema_homogeneo(A):
     """
