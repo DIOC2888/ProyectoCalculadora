@@ -2,6 +2,11 @@ from fractions import Fraction
 from formato import subindice
 
 
+# Este modulo se usa en la version de consola del proyecto.
+# Centraliza la lectura de numeros para aceptar enteros, decimales
+# y fracciones sin cambiar los algoritmos de eliminacion.
+
+
 # ----------------------------------------------------------
 # CONVERTIR ENTRADA A NÚMERO
 # Permite escribir:
@@ -11,6 +16,10 @@ from formato import subindice
 # ----------------------------------------------------------
 
 def convertir_numero(texto):
+    """Convierte texto ingresado por el usuario a float.
+
+    Fraction permite aceptar entradas como "1/3" o "-2/5".
+    """
 
     # Permitimos usar coma decimal
     texto = texto.replace(",", ".")
@@ -25,6 +34,7 @@ def convertir_numero(texto):
 # ----------------------------------------------------------
 
 def pedir_numero(mensaje):
+    """Pide un numero hasta recibir una entrada valida."""
 
     while True:
 
@@ -47,6 +57,7 @@ def pedir_numero(mensaje):
 # ----------------------------------------------------------
 
 def ingresar_matriz():
+    """Lee coeficientes desde consola y construye una matriz aumentada."""
 
     ecuaciones = int(
         input("Cantidad de ecuaciones: ")

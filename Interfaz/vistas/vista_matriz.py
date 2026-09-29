@@ -40,6 +40,8 @@ except ImportError:
     leer_sistema_desde_texto = None
 
 class VistaMatriz(QWidget):
+    """Vista de sistemas de ecuaciones con captura matricial y resultados."""
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.inputs_list = []

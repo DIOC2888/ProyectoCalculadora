@@ -7,6 +7,8 @@ from validaciones import validar_matriz
 
 
 def _copiar_matriz(matriz):
+    """Crea una copia para no alterar la matriz recibida."""
+
     return [
         fila[:]
         for fila in matriz
@@ -14,6 +16,8 @@ def _copiar_matriz(matriz):
 
 
 def _formatear(valor):
+    """Usa el formateo matematico comun cuando el valor es numerico."""
+
     if isinstance(valor, (int, float)):
         return formatear_numero(valor)
 
@@ -21,6 +25,8 @@ def _formatear(valor):
 
 
 def _validar_matriz_cuadrada(A):
+    """Garantiza que det(A) solo se calcule para matrices cuadradas."""
+
     validar_matriz(A)
 
     filas = len(A)
@@ -33,6 +39,8 @@ def _validar_matriz_cuadrada(A):
 
 
 def _menor(A, fila_eliminar, columna_eliminar):
+    """Construye M_ij eliminando una fila y una columna."""
+
     return [
         [
             valor
@@ -45,6 +53,8 @@ def _menor(A, fila_eliminar, columna_eliminar):
 
 
 def _determinante_recursivo(A):
+    """Calcula determinantes de menores sin guardar pasos de interfaz."""
+
     n = len(A)
 
     if n == 1:
@@ -53,6 +63,7 @@ def _determinante_recursivo(A):
     if n == 2:
         return A[0][0] * A[1][1] - A[0][1] * A[1][0]
 
+    # Se elige la fila con mas ceros para reducir llamadas recursivas.
     fila_desarrollo = max(
         range(n),
         key=lambda i: sum(
@@ -68,6 +79,7 @@ def _determinante_recursivo(A):
         if abs(elemento) <= TOLERANCIA:
             continue
 
+        # termino = a_ij * C_ij, con C_ij = (-1)^(i+j) det(M_ij).
         signo = -1 if (fila_desarrollo + columna) % 2 else 1
         total += (
             signo
@@ -149,6 +161,7 @@ def calcular_determinante(A):
             "proceso": proceso
         }
 
+    # Igual que en el calculo interno, se desarrolla por la fila mas simple.
     fila_desarrollo = max(
         range(n),
         key=lambda i: sum(
@@ -174,6 +187,11 @@ def calcular_determinante(A):
     })
 
     for columna, elemento in enumerate(matriz[fila_desarrollo]):
+        # Desarrollo por cofactores:
+        # 1. Tomar el elemento a_ij.
+        # 2. Construir el menor M_ij.
+        # 3. Calcular C_ij = (-1)^(i+j) det(M_ij).
+        # 4. Sumar a_ij * C_ij al determinante.
         signo = -1 if (fila_desarrollo + columna) % 2 else 1
         menor = _menor(matriz, fila_desarrollo, columna)
         det_menor = _determinante_recursivo(menor)
@@ -183,6 +201,7 @@ def calcular_determinante(A):
         if abs(termino) <= TOLERANCIA:
             termino = 0
 
+        # Se acumula la suma de todos los terminos de la fila elegida.
         total += termino
 
         signo_texto = "+" if signo > 0 else "-"
@@ -218,6 +237,7 @@ def calcular_determinante(A):
             "detalle": detalle
         })
 
+        # Para mostrar la expresion final se omiten terminos nulos.
         if termino:
             terminos_texto.append(_formatear(termino))
 

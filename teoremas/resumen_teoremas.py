@@ -1,5 +1,6 @@
 # teoremas/resumen_teoremas.py
 # Resumen corto de propiedades clave por modulo.
+# Las cadenas pueden incluir HTML basico porque QLabel las renderiza como RichText.
 
 
 TEOREMAS_CLAVE = {

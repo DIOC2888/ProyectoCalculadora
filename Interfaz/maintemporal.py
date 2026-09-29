@@ -32,6 +32,8 @@ from vistas.vista_operaciones_matriz import VistaOperacionesMatriz
 
 
 class MainWindow(QMainWindow):
+    """Ventana principal que organiza navbar, sidebar y vistas del proyecto."""
+
     def __init__(self):
             super().__init__()
             self.setWindowTitle("Calculadora Matricial y Vectorial")
@@ -40,6 +42,8 @@ class MainWindow(QMainWindow):
             self._build_ui()
 
     def _build_ui(self):
+        """Construye la estructura base y registra las vistas navegables."""
+
         main_widget = QWidget()
         main_layout = QVBoxLayout(main_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
@@ -68,7 +72,8 @@ class MainWindow(QMainWindow):
         # Contenedor dinámico de vistas (QStackedWidget)
         self.stack = QStackedWidget()
 
-        # Instanciar e ingresar Vistas al Stack
+        # Instanciar e ingresar vistas al Stack.
+        # Los indices deben coincidir con los emitidos por Sidebar.
         self.vista_matriz = VistaMatriz()
         self.vista_vectores = VistaVectores()
         self.vista_operaciones_matriz = VistaOperacionesMatriz()

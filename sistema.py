@@ -1,6 +1,10 @@
 from config import TOLERANCIA
 
 
+# Utilidades de lectura de la matriz reducida.
+# Estas funciones no hacen eliminacion; interpretan el resultado para
+# decidir si el sistema es determinado, indeterminado o inconsistente.
+
 # ----------------------------------------------------------
 # DETECTAR SISTEMA INCONSISTENTE
 # ----------------------------------------------------------
@@ -10,6 +14,7 @@ def es_inconsistente(
         ecuaciones,
         variables
 ):
+    """Detecta filas del tipo 0x + 0y + ... = b con b distinto de cero."""
 
     for i in range(ecuaciones):
 
@@ -54,6 +59,7 @@ def identificar_variables(
         columnas_pivote,
         variables
 ):
+    """Separa variables basicas y libres a partir de las columnas pivote."""
 
     # Separamos las variables según tengan o no una columna pivote.
 
@@ -75,6 +81,7 @@ def identificar_variables(
 def obtener_variables_basicas(
         columnas_pivote
 ):
+    """Devuelve las variables asociadas directamente a columnas pivote."""
 
     # Cada columna pivote representa una variable básica.
     return columnas_pivote.copy()
@@ -88,6 +95,7 @@ def obtener_variables_libres(
         columnas_pivote,
         variables
 ):
+    """Devuelve las variables sin pivote, que actuan como parametros."""
 
     variables_libres = []
 
@@ -111,6 +119,7 @@ def calcular_rango(
         matriz,
         columnas
 ):
+    """Cuenta filas no nulas para obtener el rango de A o de [A|b]."""
 
     # El rango es el número de filas no nulas después de la eliminación.
     rango = 0
@@ -137,6 +146,7 @@ def clasificar_sistema(
         variables,
         columnas_pivote
 ):
+    """Clasifica el sistema usando contradicciones y cantidad de pivotes."""
 
     # Primero comprobamos contradicciones
     if es_inconsistente(
@@ -170,6 +180,7 @@ def sustitucion_atras(
         columnas_pivote,
         variables
 ):
+    """Calcula la solucion unica cuando la matriz ya esta escalonada."""
 
     # Creamos una lista para guardar
     # las soluciones

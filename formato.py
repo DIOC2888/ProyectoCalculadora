@@ -2,12 +2,16 @@ from fractions import Fraction
 from config import TOLERANCIA
 
 
+# Funciones de presentacion matematica.
+# Separar este formateo evita repetir logica en consola, backend e interfaz.
+
 # ----------------------------------------------------------
 # CONVERTIR NÚMEROS A SUBÍNDICES
 # Ejemplo: 1 -> ₁
 # ----------------------------------------------------------
 
 def subindice(numero):
+    """Convierte digitos normales a simbolos de subindice para x1, x2, etc."""
 
     tabla = str.maketrans(
         "0123456789",
@@ -22,6 +26,7 @@ def subindice(numero):
 # ----------------------------------------------------------
 
 def formatear_decimal(numero, decimales=4):
+    """Muestra un decimal limpio, eliminando ceros finales innecesarios."""
 
     if abs(numero - round(numero)) < TOLERANCIA:
         return str(int(round(numero)))
@@ -36,6 +41,11 @@ def formatear_decimal(numero, decimales=4):
 
 
 def formatear_numero(numero):
+    """Devuelve una representacion amigable para resultados matematicos.
+
+    Si el valor esta cerca de un entero, se muestra como entero. Si se puede
+    aproximar bien como fraccion pequena, se muestra como fraccion.
+    """
 
     # Si está muy cerca de un número entero,
     # se muestra como entero
@@ -59,6 +69,7 @@ def formatear_numero(numero):
 # ----------------------------------------------------------
 
 def mostrar_matriz(matriz):
+    """Imprime una matriz aumentada en formato de consola."""
 
     print()
 

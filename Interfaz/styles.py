@@ -2,6 +2,10 @@
 # ESTILOS DE LINEARIS
 # ==========================================================
 
+# Paleta y hoja QSS compartida por las primeras vistas de la interfaz.
+# Las vistas nuevas tambien pueden usar estilos locales cuando necesitan
+# componentes mas especificos.
+
 BACKGROUND = "#F2F6FB"
 WHITE = "#FFFFFF"
 PRIMARY = "#1B3D72"

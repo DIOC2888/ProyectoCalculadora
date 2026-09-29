@@ -154,6 +154,13 @@ def gauss_jordan(matriz_aumentada):
        del pivote.
     5. Repetir hasta obtener la forma escalonada reducida.
 
+    Lectura del algoritmo:
+
+    - fila_pivote indica donde debe quedar el siguiente pivote.
+    - columna recorre las variables de izquierda a derecha.
+    - Si una columna no tiene pivote, esa variable queda libre.
+    - Cada operacion elemental conserva el mismo conjunto solucion.
+
     Además de la matriz final, se guarda cada operación realizada
     para que posteriormente la interfaz pueda mostrar el proceso.
 
@@ -173,8 +180,10 @@ def gauss_jordan(matriz_aumentada):
     # La última columna corresponde a b.
     columnas_variables = columnas_totales - 1
 
+    # La siguiente fila donde se colocara un pivote.
     fila_pivote = 0
 
+    # La columna que se esta revisando para decidir si puede ser pivote.
     columna = 0
 
     pivotes = []
@@ -189,6 +198,8 @@ def gauss_jordan(matriz_aumentada):
         # -----------------------------------------------------
         # BUSCAR UNA FILA CON UN ELEMENTO DISTINTO DE CERO
         # -----------------------------------------------------
+        # El pivote debe ser distinto de cero porque despues se divide
+        # toda la fila entre ese valor.
 
         fila_encontrada = -1
 
@@ -200,8 +211,8 @@ def gauss_jordan(matriz_aumentada):
 
                 break
 
-        # Si toda la columna debajo del pivote es cero,
-        # pasamos a la siguiente columna.
+        # Si toda la columna debajo del pivote es cero, no puede haber
+        # pivote aqui. Esa variable se interpretara como libre.
         if fila_encontrada == -1:
 
             columna += 1
@@ -211,6 +222,8 @@ def gauss_jordan(matriz_aumentada):
         # -----------------------------------------------------
         # INTERCAMBIO DE FILAS
         # -----------------------------------------------------
+        # Colocamos la fila encontrada en la posicion fila_pivote para
+        # mantener los pivotes ordenados de arriba hacia abajo.
 
         if fila_encontrada != fila_pivote:
 
@@ -232,6 +245,8 @@ def gauss_jordan(matriz_aumentada):
         # -----------------------------------------------------
         # NORMALIZAR EL PIVOTE
         # -----------------------------------------------------
+        # Dividir entre el pivote convierte la entrada principal en 1.
+        # Asi la fila queda lista para despejar una variable basica.
 
         pivote = matriz[fila_pivote][columna]
 
@@ -261,6 +276,9 @@ def gauss_jordan(matriz_aumentada):
         # -----------------------------------------------------
         # HACER CEROS ARRIBA Y ABAJO DEL PIVOTE
         # -----------------------------------------------------
+        # Para cada fila distinta a la del pivote, se resta un multiplo
+        # de la fila pivote. El factor es justo el valor que se desea
+        # cancelar en la columna actual.
 
         for i in range(filas):
 
@@ -294,6 +312,7 @@ def gauss_jordan(matriz_aumentada):
                     copiar_matriz(matriz)
             })
 
+        # Esta columna ya quedo como pivote de una variable basica.
         pivotes.append(columna)
 
         fila_pivote += 1
@@ -619,6 +638,8 @@ def obtener_solucion_parametrica(
 
     parametros = {}
 
+    # Cada variable libre recibe un nombre de parametro. Esos parametros
+    # se usaran para escribir las variables basicas en funcion de ellos.
     for posicion, variable in enumerate(
         variables_libres
     ):
@@ -691,6 +712,12 @@ def obtener_solucion_parametrica(
         # -----------------------------------------------------
         # CONSTRUIR LA EXPRESIÓN
         # -----------------------------------------------------
+        # La fila reducida tiene la forma:
+        #
+        #   x_pivote + a*t + b*s = termino_independiente
+        #
+        # Por eso cada coeficiente de variable libre pasa al otro lado
+        # con signo contrario.
 
         termino_independiente = (
             matriz_reducida[
@@ -931,6 +958,8 @@ def obtener_conjunto_solucion(
         ]
 
         # La variable libre toma valor 1.
+        # Las demas variables libres quedan en 0 para obtener un solo
+        # vector direccion por parametro.
         vector[variable_libre] = 1
 
         # Las variables básicas se calculan

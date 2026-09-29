@@ -5,6 +5,10 @@ from formato import (
 )
 
 
+# Verifica soluciones ya calculadas contra las ecuaciones originales.
+# Ademas construye strings intermedios para mostrar la sustitucion en la GUI.
+
+
 # ----------------------------------------------------------
 # VERIFICAR SOLUCIÓN
 # ----------------------------------------------------------
@@ -15,11 +19,12 @@ def verificar_solucion(
         ecuaciones,
         variables
 ):
+    """Comprueba cada ecuacion y devuelve un reporte listo para la vista."""
 
     print(
         "\nVERIFICACIÓN DE LA SOLUCIÓN:"
     )
-    reporte = [] # para retornar los resultados y que aparezcan en la interfaz 
+    reporte = []
 
     # Recorremos cada ecuación
     for i in range(ecuaciones):
@@ -182,10 +187,7 @@ def verificar_solucion(
         # ----------------------------------------------
         # COMPROBAR RESULTADO
         # ----------------------------------------------
-        #Cree es_valido que se pueda mostrar la comprobación en la interfaz, por lo cual abs(
-        #    lado_izquierdo
-        #    - lado_derecho
-        # < TOLERANCIA: pasa a estar en es_valido 
+        # La tolerancia evita marcar como error diferencias decimales minimas.
         
         es_valido = abs(lado_izquierdo - lado_derecho) < TOLERANCIA
         if es_valido:

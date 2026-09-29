@@ -4,6 +4,9 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLay
 
 
 class Navbar(QFrame):
+    """Barra superior; emite una senal cuando se presiona el menu lateral."""
+
+    # MainWindow conecta esta senal con Sidebar.toggle().
     menu_clicked = Signal()
 
     LOGO_SVG = """<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">

@@ -8,6 +8,10 @@ from formato import (
 )
 
 
+# Este modulo modifica matrices aumentadas mediante operaciones
+# elementales y guarda un historial para mostrar el proceso en la GUI.
+
+
 # ----------------------------------------------------------
 # ELIMINACIÓN GAUSSIANA
 # Lleva la matriz a forma escalonada
@@ -18,15 +22,23 @@ def eliminacion_gaussiana(
         ecuaciones,
         variables
 ):
+    """Convierte la matriz aumentada a forma escalonada y registra pasos.
+
+    Este primer recorrido solo crea ceros debajo de cada pivote. Despues,
+    forma_reducida() completa Gauss-Jordan creando ceros encima.
+    """
 
     fila_pivote = 0
 
-    # Guarda las columnas que contienen pivotes
+    # Guarda las columnas que contienen pivotes.
     columnas_pivote = []
-    # para que se muestren los pasos en la interfaz
+
+    # Cada paso incluye la operacion y una copia de la matriz para la GUI.
     pasos = []
 
-    # Recorremos las columnas de las variables
+    # Recorremos las columnas de las variables de izquierda a derecha.
+    # Si una columna no tiene pivote, se salta y puede producir una
+    # variable libre en la solucion.
     for columna in range(variables):
 
 
@@ -39,6 +51,8 @@ def eliminacion_gaussiana(
         # --------------------------------------------------
         # BUSCAR UN PIVOTE VÁLIDO
         # --------------------------------------------------
+        # Buscamos desde la fila actual hacia abajo para no modificar
+        # las filas que ya tienen pivotes correctos.
 
         fila_encontrada = -1
 
@@ -66,6 +80,8 @@ def eliminacion_gaussiana(
         # --------------------------------------------------
         # INTERCAMBIO DE FILAS
         # --------------------------------------------------
+        # Si el pivote aparece mas abajo, subimos esa fila. Este paso
+        # evita dividir entre cero y mantiene el metodo ordenado.
 
         if fila_encontrada != fila_pivote:
 
@@ -87,10 +103,9 @@ def eliminacion_gaussiana(
 
             mostrar_matriz(matriz)
 
-          # Para guardar los pasos para la interfaz
+            # Registrar el intercambio para la vista de proceso.
             operacion_str = f"F{fila_pivote + 1} <-> F{fila_encontrada + 1}"
             
-            # --- CAMBIO AQUÍ ---
             matriz_formateada = [[formatear_numero(val) for val in fila_mat] for fila_mat in matriz]
             
             pasos.append({
@@ -114,6 +129,8 @@ def eliminacion_gaussiana(
         # --------------------------------------------------
         # GENERAR CEROS DEBAJO DEL PIVOTE
         # --------------------------------------------------
+        # Para cada fila inferior, calculamos cuanto de la fila pivote
+        # debe restarse para anular la entrada de esta columna.
 
         for fila in range(
             fila_pivote + 1,
@@ -176,9 +193,7 @@ def eliminacion_gaussiana(
 
                 
                 mostrar_matriz(matriz)
-                # Para guardar los pasos para la interfaz
-                # Para guardar los pasos para la interfaz
-                # Para guardar los pasos para la interfaz
+                # Registrar la eliminacion para la vista de proceso.
                 operacion_str = (
                     f"F{fila + 1} -> "
                     f"F{fila + 1} - "
@@ -186,7 +201,6 @@ def eliminacion_gaussiana(
                     f"F{fila_pivote + 1}"
                 )
                 
-                # --- CAMBIO AQUÍ ---
                 matriz_formateada = [[formatear_numero(val) for val in fila_mat] for fila_mat in matriz]
                 
                 pasos.append({
@@ -212,6 +226,12 @@ def forma_reducida(
         columnas_pivote,
         variables
 ):
+    """Aplica Gauss-Jordan desde los pivotes para obtener forma reducida.
+
+    Trabaja de abajo hacia arriba porque la eliminacion gaussiana ya dejo
+    ceros debajo de los pivotes; falta limpiar lo que quedo encima.
+    """
+
     pasos = []
 
     # Empezamos desde el último pivote
@@ -231,6 +251,8 @@ def forma_reducida(
         # CONVERTIR PIVOTE EN 1
         # Fi -> Fi / pivote
         # --------------------------------------------------
+        # Normalizar permite leer directamente la variable basica en la
+        # columna pivote: la entrada principal queda como 1.
 
         if abs(
             pivote - 1
@@ -263,14 +285,13 @@ def forma_reducida(
            
 
             mostrar_matriz(matriz)
-            # Para guardar los pasos para la interfaz
+            # Registrar la normalizacion para la vista de proceso.
             operacion_str = (
                 f"F{i + 1} -> "
                 f"F{i + 1} / "
                 f"{formatear_numero(pivote)}"
             )
 
-            # --- CAMBIO AQUÍ ---
             matriz_formateada = [[formatear_numero(val) for val in fila_mat] for fila_mat in matriz]
 
             pasos.append({
@@ -281,6 +302,8 @@ def forma_reducida(
         # --------------------------------------------------
         # GENERAR CEROS ENCIMA DEL PIVOTE
         # --------------------------------------------------
+        # Ahora se usa la fila pivote normalizada para cancelar las
+        # entradas superiores en la misma columna.
 
         for fila in range(i):
 
@@ -321,7 +344,7 @@ def forma_reducida(
                         matriz[fila][j] = 0.0
 
 
-               # Para guardar los pasos para la interfaz
+                # Registrar la eliminacion hacia arriba para la vista.
                 operacion_str = (
                     f"F{fila + 1} -> "
                     f"F{fila + 1} - "
@@ -330,7 +353,6 @@ def forma_reducida(
                 )
                 mostrar_matriz(matriz)
 
-                # --- CAMBIO AQUÍ ---
                 matriz_formateada = [[formatear_numero(val) for val in fila_mat] for fila_mat in matriz]
 
                 pasos.append({
@@ -345,13 +367,15 @@ def forma_reducida(
 # ----------------------------------------------------------
 
 def resolver_sistema_completo(matriz, ecuaciones, variables):
+    """Ejecuta Gauss y Gauss-Jordan y unifica todos los datos del proceso."""
+
     # Hacer una copia para no modificar la matriz original si fuera necesario
     matriz_trabajo = copiar_matriz(matriz)
     
-    # 1. Pasos de Eliminación Gaussiana (hacia abajo)
+    # 1. Eliminacion hacia abajo: forma escalonada.
     columnas_pivote, pasos_gauss = eliminacion_gaussiana(matriz_trabajo, ecuaciones, variables)
     
-    # 2. Pasos de Gauss-Jordan (hacia arriba)
+    # 2. Eliminacion hacia arriba: forma escalonada reducida.
     pasos_jordan = forma_reducida(matriz_trabajo, columnas_pivote, variables)
     
     return {

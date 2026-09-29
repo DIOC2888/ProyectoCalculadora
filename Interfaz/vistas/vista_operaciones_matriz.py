@@ -39,6 +39,8 @@ except ImportError:
 
 
 class VistaOperacionesMatriz(QWidget):
+    """Vista de matrices: captura datos, llama al controlador y renderiza resultados."""
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.inputs_list = []

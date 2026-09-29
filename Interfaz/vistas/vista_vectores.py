@@ -51,6 +51,8 @@ class ComboBoxCenterStyle(QProxyStyle):
 
         super().drawControl(element, option, painter, widget)
 class VistaVectores(QWidget):
+    """Vista de vectores: captura datos, llama al controlador y renderiza resultados."""
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.inputs_list = []

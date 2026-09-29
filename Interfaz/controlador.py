@@ -1,4 +1,7 @@
 # Interfaz/controlador.py
+# Controladores puente para vistas antiguas de la interfaz.
+# Delegan los calculos al backend y devuelven datos estructurados para Qt.
+
 import sys
 import os
 

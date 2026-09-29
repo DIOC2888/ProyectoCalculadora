@@ -23,6 +23,9 @@ from verificacion import (
 )
 
 
+# Punto de entrada de consola heredado.
+# La interfaz grafica actual se inicia desde Interfaz/maintemporal.py.
+
 # ==========================================================
 # PROGRAMA PRINCIPAL
 # ==========================================================

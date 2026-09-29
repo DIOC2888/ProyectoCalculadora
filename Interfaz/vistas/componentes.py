@@ -1,4 +1,5 @@
-#En componentes.py estan los componentes que se utilizaran por todas las vistas en la calculadora 
+# Componentes visuales reutilizables por las vistas de la calculadora.
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import (
@@ -11,7 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 class BracketWidget(QWidget):
-    """Dibuja un corchete de matriz perfecto ([ o ]) que se escala automáticamente al alto exacto del contenido."""
+    """Dibuja un corchete de matriz que se ajusta al alto del contenido."""
 
     def __init__(self, is_left=True, parent=None):
         super().__init__(parent)
@@ -55,7 +56,7 @@ class BracketWidget(QWidget):
 
 
 class NumberStepper(QFrame):
-    """Control personalizado con botones − y + exactamente estilo primera imagen."""
+    """Control numerico reutilizable con limites y callback opcional."""
 
     def __init__(self, value=3, min_val=1, max_val=10, parent=None):
         super().__init__(parent)
@@ -133,6 +134,8 @@ class NumberStepper(QFrame):
         self.btn_plus.clicked.connect(self._increment)
 
     def _decrement(self):
+        """Disminuye el valor y avisa a la vista si cambio."""
+
         if self.value > self.min_val:
             self.value -= 1
             self.lbl_val.setText(str(self.value))
@@ -140,6 +143,8 @@ class NumberStepper(QFrame):
                 self.on_change_callback()
 
     def _increment(self):
+        """Aumenta el valor y avisa a la vista si cambio."""
+
         if self.value < self.max_val:
             self.value += 1
             self.lbl_val.setText(str(self.value))
@@ -147,7 +152,7 @@ class NumberStepper(QFrame):
                 self.on_change_callback()
 
 class CollapsibleCard(QFrame):
-    """Tarjeta desplegable para Matriz Aumentada, Proceso y Solución."""
+    """Tarjeta desplegable usada para agrupar resultados largos."""
 
     def __init__(self, title, parent=None):
         super().__init__(parent)
@@ -205,6 +210,8 @@ class CollapsibleCard(QFrame):
         self.content_layout.addWidget(widget)
 
     def toggle(self):
+        """Alterna entre mostrar y ocultar el contenido interno."""
+
         self.is_expanded = not self.is_expanded
         self.content_widget.setVisible(self.is_expanded)
         self.btn_toggle.setText("−" if self.is_expanded else "+")

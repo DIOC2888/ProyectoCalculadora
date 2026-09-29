@@ -147,6 +147,9 @@ def invertir_matriz(A):
 
     matriz_original = _copiar_matriz(A)
     identidad = _crear_matriz_identidad(filas)
+
+    # Para encontrar A^-1 se trabaja con [A | I]. Si la parte izquierda
+    # logra convertirse en I, las mismas operaciones convierten I en A^-1.
     aumentada = [A[i][:] + identidad[i][:] for i in range(filas)]
     proceso = [{
         "tipo": "inicio",
@@ -264,12 +267,18 @@ def invertir_matriz(A):
     signo = 1
     pivotes_determinante = []
 
+    # En matrices mayores a 2x2 se reduce [A | I] columna por columna.
+    # Cada columna debe producir un pivote de la identidad.
     for columna in range(filas):
+        # Elegimos el mayor valor absoluto disponible para usar un pivote
+        # estable y evitar dividir entre cero si hay otra fila util.
         fila_pivote = max(
             range(columna, filas),
             key=lambda i: abs(aumentada[i][columna])
         )
 
+        # Sin pivote no se puede formar la identidad en la izquierda;
+        # por eso la matriz es singular y no existe inversa.
         if abs(aumentada[fila_pivote][columna]) < TOLERANCIA:
             factores = pivotes_determinante + [0]
             expresion = " × ".join(
@@ -308,6 +317,7 @@ def invertir_matriz(A):
             aumentada[columna], aumentada[fila_pivote] = (
                 aumentada[fila_pivote], aumentada[columna]
             )
+            # Cada intercambio de filas cambia el signo del determinante.
             signo *= -1
             proceso.append({
                 "tipo": "operacion_fila",
@@ -317,7 +327,12 @@ def invertir_matriz(A):
 
         pivote = aumentada[columna][columna]
         pivotes_determinante.append(pivote)
+
+        # El pivote se multiplica antes de normalizar la fila, porque al
+        # dividir la fila el pivote pasara a ser 1.
         determinante *= pivote
+
+        # Normalizar la fila convierte el pivote en 1.
         aumentada[columna] = [valor / pivote for valor in aumentada[columna]]
         aumentada[columna] = [
             0 if abs(valor) < TOLERANCIA else valor
@@ -338,6 +353,9 @@ def invertir_matriz(A):
             factor = aumentada[i][columna]
             if abs(factor) < TOLERANCIA:
                 continue
+
+            # Restar factor * fila_pivote elimina la entrada de esta
+            # columna en todas las demas filas.
             aumentada[i] = [
                 aumentada[i][j] - factor * aumentada[columna][j]
                 for j in range(2 * filas)
@@ -2444,6 +2462,8 @@ def verificar_dependencia_columna(A, indice_columna):
     )
 
     def construir_expresion(coeficientes):
+        """Convierte coeficientes en una expresion con columnas generadoras."""
+
         terminos = []
 
         for posicion, coeficiente in enumerate(coeficientes):

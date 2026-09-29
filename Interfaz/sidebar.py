@@ -7,6 +7,8 @@ from sleeping_dog import SleepingDogContainer
 
 
 class Sidebar(QFrame):
+    """Menu lateral que envia a MainWindow el indice de la vista elegida."""
+
     # Señal para notificar a MainWindow el índice de la vista seleccionada
     navigation_requested = Signal(int)
 
