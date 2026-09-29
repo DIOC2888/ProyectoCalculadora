@@ -130,6 +130,60 @@ def transponer_matriz(A):
     }
 
 
+def transponer_matrices(matrices):
+    """Calcula la transpuesta de una o mas matrices.
+
+    Reutiliza transponer_matriz() para no duplicar la logica algebraica.
+    Cada matriz se procesa de forma independiente porque la transpuesta
+    no combina matrices entre si.
+    """
+
+    if not isinstance(matrices, list) or len(matrices) == 0:
+        raise ValueError(
+            "Debe proporcionar al menos una matriz para transponer."
+        )
+
+    resultados = []
+    matrices_originales = []
+    proceso = []
+
+    for indice, matriz in enumerate(matrices, start=1):
+        datos = transponer_matriz(matriz)
+        matriz_original = datos["matriz_original"]
+        transpuesta = datos["transpuesta"]
+
+        matrices_originales.append(matriz_original)
+        resultados.append(transpuesta)
+
+        proceso.append({
+            "numero": len(proceso) + 1,
+            "tipo": "operacion",
+            "titulo": f"Matriz original A{indice}",
+            "operacion": f"A{indice}",
+            "matriz": matriz_original
+        })
+        proceso.append({
+            "numero": len(proceso) + 1,
+            "tipo": "operacion",
+            "titulo": f"Traspuesta de A{indice}",
+            "operacion": f"(A{indice}^T)_ij = (A{indice})_ji",
+            "matriz": transpuesta
+        })
+
+    return {
+        "resultado": resultados[0] if len(resultados) == 1 else resultados,
+        "resultados": resultados,
+        "transpuestas": resultados,
+        "matrices_originales": matrices_originales,
+        "matriz_original": (
+            matrices_originales[0]
+            if len(matrices_originales) == 1
+            else matrices_originales
+        ),
+        "proceso": proceso
+    }
+
+
 def invertir_matriz(A):
     """Calcula A^{-1} mediante Gauss-Jordan sobre [A | I].
 

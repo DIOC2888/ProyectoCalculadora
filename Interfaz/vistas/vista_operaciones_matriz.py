@@ -762,9 +762,6 @@ class VistaOperacionesMatriz(QWidget):
         if metodo == "Inversa":
             return 1
 
-        if metodo == "Traspuesta":
-            return 1
-
         if metodo == "Determinante":
             return 1
 
@@ -807,7 +804,6 @@ class VistaOperacionesMatriz(QWidget):
             or metodo == "Independencia columnas"
             or metodo == "Identidad"
             or metodo == "Inversa"
-            or metodo == "Traspuesta"
             or metodo == "Determinante"
             or metodo == "Teoremas clave"
         )
@@ -933,7 +929,6 @@ class VistaOperacionesMatriz(QWidget):
             or metodo == "Independencia columnas"
             or metodo == "Identidad"
             or metodo == "Inversa"
-            or metodo == "Traspuesta"
             or metodo == "Determinante"
             or metodo == "Teoremas clave"
         )
@@ -1681,7 +1676,7 @@ class VistaOperacionesMatriz(QWidget):
 
             elif modo == "Traspuesta":
                 resultado = ControladorVectores.transponer_matriz(
-                    matrices[0]
+                    matrices
                 )
 
             elif modo == "Determinante":
@@ -2530,12 +2525,53 @@ class VistaOperacionesMatriz(QWidget):
                 wrapper_layout.addStretch()
                 layout_principal.addWidget(wrapper)
 
+        elif operacion == "Traspuesta":
+            transpuestas = resultado.get("transpuestas", [])
+
+            if not transpuestas:
+                transpuestas = [resultado.get("resultado", [])]
+
+            self._agregar_titulo_seccion(
+                layout_principal,
+                "TRANSPUESTAS"
+                if len(transpuestas) > 1
+                else "TRANSPUESTA"
+            )
+
+            wrapper = QWidget()
+            wrapper.setStyleSheet("background: transparent; border: none;")
+            wrapper_layout = QHBoxLayout(wrapper)
+            wrapper_layout.setContentsMargins(0, 0, 0, 0)
+            wrapper_layout.setSpacing(18)
+
+            for indice, matriz in enumerate(transpuestas, start=1):
+                item = QWidget()
+                item.setStyleSheet("background: transparent; border: none;")
+                item_layout = QVBoxLayout(item)
+                item_layout.setContentsMargins(0, 0, 0, 0)
+                item_layout.setSpacing(6)
+
+                etiqueta = QLabel(f"A{indice}^T")
+                etiqueta.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                etiqueta.setStyleSheet("""
+                    color: #475569;
+                    font-size: 12px;
+                    font-weight: 800;
+                    border: none;
+                    background: transparent;
+                """)
+                item_layout.addWidget(etiqueta)
+                item_layout.addWidget(self._crear_matriz_widget(matriz))
+                wrapper_layout.addWidget(item)
+
+            wrapper_layout.addStretch()
+            layout_principal.addWidget(wrapper)
+
         elif operacion in (
             "Sumar matrices",
             "Restar matrices",
             "Multiplicar matriz por escalar",
-            "Multiplicar matrices",
-            "Traspuesta"
+            "Multiplicar matrices"
         ):
             self._agregar_titulo_seccion(layout_principal, "RESULTADO")
 

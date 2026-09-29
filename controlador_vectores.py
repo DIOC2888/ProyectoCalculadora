@@ -575,19 +575,47 @@ class ControladorVectores:
 
     @staticmethod
     def transponer_matriz(A):
-        """Calcula la transpuesta usando matrices.py y prepara la respuesta para la vista."""
+        """Calcula la transpuesta de una matriz o de varias matrices."""
         try:
-            datos = backend_matrices.transponer_matriz(A)
+            es_lista_de_matrices = (
+                isinstance(A, list)
+                and len(A) > 0
+                and isinstance(A[0], list)
+                and len(A[0]) > 0
+                and isinstance(A[0][0], list)
+            )
+
+            if es_lista_de_matrices:
+                datos = backend_matrices.transponer_matrices(A)
+            else:
+                datos = backend_matrices.transponer_matriz(A)
+
             transpuesta = datos["resultado"]
+            transpuestas = datos.get(
+                "transpuestas",
+                [transpuesta]
+            )
+            cantidad = len(transpuestas)
+
             return {
                 "exito": True,
                 "operacion": "Traspuesta",
                 "matriz": datos["matriz_original"],
                 "matriz_original": datos["matriz_original"],
+                "matrices_originales": datos.get(
+                    "matrices_originales",
+                    [datos["matriz_original"]]
+                ),
                 "resultado": transpuesta,
                 "transpuesta": transpuesta,
+                "transpuestas": transpuestas,
+                "cantidad_matrices": cantidad,
                 "proceso": datos["proceso"],
-                "mensaje": "Transpuesta calculada correctamente."
+                "mensaje": (
+                    "Transpuestas calculadas correctamente."
+                    if cantidad > 1
+                    else "Transpuesta calculada correctamente."
+                )
             }
         except (ValueError, TypeError) as e:
             return {
