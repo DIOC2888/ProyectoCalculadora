@@ -224,10 +224,25 @@ class VistaOperacionesMatriz(QWidget):
         self.stepper_mops_count = NumberStepper(value=3)
         mats_box.addWidget(lbl_mats)
         mats_box.addWidget(self.stepper_mops_count)
+
+        self.combo_mops_dimension_matrix = QComboBox()
+        self.combo_mops_dimension_matrix.addItems(["Dimensiones de A", "Dimensiones de B"])
+        self.combo_mops_dimension_matrix.setFixedWidth(170)
+        self.combo_mops_dimension_matrix.setFixedHeight(38)
+        self.combo_mops_dimension_matrix.hide()
+        self.mops_matrix_dimensions = [[3, 3], [3, 3]]
         
         mops_controls.addLayout(rows_box)
         mops_controls.addLayout(cols_box)
         mops_controls.addLayout(mats_box)
+        dimension_matrix_box = QVBoxLayout()
+        dimension_matrix_box.setSpacing(6)
+        lbl_dimension_matrix = QLabel("EDITAR DIMENSIONES DE")
+        self.lbl_mops_dimension_matrix = lbl_dimension_matrix
+        lbl_dimension_matrix.setStyleSheet("color: #64748B; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; background: transparent;")
+        dimension_matrix_box.addWidget(lbl_dimension_matrix)
+        dimension_matrix_box.addWidget(self.combo_mops_dimension_matrix)
+        mops_controls.addLayout(dimension_matrix_box)
         mops_controls.addStretch()
         mops_layout.addLayout(mops_controls)
         
@@ -464,6 +479,15 @@ class VistaOperacionesMatriz(QWidget):
         self.combo_mops_metodo.setFixedWidth(220)
         self.combo_mops_metodo.setFixedHeight(38)
         self.combo_mops_metodo.setCurrentIndex(0)
+        self.combo_mops_traspuesta = QComboBox()
+        self.combo_mops_traspuesta.addItem("(Aᵀ)ᵀ = A", "Doble traspuesta")
+        self.combo_mops_traspuesta.addItem("(A + B)ᵀ = Aᵀ + Bᵀ", "Traspuesta de una suma")
+        self.combo_mops_traspuesta.addItem("(rA)ᵀ = rAᵀ", "Traspuesta de un escalar")
+        self.combo_mops_traspuesta.addItem("(AB)ᵀ = BᵀAᵀ", "Traspuesta de un producto")
+        self.combo_mops_traspuesta.setFixedWidth(230)
+        self.combo_mops_traspuesta.setFixedHeight(38)
+        self.combo_mops_traspuesta.hide()
+        self.combo_mops_traspuesta.currentIndexChanged.connect(self._on_mops_transpose_property_changed)
         combo_popup_style = """
             QListView {
                 background-color: #FFFFFF;
@@ -517,14 +541,22 @@ class VistaOperacionesMatriz(QWidget):
             }
         """)
         self.combo_mops_metodo.view().setStyleSheet(combo_popup_style)
+        self.combo_mops_traspuesta.setStyleSheet(self.combo_mops_metodo.styleSheet())
+        self.combo_mops_traspuesta.view().setStyleSheet(combo_popup_style)
+        self.combo_mops_dimension_matrix.setStyleSheet(self.combo_mops_metodo.styleSheet())
+        self.combo_mops_dimension_matrix.view().setStyleSheet(combo_popup_style)
 
         self.combo_mops_metodo.currentIndexChanged.connect(self._on_mops_operation_changed)
+        self.combo_mops_dimension_matrix.currentIndexChanged.connect(
+            self._on_mops_dimension_matrix_changed
+        )
 
         for i in range(self.combo_mops_metodo.count()):
             self.combo_mops_metodo.setItemData(i, Qt.AlignmentFlag.AlignCenter, Qt.ItemDataRole.TextAlignmentRole)
         
         mops_action_buttons.addWidget(btn_calc_mops)
         mops_action_buttons.addWidget(self.combo_mops_metodo)
+        mops_action_buttons.addWidget(self.combo_mops_traspuesta)
         mops_action_buttons.addWidget(btn_clear_mops)
         mops_action_buttons.addStretch()
         
@@ -777,8 +809,15 @@ class VistaOperacionesMatriz(QWidget):
     def _on_mops_operation_changed(self):
 
         metodo = self.combo_mops_metodo.currentText()
+        es_traspuesta = metodo == "Traspuesta"
+        self.combo_mops_traspuesta.setVisible(es_traspuesta)
 
         matrices_requeridas = self._mops_matrices_requeridas(metodo)
+        if es_traspuesta:
+            matrices_requeridas = self._mops_traspuesta_matrices_requeridas()
+        necesita_dos_matrices = es_traspuesta and matrices_requeridas == 2
+        self.combo_mops_dimension_matrix.setVisible(necesita_dos_matrices)
+        self.lbl_mops_dimension_matrix.setVisible(necesita_dos_matrices)
         if (
             matrices_requeridas is not None
             and matrices_requeridas > 0
@@ -793,6 +832,8 @@ class VistaOperacionesMatriz(QWidget):
             "Homogeneidad",
             "Escalar producto"
         )
+        if es_traspuesta and self.combo_mops_traspuesta.currentData() == "Traspuesta de un escalar":
+            es_escalar = True
         usa_vector = metodo in (
             "Matriz por vector",
             "Distributividad",
@@ -827,11 +868,59 @@ class VistaOperacionesMatriz(QWidget):
                 ControladorVectores.ver_teoremas_clave()
             )
 
+    def _mops_traspuesta_matrices_requeridas(self):
+        return 2 if self.combo_mops_traspuesta.currentData() in (
+            "Traspuesta de una suma", "Traspuesta de un producto"
+        ) else 1
+
+    def _on_mops_transpose_property_changed(self):
+        if not hasattr(self, "stepper_mops_count"):
+            return
+        cantidad = self._mops_traspuesta_matrices_requeridas()
+        self._set_stepper_value(self.stepper_mops_count, cantidad)
+        propiedad = self.combo_mops_traspuesta.currentData()
+        self.combo_mops_dimension_matrix.setVisible(cantidad == 2)
+        self.lbl_mops_dimension_matrix.setVisible(cantidad == 2)
+        if cantidad == 1 and self.combo_mops_dimension_matrix.currentIndex() != 0:
+            self.combo_mops_dimension_matrix.setCurrentIndex(0)
+        self.mops_escalar_container.setVisible(propiedad == "Traspuesta de un escalar")
+        self.stepper_mops_count.setEnabled(False)
+        self._cargar_dimensiones_matriz_seleccionada()
+        self._rebuild_matrix_ops_grid()
+
+    def _cargar_dimensiones_matriz_seleccionada(self):
+        indice = self.combo_mops_dimension_matrix.currentIndex()
+        while len(self.mops_matrix_dimensions) <= indice:
+            self.mops_matrix_dimensions.append([
+                self.stepper_mops_rows.value,
+                self.stepper_mops_cols.value
+            ])
+        filas, columnas = self.mops_matrix_dimensions[indice]
+        self._set_stepper_value(self.stepper_mops_rows, filas)
+        self._set_stepper_value(self.stepper_mops_cols, columnas)
+
+    def _on_mops_dimension_matrix_changed(self):
+        if not hasattr(self, "mops_matrix_dimensions"):
+            return
+        self._cargar_dimensiones_matriz_seleccionada()
+        self._rebuild_matrix_ops_grid()
+
     def _on_mops_rows_changed(self):
+        self._guardar_dimensiones_matriz_seleccionada()
         self._rebuild_matrix_ops_grid()
 
     def _on_mops_cols_changed(self):
+        self._guardar_dimensiones_matriz_seleccionada()
         self._rebuild_matrix_ops_grid()
+
+    def _guardar_dimensiones_matriz_seleccionada(self):
+        indice = self.combo_mops_dimension_matrix.currentIndex()
+        while len(self.mops_matrix_dimensions) <= indice:
+            self.mops_matrix_dimensions.append([3, 3])
+        self.mops_matrix_dimensions[indice] = [
+            self.stepper_mops_rows.value,
+            self.stepper_mops_cols.value
+        ]
     def _rebuild_matrix_ops_grid(self):
 
         # ============================================================
@@ -913,6 +1002,8 @@ class VistaOperacionesMatriz(QWidget):
         metodo = self.combo_mops_metodo.currentText()
 
         matrices_requeridas = self._mops_matrices_requeridas(metodo)
+        if metodo == "Traspuesta":
+            matrices_requeridas = self._mops_traspuesta_matrices_requeridas()
         es_escalar = metodo in (
             "Escalar",
             "Homogeneidad",
@@ -940,6 +1031,13 @@ class VistaOperacionesMatriz(QWidget):
             num_matrices = 1
         else:
             num_matrices = self.stepper_mops_count.value
+
+        if metodo == "Traspuesta":
+            while len(self.mops_matrix_dimensions) < num_matrices:
+                self.mops_matrix_dimensions.append([rows, cols])
+            matrix_dimensions = self.mops_matrix_dimensions[:num_matrices]
+        else:
+            matrix_dimensions = [[rows, cols] for _ in range(num_matrices)]
 
         # Lista nueva
         self.mops_inputs_list = []
@@ -975,14 +1073,20 @@ class VistaOperacionesMatriz(QWidget):
         label_height = 16
         label_gap = 6
 
-        bracket_height = rows * input_height + (rows - 1) * grid_spacing
-        matrix_width = (
-            bracket_width * 2
-            + cols * input_width
-            + max(0, cols - 1) * grid_spacing
-            + bracket_gap * 2
-        )
-        matrix_height = label_height + label_gap + bracket_height
+        matrix_sizes = [
+            (
+                matrix_rows,
+                matrix_cols,
+                bracket_width * 2
+                + matrix_cols * input_width
+                + max(0, matrix_cols - 1) * grid_spacing
+                + bracket_gap * 2,
+                label_height + label_gap
+                + matrix_rows * input_height
+                + max(0, matrix_rows - 1) * grid_spacing
+            )
+            for matrix_rows, matrix_cols in matrix_dimensions
+        ]
         vector_count = (
             2
             if metodo == "Distributividad"
@@ -1005,17 +1109,25 @@ class VistaOperacionesMatriz(QWidget):
             + vector_bracket_height
         )
         content_width = (
-            num_matrices * matrix_width
+            sum(size[2] for size in matrix_sizes)
             + vector_count * vector_width
             + max(0, num_matrices + vector_count - 1) * matrix_spacing
         )
-        content_height = max(matrix_height, vector_height)
+        content_height = max(
+            max((size[3] for size in matrix_sizes), default=0),
+            vector_height
+        )
 
         # ============================================================
         # 5. CREAR A1, A2, A3...
         # ============================================================
 
         for m in range(num_matrices):
+            mat_rows, mat_cols, matrix_width, matrix_height = matrix_sizes[m]
+            bracket_height = (
+                mat_rows * input_height
+                + max(0, mat_rows - 1) * grid_spacing
+            )
 
             mat_widget = QWidget()
             mat_widget.setStyleSheet("background-color: transparent;")
@@ -1077,11 +1189,11 @@ class VistaOperacionesMatriz(QWidget):
 
             mat_inputs = []
 
-            for r in range(rows):
+            for r in range(mat_rows):
 
                 row_inputs = []
 
-                for c in range(cols):
+                for c in range(mat_cols):
 
                     # Valor anterior
                     valor = "0"
@@ -1223,7 +1335,14 @@ class VistaOperacionesMatriz(QWidget):
         # 6. ESCALAR
         # ============================================================
 
-        self.mops_escalar_container.setVisible(es_escalar)
+        usa_escalar_traspuesta = (
+            metodo == "Traspuesta"
+            and self.combo_mops_traspuesta.currentData()
+            == "Traspuesta de un escalar"
+        )
+        self.mops_escalar_container.setVisible(
+            es_escalar or usa_escalar_traspuesta
+        )
 
         # ============================================================
         # 7. AJUSTAR EL CONTENEDOR DEL SCROLL
@@ -1675,8 +1794,17 @@ class VistaOperacionesMatriz(QWidget):
                 )
 
             elif modo == "Traspuesta":
-                resultado = ControladorVectores.transponer_matriz(
-                    matrices
+                propiedad = self.combo_mops_traspuesta.currentData()
+                escalar = (
+                    self._leer_float(self.inp_mops_escalar)
+                    if propiedad == "Traspuesta de un escalar"
+                    else None
+                )
+                resultado = ControladorVectores.verificar_propiedad_traspuesta(
+                    propiedad,
+                    matrices[0],
+                    matrices[1] if len(matrices) > 1 else None,
+                    escalar
                 )
 
             elif modo == "Determinante":
@@ -2567,6 +2695,21 @@ class VistaOperacionesMatriz(QWidget):
             wrapper_layout.addStretch()
             layout_principal.addWidget(wrapper)
 
+        elif operacion == "Propiedad de la traspuesta":
+            self._agregar_titulo_seccion(
+                layout_principal,
+                resultado.get("expresion", "PROPIEDAD DE LA TRASPUESTA")
+            )
+            wrapper = QWidget()
+            wrapper.setStyleSheet("background: transparent; border: none;")
+            wrapper_layout = QHBoxLayout(wrapper)
+            wrapper_layout.setContentsMargins(0, 0, 0, 0)
+            wrapper_layout.addWidget(
+                self._crear_matriz_widget(resultado.get("resultado", []))
+            )
+            wrapper_layout.addStretch()
+            layout_principal.addWidget(wrapper)
+
         elif operacion in (
             "Sumar matrices",
             "Restar matrices",
@@ -3410,6 +3553,7 @@ class VistaOperacionesMatriz(QWidget):
             "Propiedad identidad matrices",
             "Inversa de matriz",
             "Traspuesta",
+            "Propiedad de la traspuesta",
             "Determinante"
         ):
             self.results_layout.addWidget(

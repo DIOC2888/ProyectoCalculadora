@@ -627,7 +627,28 @@ class ControladorVectores:
                 "mensaje": str(e)
             }
 
-
+    @staticmethod
+    def verificar_propiedad_traspuesta(propiedad, A, B=None, escalar=None):
+        try:
+            datos = backend_matrices.verificar_propiedad_traspuesta(
+                propiedad, A, B, escalar
+            )
+            return {
+                "exito": True,
+                "operacion": "Propiedad de la traspuesta",
+                "matriz": A,
+                **datos,
+                "mensaje": "Propiedad verificada correctamente."
+            }
+        except (ValueError, TypeError, IndexError) as e:
+            return {
+                "exito": False,
+                "operacion": "Propiedad de la traspuesta",
+                "matriz": A,
+                "resultado": None,
+                "proceso": [],
+                "mensaje": str(e)
+            }
     @staticmethod
     def calcular_determinante(A):
         """Calcula det(A) por desarrollo de cofactores."""

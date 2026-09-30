@@ -184,6 +184,71 @@ def transponer_matrices(matrices):
     }
 
 
+def verificar_propiedad_traspuesta(propiedad, A, B=None, escalar=None):
+    """Evalua una propiedad de la traspuesta y devuelve sus pasos."""
+    validar_matriz(A)
+    AT = transponer_matriz(A)["resultado"]
+    proceso = [{"tipo": "operacion", "titulo": "Matriz A", "operacion": "A", "matriz": _copiar_matriz(A)}]
+
+    if propiedad == "Doble traspuesta":
+        resultado = transponer_matriz(AT)["resultado"]
+        esperado = _copiar_matriz(A)
+        expresion = "(A^T)^T = A"
+        proceso.extend([
+            {"tipo": "operacion", "titulo": "Primera traspuesta", "operacion": "A^T", "matriz": AT},
+            {"tipo": "resultado", "titulo": "Doble traspuesta", "operacion": "(A^T)^T", "matriz": resultado},
+            {"tipo": "verificacion", "titulo": "Verificar la propiedad", "operacion": expresion, "resultado": _matrices_son_iguales(resultado, esperado)}
+        ])
+    elif propiedad == "Traspuesta de una suma":
+        if B is None:
+            raise ValueError("La propiedad necesita las matrices A y B.")
+        validar_mismas_dimensiones_matrices(A, B)
+        suma = [[A[i][j] + B[i][j] for j in range(len(A[0]))] for i in range(len(A))]
+        resultado = transponer_matriz(suma)["resultado"]
+        AT, BT = transponer_matriz(A)["resultado"], transponer_matriz(B)["resultado"]
+        esperado = [[AT[i][j] + BT[i][j] for j in range(len(AT[0]))] for i in range(len(AT))]
+        expresion = "(A + B)^T = A^T + B^T"
+        proceso.extend([
+            {"tipo": "operacion", "titulo": "Sumar A y B", "operacion": "A + B", "matriz": suma},
+            {"tipo": "resultado", "titulo": "Traspuesta de la suma", "operacion": "(A + B)^T", "matriz": resultado},
+            {"tipo": "operacion", "titulo": "Sumar las traspuestas", "operacion": "A^T + B^T", "matriz_izquierda": AT, "matriz_derecha": BT},
+            {"tipo": "resultado", "titulo": "Lado derecho", "matriz": esperado},
+            {"tipo": "verificacion", "titulo": "Verificar la propiedad", "operacion": expresion, "resultado": _matrices_son_iguales(resultado, esperado)}
+        ])
+    elif propiedad == "Traspuesta de un producto":
+        if B is None:
+            raise ValueError("La propiedad necesita las matrices A y B.")
+        validar_multiplicacion_matrices(A, B)
+        producto = _multiplicar_dos_matrices(A, B)
+        resultado = transponer_matriz(producto)["resultado"]
+        AT, BT = transponer_matriz(A)["resultado"], transponer_matriz(B)["resultado"]
+        esperado = _multiplicar_dos_matrices(BT, AT)
+        expresion = "(AB)^T = B^T A^T"
+        proceso.extend([
+            {"tipo": "operacion", "titulo": "Producto AB", "operacion": "AB", "matriz": producto},
+            {"tipo": "resultado", "titulo": "Traspuesta del producto", "operacion": "(AB)^T", "matriz": resultado},
+            {"tipo": "operacion", "titulo": "Producto B^T A^T", "operacion": "B^T A^T", "matriz_izquierda": BT, "matriz_derecha": AT},
+            {"tipo": "resultado", "titulo": "Lado derecho", "matriz": esperado},
+            {"tipo": "verificacion", "titulo": "Verificar la propiedad", "operacion": expresion, "resultado": _matrices_son_iguales(resultado, esperado)}
+        ])
+    elif propiedad == "Traspuesta de un escalar":
+        if escalar is None:
+            raise ValueError("Indica el escalar r.")
+        escalada = [[escalar * valor for valor in fila] for fila in A]
+        resultado = transponer_matriz(escalada)["resultado"]
+        esperado = [[escalar * valor for valor in fila] for fila in AT]
+        expresion = "(rA)^T = rA^T"
+        proceso.extend([
+            {"tipo": "operacion", "titulo": "Multiplicar A por el escalar", "operacion": f"{_formatear_numero(escalar)}A", "matriz": escalada},
+            {"tipo": "resultado", "titulo": "Traspuesta del producto escalar", "operacion": "(rA)^T", "matriz": resultado},
+            {"tipo": "resultado", "titulo": "rA^T", "operacion": expresion, "matriz": esperado},
+            {"tipo": "verificacion", "titulo": "Verificar la propiedad", "operacion": expresion, "resultado": _matrices_son_iguales(resultado, esperado)}
+        ])
+    else:
+        raise ValueError("Selecciona una propiedad de la traspuesta valida.")
+    return {"resultado": resultado, "propiedad": propiedad, "expresion": expresion, "proceso": proceso}
+
+
 def invertir_matriz(A):
     """Calcula A^{-1} mediante Gauss-Jordan sobre [A | I].
 
