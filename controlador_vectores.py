@@ -649,6 +649,27 @@ class ControladorVectores:
                 "proceso": [],
                 "mensaje": str(e)
             }
+
+    @staticmethod
+    def verificar_propiedad_suma_escalar(propiedad, A, B=None, C=None, r=None, s=None):
+        try:
+            datos = backend_matrices.verificar_propiedad_suma_escalar(
+                propiedad, A, B, C, r, s
+            )
+            return {
+                "exito": True,
+                "operacion": "Propiedad suma y escalares",
+                **datos,
+                "mensaje": "Propiedad verificada correctamente."
+            }
+        except (ValueError, TypeError, IndexError) as e:
+            return {
+                "exito": False,
+                "operacion": "Propiedad suma y escalares",
+                "resultado": None,
+                "proceso": [],
+                "mensaje": str(e)
+            }
     @staticmethod
     def calcular_determinante(A):
         """Calcula det(A) por desarrollo de cofactores."""

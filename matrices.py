@@ -249,6 +249,51 @@ def verificar_propiedad_traspuesta(propiedad, A, B=None, escalar=None):
     return {"resultado": resultado, "propiedad": propiedad, "expresion": expresion, "proceso": proceso}
 
 
+def verificar_propiedad_suma_escalar(propiedad, A, B=None, C=None, r=None, s=None):
+    """Verifica propiedades algebraicas de suma de matrices y escalares."""
+    validar_matriz(A)
+    proceso = [{"tipo": "operacion", "titulo": "Matriz A", "operacion": "A", "matriz": _copiar_matriz(A)}]
+    comparaciones = []
+    if propiedad == "Conmutatividad de la suma":
+        if B is None: raise ValueError("La propiedad necesita las matrices A y B.")
+        validar_mismas_dimensiones_matrices(A, B)
+        izq, der = sumar_matrices([A, B])["resultado"], sumar_matrices([B, A])["resultado"]
+        expresion, comparaciones = "A + B = B + A", [("A + B", izq), ("B + A", der)]
+    elif propiedad == "Asociatividad de la suma":
+        if B is None or C is None: raise ValueError("La propiedad necesita las matrices A, B y C.")
+        validar_mismas_dimensiones_matrices(A, B)
+        validar_mismas_dimensiones_matrices(A, C)
+        izq, der = sumar_matrices([sumar_matrices([A, B])["resultado"], C])["resultado"], sumar_matrices([A, sumar_matrices([B, C])["resultado"]])["resultado"]
+        expresion, comparaciones = "(A + B) + C = A + (B + C)", [("(A + B) + C", izq), ("A + (B + C)", der)]
+    elif propiedad == "Identidad aditiva":
+        cero = [[0 for _ in fila] for fila in A]
+        izq = sumar_matrices([A, cero])["resultado"]
+        expresion, comparaciones = "A + 0 = A", [("A + 0", izq), ("A", _copiar_matriz(A))]
+    elif propiedad == "Distributividad escalar sobre suma":
+        if B is None or r is None: raise ValueError("Indica B y el escalar r.")
+        validar_mismas_dimensiones_matrices(A, B)
+        izq = multiplicar_matriz_escalar(sumar_matrices([A, B])["resultado"], r)["resultado"]
+        der = sumar_matrices([multiplicar_matriz_escalar(A, r)["resultado"], multiplicar_matriz_escalar(B, r)["resultado"]])["resultado"]
+        expresion, comparaciones = "r(A + B) = rA + rB", [("r(A + B)", izq), ("rA + rB", der)]
+    elif propiedad == "Distributividad de suma de escalares":
+        if r is None or s is None: raise ValueError("Indica los escalares r y s.")
+        izq = multiplicar_matriz_escalar(A, r + s)["resultado"]
+        der = sumar_matrices([multiplicar_matriz_escalar(A, r)["resultado"], multiplicar_matriz_escalar(A, s)["resultado"]])["resultado"]
+        expresion, comparaciones = "(r + s)A = rA + sA", [("(r + s)A", izq), ("rA + sA", der)]
+    elif propiedad == "Asociatividad escalar":
+        if r is None or s is None: raise ValueError("Indica los escalares r y s.")
+        izq = multiplicar_matriz_escalar(multiplicar_matriz_escalar(A, s)["resultado"], r)["resultado"]
+        der = multiplicar_matriz_escalar(A, r * s)["resultado"]
+        expresion, comparaciones = "r(sA) = (rs)A", [("r(sA)", izq), ("(rs)A", der)]
+    else:
+        raise ValueError("Selecciona una propiedad de suma o producto escalar válida.")
+    igualdad = _matrices_son_iguales(comparaciones[0][1], comparaciones[1][1])
+    for titulo, matriz in comparaciones:
+        proceso.append({"tipo": "resultado", "titulo": titulo, "matriz": _copiar_matriz(matriz)})
+    proceso.append({"tipo": "verificacion", "titulo": "Verificar la propiedad", "operacion": expresion, "resultado": igualdad})
+    return {"resultado": comparaciones[0][1], "propiedad": propiedad, "expresion": expresion, "igualdad": igualdad, "comparaciones": comparaciones, "proceso": proceso}
+
+
 def invertir_matriz(A):
     """Calcula A^{-1} mediante Gauss-Jordan sobre [A | I].
 
