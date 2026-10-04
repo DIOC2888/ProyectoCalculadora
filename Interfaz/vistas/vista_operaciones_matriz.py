@@ -580,6 +580,33 @@ class VistaOperacionesMatriz(QWidget):
         self.combo_mops_metodo.setFixedWidth(220)
         self.combo_mops_metodo.setFixedHeight(38)
         self.combo_mops_metodo.setCurrentIndex(0)
+        self.combo_mops_determinante = QComboBox()
+        self.combo_mops_determinante.addItem("Cofactores", "cofactores")
+        self.combo_mops_determinante.addItem("Matriz triangular", "triangular")
+        self.combo_mops_determinante.addItem("Sarrus (3×3)", "sarrus")
+        self.combo_mops_determinante.addItem("Cramer", "cramer")
+        self.combo_mops_determinante.setFixedWidth(190)
+        self.combo_mops_determinante.setFixedHeight(38)
+        self.combo_mops_determinante.hide()
+        self.combo_mops_vector_propiedad = QComboBox()
+        self.combo_mops_vector_propiedad.addItem(
+            "Ax (producto matriz-vector)",
+            "Producto matriz-vector"
+        )
+        self.combo_mops_vector_propiedad.addItem(
+            "A(u + v) = Au + Av (distributividad)",
+            "Distributividad"
+        )
+        self.combo_mops_vector_propiedad.addItem(
+            "A(cu) = c(Au) (homogeneidad)",
+            "Homogeneidad"
+        )
+        self.combo_mops_vector_propiedad.setFixedWidth(320)
+        self.combo_mops_vector_propiedad.setFixedHeight(38)
+        self.combo_mops_vector_propiedad.hide()
+        self.combo_mops_vector_propiedad.currentIndexChanged.connect(
+            self._on_mops_vector_property_changed
+        )
         self.combo_mops_traspuesta = QComboBox()
         self.combo_mops_traspuesta.addItem("(Aᵀ)ᵀ = A", "Doble traspuesta")
         self.combo_mops_traspuesta.addItem("(A + B)ᵀ = Aᵀ + Bᵀ", "Traspuesta de una suma")
@@ -643,6 +670,10 @@ class VistaOperacionesMatriz(QWidget):
             }
         """)
         self.combo_mops_metodo.view().setStyleSheet(combo_popup_style)
+        self.combo_mops_determinante.setStyleSheet(self.combo_mops_metodo.styleSheet())
+        self.combo_mops_determinante.view().setStyleSheet(combo_popup_style)
+        self.combo_mops_vector_propiedad.setStyleSheet(self.combo_mops_metodo.styleSheet())
+        self.combo_mops_vector_propiedad.view().setStyleSheet(combo_popup_style)
         self.combo_mops_traspuesta.setStyleSheet(self.combo_mops_metodo.styleSheet())
         self.combo_mops_traspuesta.view().setStyleSheet(combo_popup_style)
         self.combo_mops_propiedad.setStyleSheet(self.combo_mops_metodo.styleSheet())
@@ -672,6 +703,8 @@ class VistaOperacionesMatriz(QWidget):
         
         mops_action_buttons.addWidget(btn_calc_mops)
         mops_action_buttons.addWidget(self.combo_mops_metodo)
+        mops_action_buttons.addWidget(self.combo_mops_determinante)
+        mops_action_buttons.addWidget(self.combo_mops_vector_propiedad)
         mops_action_buttons.addWidget(self.combo_mops_traspuesta)
         mops_action_buttons.addWidget(btn_clear_mops)
         mops_action_buttons.addStretch()
@@ -921,6 +954,42 @@ class VistaOperacionesMatriz(QWidget):
     def _set_stepper_value(self, stepper, value):
         stepper.value = value
         stepper.lbl_val.setText(str(value))
+
+    def _mops_vector_propiedad_actual(self):
+        if (
+            hasattr(self, "combo_mops_vector_propiedad")
+            and self.combo_mops_metodo.currentText() == "Matriz por vector"
+        ):
+            return self.combo_mops_vector_propiedad.currentData()
+        return None
+
+    def _actualizar_combo_dimensiones_multiplicacion(self, cantidad):
+        indice_actual = self.combo_mops_dimension_matrix.currentIndex()
+        self.combo_mops_dimension_matrix.blockSignals(True)
+        self.combo_mops_dimension_matrix.clear()
+        for indice in range(cantidad):
+            nombre = chr(ord("A") + indice)
+            self.combo_mops_dimension_matrix.addItem(
+                f"Dimensiones de {nombre}", indice
+            )
+        self.combo_mops_dimension_matrix.setCurrentIndex(
+            min(max(indice_actual, 0), cantidad - 1)
+        )
+        self.combo_mops_dimension_matrix.blockSignals(False)
+
+    def _on_mops_count_changed(self):
+        if self.combo_mops_metodo.currentText() == "Multiplicar":
+            cantidad = self.stepper_mops_count.value
+            indice_anterior = self.combo_mops_dimension_matrix.currentIndex()
+            while len(self.mops_matrix_dimensions) < cantidad:
+                self.mops_matrix_dimensions.append([
+                    self.stepper_mops_rows.value,
+                    self.stepper_mops_cols.value
+                ])
+            self._actualizar_combo_dimensiones_multiplicacion(cantidad)
+            if self.combo_mops_dimension_matrix.currentIndex() != indice_anterior:
+                self._cargar_dimensiones_matriz_seleccionada()
+        self._rebuild_matrix_ops_grid()
 
     def _on_mops_operation_changed(self):
 
@@ -1389,10 +1458,13 @@ class VistaOperacionesMatriz(QWidget):
         propiedad_actual = self.combo_mops_propiedad.currentData() if metodo in (
             "Sumar", "Escalar", "Inversa", "Determinante"
         ) else None
+        propiedad_vector_actual = self._mops_vector_propiedad_actual()
         if metodo == "Sumar" and propiedad_actual:
             matrices_requeridas = 3 if propiedad_actual == "Asociatividad de la suma" else 2 if propiedad_actual in ("Conmutatividad de la suma", "Distributividad escalar sobre suma") else 1
         elif metodo == "Escalar" and propiedad_actual:
             matrices_requeridas = 2 if propiedad_actual == "Distributividad escalar sobre suma" else 1
+        elif metodo == "Inversa":
+            matrices_requeridas = 2 if propiedad_actual == "inversa_producto" else 1
         es_escalar = metodo in (
             "Escalar",
             "Escalar producto"
@@ -2028,7 +2100,10 @@ class VistaOperacionesMatriz(QWidget):
             modo = self.combo_mops_metodo.currentText()
             matrices = self._leer_matrices_mops()
             matrices_requeridas = self._mops_matrices_requeridas(modo)
-            propiedad_suma = self.combo_mops_propiedad.currentData() if modo in ("Sumar", "Escalar") else None
+            propiedad_suma = self.combo_mops_propiedad.currentData() if modo in (
+                "Sumar", "Escalar", "Inversa", "Determinante"
+            ) else None
+            propiedad_vector = self._mops_vector_propiedad_actual()
             if propiedad_suma:
                 if modo == "Inversa":
                     matrices_requeridas = 2 if propiedad_suma == "inversa_producto" else 1
