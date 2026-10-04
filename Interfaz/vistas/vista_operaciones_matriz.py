@@ -566,8 +566,6 @@ class VistaOperacionesMatriz(QWidget):
             "Escalar",
             "Multiplicar",
             "Matriz por vector",
-            "Distributividad",
-            "Homogeneidad",
             "Independencia columnas",
             "Asociatividad matrices",
             "Distributiva izquierda",
@@ -582,14 +580,6 @@ class VistaOperacionesMatriz(QWidget):
         self.combo_mops_metodo.setFixedWidth(220)
         self.combo_mops_metodo.setFixedHeight(38)
         self.combo_mops_metodo.setCurrentIndex(0)
-        self.combo_mops_determinante = QComboBox()
-        self.combo_mops_determinante.addItem("Cofactores", "cofactores")
-        self.combo_mops_determinante.addItem("Matriz triangular", "triangular")
-        self.combo_mops_determinante.addItem("Sarrus (3×3)", "sarrus")
-        self.combo_mops_determinante.addItem("Cramer", "cramer")
-        self.combo_mops_determinante.setFixedWidth(190)
-        self.combo_mops_determinante.setFixedHeight(38)
-        self.combo_mops_determinante.hide()
         self.combo_mops_traspuesta = QComboBox()
         self.combo_mops_traspuesta.addItem("(Aᵀ)ᵀ = A", "Doble traspuesta")
         self.combo_mops_traspuesta.addItem("(A + B)ᵀ = Aᵀ + Bᵀ", "Traspuesta de una suma")
@@ -653,8 +643,6 @@ class VistaOperacionesMatriz(QWidget):
             }
         """)
         self.combo_mops_metodo.view().setStyleSheet(combo_popup_style)
-        self.combo_mops_determinante.setStyleSheet(self.combo_mops_metodo.styleSheet())
-        self.combo_mops_determinante.view().setStyleSheet(combo_popup_style)
         self.combo_mops_traspuesta.setStyleSheet(self.combo_mops_metodo.styleSheet())
         self.combo_mops_traspuesta.view().setStyleSheet(combo_popup_style)
         self.combo_mops_propiedad.setStyleSheet(self.combo_mops_metodo.styleSheet())
@@ -684,7 +672,6 @@ class VistaOperacionesMatriz(QWidget):
         
         mops_action_buttons.addWidget(btn_calc_mops)
         mops_action_buttons.addWidget(self.combo_mops_metodo)
-        mops_action_buttons.addWidget(self.combo_mops_determinante)
         mops_action_buttons.addWidget(self.combo_mops_traspuesta)
         mops_action_buttons.addWidget(btn_clear_mops)
         mops_action_buttons.addStretch()
@@ -935,34 +922,6 @@ class VistaOperacionesMatriz(QWidget):
         stepper.value = value
         stepper.lbl_val.setText(str(value))
 
-    def _actualizar_combo_dimensiones_multiplicacion(self, cantidad):
-        indice_actual = self.combo_mops_dimension_matrix.currentIndex()
-        self.combo_mops_dimension_matrix.blockSignals(True)
-        self.combo_mops_dimension_matrix.clear()
-        for indice in range(cantidad):
-            nombre = chr(ord("A") + indice)
-            self.combo_mops_dimension_matrix.addItem(
-                f"Dimensiones de {nombre}", indice
-            )
-        self.combo_mops_dimension_matrix.setCurrentIndex(
-            min(max(indice_actual, 0), cantidad - 1)
-        )
-        self.combo_mops_dimension_matrix.blockSignals(False)
-
-    def _on_mops_count_changed(self):
-        if self.combo_mops_metodo.currentText() == "Multiplicar":
-            cantidad = self.stepper_mops_count.value
-            indice_anterior = self.combo_mops_dimension_matrix.currentIndex()
-            while len(self.mops_matrix_dimensions) < cantidad:
-                self.mops_matrix_dimensions.append([
-                    self.stepper_mops_rows.value,
-                    self.stepper_mops_cols.value
-                ])
-            self._actualizar_combo_dimensiones_multiplicacion(cantidad)
-            if self.combo_mops_dimension_matrix.currentIndex() != indice_anterior:
-                self._cargar_dimensiones_matriz_seleccionada()
-        self._rebuild_matrix_ops_grid()
-
     def _on_mops_operation_changed(self):
 
         metodo = self.combo_mops_metodo.currentText()
@@ -1028,6 +987,9 @@ class VistaOperacionesMatriz(QWidget):
         self.lbl_mops_escalar_r.setText("ESCALAR (k)")
         if hasattr(self, "lbl_mops_escalar_s"):
             self._actualizar_campo_escalares()
+        es_matriz_vector = metodo == "Matriz por vector"
+        self.combo_mops_vector_propiedad.setVisible(es_matriz_vector)
+        propiedad_vector = self._mops_vector_propiedad_actual()
         es_traspuesta = metodo == "Traspuesta"
         self.combo_mops_traspuesta.setVisible(es_traspuesta)
         if es_traspuesta:
@@ -1102,16 +1064,13 @@ class VistaOperacionesMatriz(QWidget):
 
         es_escalar = metodo in (
             "Escalar",
-            "Homogeneidad",
             "Escalar producto"
         )
+        if es_matriz_vector and propiedad_vector == "Homogeneidad":
+            es_escalar = True
         if es_traspuesta and self.combo_mops_traspuesta.currentData() == "Traspuesta de un escalar":
             es_escalar = True
-        usa_vector = metodo in (
-            "Matriz por vector",
-            "Distributividad",
-            "Homogeneidad"
-        )
+        usa_vector = es_matriz_vector
         usa_una_matriz = (
             es_escalar
             or usa_vector
@@ -1124,7 +1083,7 @@ class VistaOperacionesMatriz(QWidget):
 
         # Mostrar escalar solamente cuando la operacion lo usa.
         self.mops_escalar_container.setVisible(
-            es_escalar or metodo == "Homogeneidad"
+            es_escalar
         )
 
         # Cantidad de matrices no aplica para estas operaciones.
@@ -1237,9 +1196,23 @@ class VistaOperacionesMatriz(QWidget):
         self._rebuild_matrix_ops_grid()
         self._actualizar_campo_escalares()
         self.mops_escalar_container.setVisible(
-            metodo in ("Escalar", "Homogeneidad", "Escalar producto")
+            metodo in ("Escalar", "Escalar producto")
+            or (
+                metodo == "Matriz por vector"
+                and self._mops_vector_propiedad_actual() == "Homogeneidad"
+            )
             or (metodo == "Traspuesta" and self.combo_mops_traspuesta.currentData() == "Traspuesta de un escalar")
         )
+
+    def _on_mops_vector_property_changed(self):
+        if not hasattr(self, "mops_escalar_container"):
+            return
+
+        self._actualizar_campo_escalares()
+        self.mops_escalar_container.setVisible(
+            self._mops_vector_propiedad_actual() == "Homogeneidad"
+        )
+        self._rebuild_matrix_ops_grid()
 
     def _actualizar_campo_escalares(self):
         """Usa una sola entrada; las propiedades con dos escalares aceptan r, s."""
@@ -1250,7 +1223,10 @@ class VistaOperacionesMatriz(QWidget):
         )
         if not dos_escalares and "," in self.inp_mops_escalar.text():
             self.inp_mops_escalar.setText("1")
-        self.lbl_mops_escalar_r.setText("ESCALAR (r)" if propiedad else "ESCALAR (k)")
+        if self._mops_vector_propiedad_actual() == "Homogeneidad":
+            self.lbl_mops_escalar_r.setText("ESCALAR (c)")
+        else:
+            self.lbl_mops_escalar_r.setText("ESCALAR (r)" if propiedad else "ESCALAR (k)")
         self.mops_escalar_s_column.setVisible(dos_escalares)
 
     def _mops_traspuesta_matrices_requeridas(self):
@@ -1417,18 +1393,16 @@ class VistaOperacionesMatriz(QWidget):
             matrices_requeridas = 3 if propiedad_actual == "Asociatividad de la suma" else 2 if propiedad_actual in ("Conmutatividad de la suma", "Distributividad escalar sobre suma") else 1
         elif metodo == "Escalar" and propiedad_actual:
             matrices_requeridas = 2 if propiedad_actual == "Distributividad escalar sobre suma" else 1
-        elif metodo == "Inversa":
-            matrices_requeridas = 2 if propiedad_actual == "inversa_producto" else 1
         es_escalar = metodo in (
             "Escalar",
-            "Homogeneidad",
             "Escalar producto"
         )
-        usa_vector = metodo in (
-            "Matriz por vector",
-            "Distributividad",
-            "Homogeneidad"
-        )
+        if (
+            metodo == "Matriz por vector"
+            and propiedad_vector_actual == "Homogeneidad"
+        ):
+            es_escalar = True
+        usa_vector = metodo == "Matriz por vector"
         usa_una_matriz = (
             es_escalar
             or usa_vector
@@ -1506,7 +1480,10 @@ class VistaOperacionesMatriz(QWidget):
         ]
         vector_count = (
             2
-            if metodo == "Distributividad"
+            if (
+                metodo == "Matriz por vector"
+                and propiedad_vector_actual == "Distributividad"
+            )
             else 1
             if usa_vector
             else 0
@@ -1726,7 +1703,10 @@ class VistaOperacionesMatriz(QWidget):
         if usa_vector:
             etiqueta_u = "u"
 
-            if metodo == "Matriz por vector":
+            if (
+                metodo == "Matriz por vector"
+                and propiedad_vector_actual == "Producto matriz-vector"
+            ):
                 etiqueta_u = "x"
 
             vec_u_widget, self.mops_vector_inputs = (
@@ -1738,7 +1718,10 @@ class VistaOperacionesMatriz(QWidget):
 
             self.mops_layout_inner.addWidget(vec_u_widget)
 
-        if metodo == "Distributividad":
+        if (
+            metodo == "Matriz por vector"
+            and propiedad_vector_actual == "Distributividad"
+        ):
             vec_v_widget, self.mops_vector_v_inputs = (
                 crear_vector_columna(
                     "v",
@@ -2045,9 +2028,7 @@ class VistaOperacionesMatriz(QWidget):
             modo = self.combo_mops_metodo.currentText()
             matrices = self._leer_matrices_mops()
             matrices_requeridas = self._mops_matrices_requeridas(modo)
-            propiedad_suma = self.combo_mops_propiedad.currentData() if modo in (
-                "Sumar", "Escalar", "Inversa", "Determinante"
-            ) else None
+            propiedad_suma = self.combo_mops_propiedad.currentData() if modo in ("Sumar", "Escalar") else None
             if propiedad_suma:
                 if modo == "Inversa":
                     matrices_requeridas = 2 if propiedad_suma == "inversa_producto" else 1
@@ -2087,8 +2068,6 @@ class VistaOperacionesMatriz(QWidget):
 
             if modo in (
                 "Matriz por vector",
-                "Distributividad",
-                "Homogeneidad",
                 "Independencia columnas",
                 "Identidad",
                 "Inversa",
@@ -2136,43 +2115,44 @@ class VistaOperacionesMatriz(QWidget):
                 resultado = ControladorVectores.multiplicar_matrices(matrices)
 
             elif modo == "Matriz por vector":
-                vector = self._leer_vector_mops(
-                    self.mops_vector_inputs
-                )
-                resultado = ControladorVectores.multiplicar_matriz_vector(
-                    matrices[0],
-                    vector
-                )
-
-            elif modo == "Distributividad":
-                u = self._leer_vector_mops(
-                    self.mops_vector_inputs
-                )
-                v = self._leer_vector_mops(
-                    self.mops_vector_v_inputs
-                )
-                resultado = (
-                    ControladorVectores
-                    .verificar_distributividad_matriz_vector(
-                        matrices[0],
-                        u,
-                        v
+                if propiedad_vector == "Distributividad":
+                    u = self._leer_vector_mops(
+                        self.mops_vector_inputs
                     )
-                )
-
-            elif modo == "Homogeneidad":
-                u = self._leer_vector_mops(
-                    self.mops_vector_inputs
-                )
-                escalar = self._leer_float(self.inp_mops_escalar)
-                resultado = (
-                    ControladorVectores
-                    .verificar_homogeneidad_matriz_vector(
-                        matrices[0],
-                        u,
-                        escalar
+                    v = self._leer_vector_mops(
+                        self.mops_vector_v_inputs
                     )
-                )
+                    resultado = (
+                        ControladorVectores
+                        .verificar_distributividad_matriz_vector(
+                            matrices[0],
+                            u,
+                            v
+                        )
+                    )
+
+                elif propiedad_vector == "Homogeneidad":
+                    u = self._leer_vector_mops(
+                        self.mops_vector_inputs
+                    )
+                    escalar = self._leer_float(self.inp_mops_escalar)
+                    resultado = (
+                        ControladorVectores
+                        .verificar_homogeneidad_matriz_vector(
+                            matrices[0],
+                            u,
+                            escalar
+                        )
+                    )
+
+                else:
+                    vector = self._leer_vector_mops(
+                        self.mops_vector_inputs
+                    )
+                    resultado = ControladorVectores.multiplicar_matriz_vector(
+                        matrices[0],
+                        vector
+                    )
 
             elif modo == "Independencia columnas":
                 resultado = (
