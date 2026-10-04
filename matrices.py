@@ -73,7 +73,14 @@ def _matrices_son_iguales(A, B):
 
     for i in range(len(A)):
         for j in range(len(A[0])):
-            if abs(A[i][j] - B[i][j]) > TOLERANCIA:
+            valor_a = A[i][j]
+            valor_b = B[i][j]
+            # Conserva la igualdad exacta cuando se trabaja con enteros o
+            # Fraction; los resultados float usan la tolerancia configurada.
+            if isinstance(valor_a, float) or isinstance(valor_b, float):
+                if abs(valor_a - valor_b) > TOLERANCIA:
+                    return False
+            elif valor_a != valor_b:
                 return False
 
     return True
@@ -91,6 +98,47 @@ def _crear_matriz_identidad(tamano):
         ]
         for i in range(tamano)
     ]
+
+
+def _obtener_pivotes(A):
+    """Obtiene los pivotes no nulos de A para informar también su rango."""
+    matriz = _copiar_matriz(A)
+    filas = len(matriz)
+    columnas = len(matriz[0])
+    fila_pivote = 0
+    pivotes = []
+
+    for columna in range(columnas):
+        if fila_pivote >= filas:
+            break
+        candidato = max(
+            range(fila_pivote, filas),
+            key=lambda i: abs(matriz[i][columna])
+        )
+        if abs(matriz[candidato][columna]) < TOLERANCIA:
+            continue
+        matriz[fila_pivote], matriz[candidato] = (
+            matriz[candidato], matriz[fila_pivote]
+        )
+        pivote = matriz[fila_pivote][columna]
+        pivotes.append(pivote)
+        for i in range(fila_pivote + 1, filas):
+            factor = matriz[i][columna] / pivote
+            for j in range(columna, columnas):
+                matriz[i][j] -= factor * matriz[fila_pivote][j]
+            matriz[i][columna] = 0
+        fila_pivote += 1
+
+    return pivotes
+
+
+def _paso_resumen_pivotes(cantidad):
+    return {
+        "tipo": "formula",
+        "titulo": "Cantidad de pivotes",
+        "operacion": "",
+        "detalle": str(cantidad)
+    }
 
 
 def transponer_matriz(A):
@@ -351,11 +399,15 @@ def invertir_matriz(A):
         }]
 
         if determinante == 0:
+            pivotes = _obtener_pivotes(matriz_original)
             proceso.append({
                 "tipo": "singular",
                 "titulo": "Matriz singular",
-                "operacion": "det(A) = 0; A no tiene inversa."
+                "operacion": "La matriz no tiene inversa."
             })
+            paso_pivotes = _paso_resumen_pivotes(len(pivotes))
+            paso_pivotes["numero"] = len(proceso) + 1
+            proceso.append(paso_pivotes)
             return {
                 "exito": True,
                 "operacion": "Inversa de matriz",
@@ -363,9 +415,10 @@ def invertir_matriz(A):
                 "matriz_aumentada": aumentada,
                 "matriz_inversa": None,
                 "inversa": None,
-                "resultado": None,
+                "resultado": 0,
                 "determinante": 0,
                 "invertible": False,
+                "cantidad_pivotes": len(pivotes),
                 "mensaje": "La matriz es singular y no tiene inversa.",
                 "proceso": proceso
             }
@@ -413,6 +466,20 @@ def invertir_matriz(A):
             "operacion": "A⁻¹",
             "matriz": _copiar_matriz(inversa)
         })
+        producto_verificacion = _multiplicar_dos_matrices(
+            matriz_original, inversa
+        )
+        verificacion = _matrices_son_iguales(
+            producto_verificacion, identidad
+        )
+        proceso.append({
+            "tipo": "verificacion",
+            "titulo": "Comprobación automática",
+            "operacion": "A · A⁻¹ = I",
+            "matriz": producto_verificacion,
+            "esperado": identidad,
+            "resultado": verificacion
+        })
         return {
             "exito": True,
             "operacion": "Inversa de matriz",
@@ -449,20 +516,31 @@ def invertir_matriz(A):
                 _formatear_numero(valor)
                 for valor in factores
             )
-            proceso.append({
+            paso_determinante = {
                 "tipo": "determinante",
                 "titulo": "Calcular Determinante",
                 "operacion": f"det(A) = {expresion} = 0",
                 "valor": 0
-            })
-            proceso.append({
+            }
+            pivotes = _obtener_pivotes(matriz_original)
+            proceso_singular = [{
+                "tipo": "inicio",
+                "titulo": "Matriz original",
+                "operacion": "A",
+                "matriz": _copiar_matriz(matriz_original)
+            }]
+            proceso_singular.append(paso_determinante)
+            proceso_singular.append({
                 "tipo": "singular",
+                "titulo": "Matriz singular",
                 "operacion": (
-                    f"No hay pivote en la columna {columna + 1}; "
-                    "A no es equivalente por filas a I."
-                ),
-                "matriz": _copiar_matriz(aumentada)
+                    f"No hay inversa. Falta un pivote "
+                    f"en la columna {columna + 1}."
+                )
             })
+            paso_pivotes = _paso_resumen_pivotes(len(pivotes))
+            paso_pivotes["numero"] = len(proceso_singular) + 1
+            proceso_singular.append(paso_pivotes)
             return {
                 "exito": True,
                 "operacion": "Inversa de matriz",
@@ -470,11 +548,12 @@ def invertir_matriz(A):
                 "matriz_aumentada": aumentada,
                 "matriz_inversa": None,
                 "inversa": None,
-                "resultado": None,
+                "resultado": 0,
                 "determinante": 0,
                 "invertible": False,
+                "cantidad_pivotes": len(pivotes),
                 "mensaje": "La matriz es singular y no tiene inversa.",
-                "proceso": proceso
+                "proceso": proceso_singular
             }
 
         if fila_pivote != columna:
@@ -564,6 +643,18 @@ def invertir_matriz(A):
         "tipo": "resultado",
         "operacion": "La parte izquierda es I; la derecha es A⁻¹",
         "matriz": _copiar_matriz(aumentada)
+    })
+    producto_verificacion = _multiplicar_dos_matrices(
+        matriz_original, inversa
+    )
+    verificacion = _matrices_son_iguales(producto_verificacion, identidad)
+    proceso.append({
+        "tipo": "verificacion",
+        "titulo": "Comprobación automática",
+        "operacion": "A · A⁻¹ = I",
+        "matriz": producto_verificacion,
+        "esperado": identidad,
+        "resultado": verificacion
     })
 
     return {

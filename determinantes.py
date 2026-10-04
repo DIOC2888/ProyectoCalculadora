@@ -92,18 +92,168 @@ def _determinante_recursivo(A):
     return 0 if abs(total) <= TOLERANCIA else total
 
 
-def calcular_determinante(A):
-    """
-    Calcula det(A) por desarrollo de cofactores.
+def _determinante_sarrus(A):
+    """Calcula el determinante 3x3 con la regla de Sarrus y sus pasos."""
+    a, b, c = A[0]
+    d, e, f = A[1]
+    g, h, i = A[2]
+    positivos = (a * e * i, b * f * g, c * d * h)
+    negativos = (c * e * g, b * d * i, a * f * h)
+    valor = sum(positivos) - sum(negativos)
+    if abs(valor) <= TOLERANCIA:
+        valor = 0
+    detalle = (
+        f"Diagonales descendentes: {_formatear(a)}·{_formatear(e)}·{_formatear(i)} "
+        f"+ {_formatear(b)}·{_formatear(f)}·{_formatear(g)} "
+        f"+ {_formatear(c)}·{_formatear(d)}·{_formatear(h)} "
+        f"= {_formatear(sum(positivos))}\n"
+        f"Diagonales ascendentes: {_formatear(c)}·{_formatear(e)}·{_formatear(g)} "
+        f"+ {_formatear(b)}·{_formatear(d)}·{_formatear(i)} "
+        f"+ {_formatear(a)}·{_formatear(f)}·{_formatear(h)} "
+        f"= {_formatear(sum(negativos))}\n"
+        f"det(A) = {_formatear(sum(positivos))} - "
+        f"{_formatear(sum(negativos))} = {_formatear(valor)}"
+    )
+    return valor, detalle
 
-    Devuelve un diccionario con el valor y un proceso resumido para
-    mostrar en la interfaz.
+
+def _determinante_triangular(A):
+    """Reduce por operaciones de fila y conserva signo y pivotes."""
+    matriz = _copiar_matriz(A)
+    n = len(matriz)
+    intercambios = 0
+    proceso = []
+    pivotes = []
+
+    for columna in range(n):
+        fila_pivote = max(
+            range(columna, n),
+            key=lambda fila: abs(matriz[fila][columna])
+        )
+        if abs(matriz[fila_pivote][columna]) <= TOLERANCIA:
+            pivotes.append(0)
+            proceso.append({
+                "tipo": "formula", "titulo": "PIVOTE NULO",
+                "operacion": f"Columna {columna + 1}",
+                "detalle": "No hay pivote distinto de cero; det(A) = 0."
+            })
+            return 0, proceso, intercambios, pivotes, matriz
+
+        if fila_pivote != columna:
+            matriz[columna], matriz[fila_pivote] = matriz[fila_pivote], matriz[columna]
+            intercambios += 1
+            proceso.append({
+                "tipo": "operacion_fila",
+                "titulo": "Intercambio de filas",
+                "operacion": f"F{columna + 1} ↔ F{fila_pivote + 1}; cambia el signo del determinante",
+                "matriz": _copiar_matriz(matriz)
+            })
+
+        pivote = matriz[columna][columna]
+        pivotes.append(pivote)
+        for fila in range(columna + 1, n):
+            factor = matriz[fila][columna] / pivote
+            matriz[fila] = [
+                matriz[fila][j] - factor * matriz[columna][j]
+                for j in range(n)
+            ]
+            matriz[fila][columna] = 0
+            proceso.append({
+                "tipo": "operacion_fila",
+                "titulo": "Anular entrada bajo el pivote",
+                "operacion": (
+                    f"F{fila + 1} ← F{fila + 1} - "
+                    f"({_formatear(factor)})F{columna + 1}"
+                ),
+                "matriz": _copiar_matriz(matriz)
+            })
+
+    producto_diagonal = 1
+    for pivote in pivotes:
+        producto_diagonal *= pivote
+    valor = (-1 if intercambios % 2 else 1) * producto_diagonal
+    if abs(valor) <= TOLERANCIA:
+        valor = 0
+    proceso.append({
+        "tipo": "formula",
+        "titulo": "Determinante desde la forma triangular",
+        "operacion": "det(A) = (-1)^s · producto de los pivotes",
+        "detalle": (
+            f"Intercambios s = {intercambios}; pivotes = "
+            f"{' · '.join(_formatear(p) for p in pivotes)}; "
+            f"det(A) = {'-1' if intercambios % 2 else '1'} · "
+            f"{_formatear(producto_diagonal)} = {_formatear(valor)}"
+        )
+    })
+    return valor, proceso, intercambios, pivotes, matriz
+
+
+def calcular_determinante(A, metodo="cofactores"):
+    """
+    Calcula det(A) usando solo el método solicitado.
+
+    metodo admite "cofactores", "triangular" o "sarrus" (solo 3x3).
+    Devuelve el valor calculado y los pasos para mostrar en la interfaz.
     """
 
     _validar_matriz_cuadrada(A)
 
     matriz = _copiar_matriz(A)
     n = len(matriz)
+
+    if metodo == "triangular":
+        determinante, pasos, intercambios, pivotes, triangular = (
+            _determinante_triangular(matriz)
+        )
+        proceso = [{
+            "numero": 1, "tipo": "inicio", "titulo": "MATRIZ ORIGINAL",
+            "operacion": "A", "matriz": _copiar_matriz(matriz)
+        }, {
+            "numero": 2, "tipo": "formula",
+            "titulo": "REDUCCIÓN A FORMA TRIANGULAR",
+            "operacion": "Usar operaciones de fila y producto diagonal"
+        }]
+        for paso in pasos:
+            paso["numero"] = len(proceso) + 1
+            proceso.append(paso)
+        proceso.append({
+            "numero": len(proceso) + 1, "tipo": "determinante",
+            "titulo": "RESULTADO", "operacion": "det(A)",
+            "detalle": f"det(A) = {_formatear(determinante)}",
+            "valor": determinante
+        })
+        return {
+            "determinante": determinante, "resultado": determinante,
+            "matriz": matriz, "metodo": metodo,
+            "intercambios_filas": intercambios,
+            "factores_diagonales": pivotes,
+            "matriz_triangular": triangular, "proceso": proceso
+        }
+
+    if metodo == "sarrus":
+        if n != 3:
+            raise ValueError("La regla de Sarrus solo se aplica a matrices 3x3.")
+        determinante, detalle = _determinante_sarrus(matriz)
+        proceso = [{
+            "numero": 1, "tipo": "inicio", "titulo": "MATRIZ ORIGINAL",
+            "operacion": "A", "matriz": _copiar_matriz(matriz)
+        }, {
+            "numero": 2, "tipo": "formula", "titulo": "REGLA DE SARRUS",
+            "operacion": "Diagonales descendentes menos ascendentes",
+            "detalle": detalle
+        }, {
+            "numero": 3, "tipo": "determinante", "titulo": "RESULTADO",
+            "operacion": "det(A)",
+            "detalle": f"det(A) = {_formatear(determinante)}",
+            "valor": determinante
+        }]
+        return {
+            "determinante": determinante, "resultado": determinante,
+            "matriz": matriz, "metodo": metodo, "proceso": proceso
+        }
+
+    if metodo != "cofactores":
+        raise ValueError("Selecciona cofactores, forma triangular o Sarrus.")
 
     proceso = [{
         "numero": 1,
@@ -266,4 +416,88 @@ def calcular_determinante(A):
         "fila_desarrollo": fila_desarrollo,
         "cofactores": cofactores,
         "proceso": proceso
+    }
+
+
+def resolver_sistema_cramer(A, b):
+    """Resuelve Ax=b por Cramer y conserva el desarrollo de cada determinante."""
+    _validar_matriz_cuadrada(A)
+    if not isinstance(b, (list, tuple)) or len(b) != len(A):
+        raise ValueError("El vector b debe tener una entrada por cada ecuación.")
+    if any(not isinstance(valor, (int, float)) for valor in b):
+        raise ValueError("Las entradas del vector b deben ser numéricas.")
+
+    matriz = _copiar_matriz(A)
+    vector = list(b)
+    base = calcular_determinante(matriz, "cofactores")
+    proceso = [{
+        "numero": 1, "tipo": "inicio", "titulo": "SISTEMA Ax = b",
+        "operacion": "Aplicar la regla de Cramer",
+        "matriz": [fila[:] + [vector[i]] for i, fila in enumerate(matriz)]
+    }]
+    proceso.append({
+        "numero": 2, "tipo": "formula", "titulo": "DETERMINANTE PRINCIPAL",
+        "operacion": "D = det(A)", "detalle": f"D = { _formatear(base['determinante']) }"
+    })
+    for paso in base["proceso"][1:]:
+        paso_copia = dict(paso)
+        paso_copia["numero"] = len(proceso) + 1
+        paso_copia["titulo"] = f"D: {paso_copia.get('titulo', 'Paso')}"
+        proceso.append(paso_copia)
+
+    if abs(base["determinante"]) <= TOLERANCIA:
+        proceso.append({
+            "numero": len(proceso) + 1, "tipo": "singular",
+            "titulo": "No hay solución única por Cramer",
+            "operacion": "det(A) = 0"
+        })
+        return {
+            "exito": True, "operacion": "Cramer", "solucion": None,
+            "determinante": base["determinante"], "determinantes_reemplazo": [],
+            "proceso": proceso,
+            "mensaje": "det(A) = 0; la regla de Cramer no determina una solución única."
+        }
+
+    determinantes = []
+    solucion = []
+    for columna in range(len(matriz)):
+        reemplazada = _copiar_matriz(matriz)
+        for fila in range(len(matriz)):
+            reemplazada[fila][columna] = vector[fila]
+        datos = calcular_determinante(reemplazada, "cofactores")
+        d_j = datos["determinante"]
+        x_j = d_j / base["determinante"]
+        determinantes.append(d_j)
+        solucion.append(0 if isinstance(x_j, float) and abs(x_j) <= TOLERANCIA else x_j)
+        proceso.append({
+            "numero": len(proceso) + 1, "tipo": "inicio",
+            "titulo": f"REEMPLAZAR COLUMNA {columna + 1}",
+            "operacion": f"D{columna + 1} = det(A{columna + 1})",
+            "matriz": reemplazada
+        })
+        for paso in datos["proceso"][1:]:
+            paso_copia = dict(paso)
+            paso_copia["numero"] = len(proceso) + 1
+            paso_copia["titulo"] = f"D{columna + 1}: {paso_copia.get('titulo', 'Paso')}"
+            proceso.append(paso_copia)
+        proceso.append({
+            "numero": len(proceso) + 1, "tipo": "formula",
+            "titulo": f"CALCULAR x{columna + 1}",
+            "operacion": f"x{columna + 1} = D{columna + 1} / D",
+            "detalle": (
+                f"x{columna + 1} = {_formatear(d_j)} / "
+                f"{_formatear(base['determinante'])} = {_formatear(solucion[-1])}"
+            )
+        })
+
+    proceso.append({
+        "numero": len(proceso) + 1, "tipo": "resultado",
+        "titulo": "SOLUCIÓN", "operacion": "x",
+        "resultado": solucion
+    })
+    return {
+        "exito": True, "operacion": "Cramer", "solucion": solucion,
+        "resultado": solucion, "determinante": base["determinante"],
+        "determinantes_reemplazo": determinantes,
+        "proceso": proceso, "mensaje": "Solución calculada por la regla de Cramer."
     }

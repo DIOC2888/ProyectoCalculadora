@@ -212,8 +212,10 @@ class VistaOperacionesMatriz(QWidget):
         cols_box = QVBoxLayout()
         cols_box.setSpacing(6)
         lbl_cols = QLabel("COLUMNAS (n)")
+        self.lbl_mops_cols = lbl_cols
         lbl_cols.setStyleSheet("color: #64748B; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; background: transparent;")
         self.stepper_mops_cols = NumberStepper(value=3)
+        self.stepper_mops_cols.max_val = 11
         cols_box.addWidget(lbl_cols)
         cols_box.addWidget(self.stepper_mops_cols)
         
@@ -524,6 +526,14 @@ class VistaOperacionesMatriz(QWidget):
         self.combo_mops_metodo.setFixedWidth(220)
         self.combo_mops_metodo.setFixedHeight(38)
         self.combo_mops_metodo.setCurrentIndex(0)
+        self.combo_mops_determinante = QComboBox()
+        self.combo_mops_determinante.addItem("Cofactores", "cofactores")
+        self.combo_mops_determinante.addItem("Matriz triangular", "triangular")
+        self.combo_mops_determinante.addItem("Sarrus (3×3)", "sarrus")
+        self.combo_mops_determinante.addItem("Cramer", "cramer")
+        self.combo_mops_determinante.setFixedWidth(190)
+        self.combo_mops_determinante.setFixedHeight(38)
+        self.combo_mops_determinante.hide()
         self.combo_mops_traspuesta = QComboBox()
         self.combo_mops_traspuesta.addItem("(Aᵀ)ᵀ = A", "Doble traspuesta")
         self.combo_mops_traspuesta.addItem("(A + B)ᵀ = Aᵀ + Bᵀ", "Traspuesta de una suma")
@@ -586,6 +596,8 @@ class VistaOperacionesMatriz(QWidget):
             }
         """)
         self.combo_mops_metodo.view().setStyleSheet(combo_popup_style)
+        self.combo_mops_determinante.setStyleSheet(self.combo_mops_metodo.styleSheet())
+        self.combo_mops_determinante.view().setStyleSheet(combo_popup_style)
         self.combo_mops_traspuesta.setStyleSheet(self.combo_mops_metodo.styleSheet())
         self.combo_mops_traspuesta.view().setStyleSheet(combo_popup_style)
         self.combo_mops_propiedad.setStyleSheet(self.combo_mops_metodo.styleSheet())
@@ -594,6 +606,9 @@ class VistaOperacionesMatriz(QWidget):
         self.combo_mops_dimension_matrix.view().setStyleSheet(combo_popup_style)
 
         self.combo_mops_metodo.currentIndexChanged.connect(self._on_mops_operation_changed)
+        self.combo_mops_determinante.currentIndexChanged.connect(
+            self._on_mops_determinante_changed
+        )
         self.combo_mops_dimension_matrix.currentIndexChanged.connect(
             self._on_mops_dimension_matrix_changed
         )
@@ -603,6 +618,7 @@ class VistaOperacionesMatriz(QWidget):
         
         mops_action_buttons.addWidget(btn_calc_mops)
         mops_action_buttons.addWidget(self.combo_mops_metodo)
+        mops_action_buttons.addWidget(self.combo_mops_determinante)
         mops_action_buttons.addWidget(self.combo_mops_traspuesta)
         mops_action_buttons.addWidget(btn_clear_mops)
         mops_action_buttons.addStretch()
@@ -856,6 +872,27 @@ class VistaOperacionesMatriz(QWidget):
     def _on_mops_operation_changed(self):
 
         metodo = self.combo_mops_metodo.currentText()
+        es_determinante = metodo == "Determinante"
+        self.combo_mops_determinante.setVisible(es_determinante)
+        es_cramer = (
+            es_determinante
+            and self.combo_mops_determinante.currentData() == "cramer"
+        )
+        if getattr(self, "_mops_cramer_mode", False) and not es_cramer:
+            self._set_stepper_value(
+                self.stepper_mops_cols,
+                self.stepper_mops_rows.value
+            )
+        self._mops_cramer_mode = es_cramer
+        self.lbl_mops_cols.setText(
+            "COLUMNAS (A | b)" if es_cramer else "COLUMNAS (n)"
+        )
+        self.stepper_mops_cols.setEnabled(not es_cramer)
+        if es_cramer:
+            self._set_stepper_value(
+                self.stepper_mops_cols,
+                self.stepper_mops_rows.value + 1
+            )
         propiedades_por_operacion = {
             "Sumar": [
                 ("Operación normal", None),
@@ -945,6 +982,30 @@ class VistaOperacionesMatriz(QWidget):
                 ControladorVectores.ver_teoremas_clave()
             )
 
+    def _on_mops_determinante_changed(self):
+        if not hasattr(self, "stepper_mops_rows"):
+            return
+        es_cramer = (
+            self.combo_mops_metodo.currentText() == "Determinante"
+            and self.combo_mops_determinante.currentData() == "cramer"
+        )
+        if getattr(self, "_mops_cramer_mode", False) and not es_cramer:
+            self._set_stepper_value(
+                self.stepper_mops_cols,
+                self.stepper_mops_rows.value
+            )
+        self._mops_cramer_mode = es_cramer
+        self.lbl_mops_cols.setText(
+            "COLUMNAS (A | b)" if es_cramer else "COLUMNAS (n)"
+        )
+        self.stepper_mops_cols.setEnabled(not es_cramer)
+        if es_cramer:
+            self._set_stepper_value(
+                self.stepper_mops_cols,
+                self.stepper_mops_rows.value + 1
+            )
+        self._rebuild_matrix_ops_grid()
+
     def _on_mops_property_changed(self):
         if not hasattr(self, "stepper_mops_count"):
             return
@@ -1018,6 +1079,14 @@ class VistaOperacionesMatriz(QWidget):
         self._rebuild_matrix_ops_grid()
 
     def _on_mops_rows_changed(self):
+        if (
+            self.combo_mops_metodo.currentText() == "Determinante"
+            and self.combo_mops_determinante.currentData() == "cramer"
+        ):
+            self._set_stepper_value(
+                self.stepper_mops_cols,
+                self.stepper_mops_rows.value + 1
+            )
         self._guardar_dimensiones_matriz_seleccionada()
         self._rebuild_matrix_ops_grid()
 
@@ -1271,6 +1340,11 @@ class VistaOperacionesMatriz(QWidget):
                 )
             else:
                 etiqueta_matriz = f"A<sub>{m + 1}</sub>"
+                if (
+                    metodo == "Determinante"
+                    and self.combo_mops_determinante.currentData() == "cramer"
+                ):
+                    etiqueta_matriz = "Matriz aumentada [A | b]"
 
             lbl_m = QLabel(etiqueta_matriz)
 
@@ -1945,9 +2019,24 @@ class VistaOperacionesMatriz(QWidget):
                 )
 
             elif modo == "Determinante":
-                resultado = ControladorVectores.calcular_determinante(
-                    matrices[0]
-                )
+                metodo_determinante = self.combo_mops_determinante.currentData()
+                if metodo_determinante == "cramer":
+                    aumentada = matrices[0]
+                    if len(aumentada[0]) != len(aumentada) + 1:
+                        raise ValueError(
+                            "Para Cramer ingresa una matriz aumentada n×(n+1): "
+                            "coeficientes en las primeras n columnas y b en la última."
+                        )
+                    matriz_coeficientes = [fila[:-1] for fila in aumentada]
+                    vector_terminos = [fila[-1] for fila in aumentada]
+                    resultado = ControladorVectores.resolver_cramer(
+                        matriz_coeficientes,
+                        vector_terminos
+                    )
+                else:
+                    resultado = ControladorVectores.calcular_determinante(
+                        matrices[0], metodo_determinante
+                    )
 
             elif modo == "Teoremas clave":
                 resultado = ControladorVectores.ver_teoremas_clave()
@@ -2352,7 +2441,11 @@ class VistaOperacionesMatriz(QWidget):
             operacion_paso = paso.get("operacion", "")
             etiqueta = operacion_paso if isinstance(operacion_paso, str) else ""
             tipo = paso.get("tipo", "")
-            if tipo == "determinante" and not paso.get("detalle"):
+            if tipo == "singular":
+                # La operación se muestra en el contenido; evita repetirla
+                # también en la línea secundaria del encabezado.
+                etiqueta = ""
+            elif tipo == "determinante" and not paso.get("detalle"):
                 # El título identifica el paso; la ecuación aparece una sola vez abajo.
                 etiqueta = ""
 
@@ -2503,15 +2596,34 @@ class VistaOperacionesMatriz(QWidget):
                     if paso.get("resultado")
                     else "La igualdad no se cumple."
                 )
-                contenido = QLabel(texto)
-                contenido.setStyleSheet("""
-                    color: #0F172A;
-                    font-size: 13px;
-                    font-weight: 700;
-                    border: none;
-                    background: transparent;
-                    padding-left: 40px;
-                """)
+                if paso.get("matriz") is not None and paso.get("esperado") is not None:
+                    contenido = QWidget()
+                    contenido.setStyleSheet("background: transparent; border: none;")
+                    verificacion_layout = QVBoxLayout(contenido)
+                    verificacion_layout.setContentsMargins(0, 0, 0, 0)
+                    verificacion_layout.setSpacing(10)
+                    verificacion_layout.addWidget(
+                        self._crear_fila_matrices_widget(
+                            [paso["matriz"], paso["esperado"]],
+                            "="
+                        )
+                    )
+                    lbl_estado = QLabel(texto)
+                    lbl_estado.setStyleSheet(
+                        "color: #0F172A; font-size: 13px; font-weight: 700;"
+                        " border: none; background: transparent; padding-left: 40px;"
+                    )
+                    verificacion_layout.addWidget(lbl_estado)
+                else:
+                    contenido = QLabel(texto)
+                    contenido.setStyleSheet("""
+                        color: #0F172A;
+                        font-size: 13px;
+                        font-weight: 700;
+                        border: none;
+                        background: transparent;
+                        padding-left: 40px;
+                    """)
 
             else:
                 contenido = QLabel(str(paso))
@@ -2661,8 +2773,31 @@ class VistaOperacionesMatriz(QWidget):
             "Propiedad identidad matrices"
         )
 
-        if operacion == "Determinante":
-            self._agregar_titulo_seccion(layout_principal, "DETERMINANTE")
+        if operacion in ("Determinante", "Cramer"):
+            self._agregar_titulo_seccion(
+                layout_principal,
+                "SOLUCIÓN POR CRAMER" if operacion == "Cramer" else "DETERMINANTE"
+            )
+
+            if operacion == "Cramer":
+                solucion = resultado.get("solucion")
+                texto_solucion = (
+                    "No existe solución única por Cramer (det(A) = 0)."
+                    if solucion is None
+                    else "Solución: " + ", ".join(
+                        f"x{i + 1} = {formatear_numero(valor)}"
+                        for i, valor in enumerate(solucion)
+                    )
+                )
+                lbl_solucion = QLabel(texto_solucion)
+                lbl_solucion.setWordWrap(True)
+                lbl_solucion.setStyleSheet(
+                    "color: #0F172A; font-size: 18px; font-weight: 800;"
+                    " background-color: #F8FAFC; border: 1px solid #E2E8F0;"
+                    " border-radius: 10px; padding: 14px 16px;"
+                )
+                layout_principal.addWidget(lbl_solucion)
+                return
 
             determinante = resultado.get("determinante")
             lbl_det = QLabel(
@@ -2682,23 +2817,32 @@ class VistaOperacionesMatriz(QWidget):
             """)
             layout_principal.addWidget(lbl_det)
 
-            fila_desarrollo = resultado.get("fila_desarrollo")
-            if fila_desarrollo is not None:
-                lbl_metodo = QLabel(
-                    "Metodo: desarrollo por cofactores "
-                    f"en la fila {fila_desarrollo + 1}."
+            metodo = resultado.get("metodo", "cofactores")
+            etiqueta_metodo = {
+                "cofactores": "Expansión por cofactores",
+                "triangular": "Reducción a forma triangular",
+                "sarrus": "Regla de Sarrus"
+            }.get(metodo, metodo)
+            extra = ""
+            if metodo == "cofactores":
+                fila_desarrollo = resultado.get("fila_desarrollo")
+                if fila_desarrollo is not None:
+                    extra = f" en la fila {fila_desarrollo + 1}"
+                extra += "; su costo puede crecer cerca de n! multiplicaciones"
+            elif metodo == "triangular":
+                extra = (
+                    f"; intercambios de filas: "
+                    f"{resultado.get('intercambios_filas', 0)}; factores "
+                    f"diagonales: {resultado.get('factores_diagonales', [])}"
                 )
-                lbl_metodo.setWordWrap(True)
-                lbl_metodo.setStyleSheet("""
-                    color: #475569;
-                    font-size: 13px;
-                    font-weight: 600;
-                    background-color: #F8FAFC;
-                    border: 1px solid #E2E8F0;
-                    border-radius: 10px;
-                    padding: 12px;
-                """)
-                layout_principal.addWidget(lbl_metodo)
+            lbl_metodo = QLabel(f"Método: {etiqueta_metodo}{extra}.")
+            lbl_metodo.setWordWrap(True)
+            lbl_metodo.setStyleSheet(
+                "color: #475569; font-size: 13px; font-weight: 600;"
+                " background-color: #F8FAFC; border: 1px solid #E2E8F0;"
+                " border-radius: 10px; padding: 12px;"
+            )
+            layout_principal.addWidget(lbl_metodo)
 
         elif operacion == "Teoremas clave":
             self._agregar_titulo_seccion(
@@ -2778,6 +2922,19 @@ class VistaOperacionesMatriz(QWidget):
                 padding: 12px;
             """)
             layout_principal.addWidget(mensaje)
+
+            if not resultado.get("invertible", False):
+                lbl_pivotes = QLabel(
+                    "Cantidad de pivotes: "
+                    f"{resultado.get('cantidad_pivotes', 0)}"
+                )
+                lbl_pivotes.setWordWrap(True)
+                lbl_pivotes.setStyleSheet(
+                    "color: #0F172A; font-size: 13px; font-weight: 700;"
+                    " background-color: #F8FAFC; border: 1px solid #E2E8F0;"
+                    " border-radius: 10px; padding: 12px;"
+                )
+                layout_principal.addWidget(lbl_pivotes)
 
             inversa = resultado.get("matriz_inversa")
             if inversa is not None:
@@ -3589,10 +3746,26 @@ class VistaOperacionesMatriz(QWidget):
             banner_bg = "#ECFDF5"
             banner_border = "#A7F3D0"
 
+        elif modo == "Cramer":
+            invertible = resultado.get("solucion") is not None
+            color_icono = "#059669" if invertible else "#B45309"
+            titulo_estado = (
+                "Sistema resuelto por Cramer"
+                if invertible else "Cramer no determina solución única"
+            )
+            sub_estado = resultado.get("mensaje", "")
+            texto_icono = "OK" if invertible else "NO"
+            banner_bg = "#ECFDF5" if invertible else "#FFFBEB"
+            banner_border = "#A7F3D0" if invertible else "#FDE68A"
+
         elif modo == "Determinante":
             color_icono = "#2563EB"
             titulo_estado = "Determinante calculado"
-            sub_estado = "Desarrollo por cofactores"
+            sub_estado = {
+                "cofactores": "Expansión por cofactores",
+                "triangular": "Reducción a forma triangular",
+                "sarrus": "Regla de Sarrus"
+            }.get(resultado.get("metodo"), "Determinante calculado")
             texto_icono = "DET"
             banner_bg = "#EFF6FF"
             banner_border = "#BFDBFE"
@@ -3708,7 +3881,8 @@ class VistaOperacionesMatriz(QWidget):
             "Traspuesta",
             "Propiedad de la traspuesta",
             "Propiedad suma y escalares",
-            "Determinante"
+            "Determinante",
+            "Cramer"
         ):
             self.results_layout.addWidget(
                 self._crear_card_proceso_matricial(resultado)

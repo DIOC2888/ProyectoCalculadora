@@ -552,11 +552,16 @@ class ControladorVectores:
                 "matriz": datos.get("matriz_original", A),
                 "matriz_original": datos.get("matriz_original", A),
                 "matriz_aumentada": datos.get("matriz_aumentada"),
-                "resultado": datos.get("matriz_inversa"),
+                "resultado": (
+                    datos.get("matriz_inversa")
+                    if datos.get("invertible", False)
+                    else datos.get("determinante")
+                ),
                 "matriz_inversa": datos.get("matriz_inversa"),
                 "inversa": datos.get("matriz_inversa"),
                 "determinante": datos.get("determinante"),
                 "invertible": datos.get("invertible", False),
+                "cantidad_pivotes": datos.get("cantidad_pivotes", 0),
                 "mensaje": datos.get("mensaje", ""),
                 "proceso": datos.get("proceso", [])
             }
@@ -671,10 +676,10 @@ class ControladorVectores:
                 "mensaje": str(e)
             }
     @staticmethod
-    def calcular_determinante(A):
-        """Calcula det(A) por desarrollo de cofactores."""
+    def calcular_determinante(A, metodo="cofactores"):
+        """Calcula det(A) únicamente mediante el método seleccionado."""
         try:
-            datos = backend_determinantes.calcular_determinante(A)
+            datos = backend_determinantes.calcular_determinante(A, metodo)
 
             return {
                 "exito": True,
@@ -685,8 +690,11 @@ class ControladorVectores:
                 "metodo": datos.get("metodo"),
                 "fila_desarrollo": datos.get("fila_desarrollo"),
                 "cofactores": datos.get("cofactores", []),
+                "intercambios_filas": datos.get("intercambios_filas", 0),
+                "factores_diagonales": datos.get("factores_diagonales", []),
+                "matriz_triangular": datos.get("matriz_triangular"),
                 "proceso": datos.get("proceso", []),
-                "mensaje": "Determinante calculado por cofactores."
+                "mensaje": f"Determinante calculado por {metodo}."
             }
 
         except (ValueError, TypeError) as e:
@@ -696,6 +704,20 @@ class ControladorVectores:
                 "matriz": A,
                 "resultado": None,
                 "determinante": None,
+                "proceso": [],
+                "mensaje": str(e)
+            }
+
+    @staticmethod
+    def resolver_cramer(A, b):
+        """Resuelve un sistema cuadrado con la regla de Cramer."""
+        try:
+            return backend_determinantes.resolver_sistema_cramer(A, b)
+        except (ValueError, TypeError, IndexError) as e:
+            return {
+                "exito": False,
+                "operacion": "Cramer",
+                "solucion": None,
                 "proceso": [],
                 "mensaje": str(e)
             }
