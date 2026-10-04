@@ -21,6 +21,16 @@ def subindice(numero):
     return str(numero).translate(tabla)
 
 
+def superindice(numero):
+    """Convierte digitos y signos comunes a simbolos de superindice."""
+
+    tabla = str.maketrans(
+        "0123456789+-()",
+        "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁽⁾"
+    )
+    return str(numero).translate(tabla)
+
+
 # ----------------------------------------------------------
 # MOSTRAR DECIMALES COMO FRACCIONES
 # ----------------------------------------------------------

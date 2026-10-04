@@ -691,10 +691,12 @@ class ControladorVectores:
                 "mensaje": str(e)
             }
     @staticmethod
-    def calcular_determinante(A, metodo="cofactores"):
+    def calcular_determinante(A, metodo="cofactores", eje_desarrollo=None):
         """Calcula det(A) únicamente mediante el método seleccionado."""
         try:
-            datos = backend_determinantes.calcular_determinante(A, metodo)
+            datos = backend_determinantes.calcular_determinante(
+                A, metodo, eje_desarrollo=eje_desarrollo
+            )
 
             return {
                 "exito": True,
@@ -704,6 +706,7 @@ class ControladorVectores:
                 "determinante": datos.get("determinante"),
                 "metodo": datos.get("metodo"),
                 "fila_desarrollo": datos.get("fila_desarrollo"),
+                "columna_desarrollo": datos.get("columna_desarrollo"),
                 "cofactores": datos.get("cofactores", []),
                 "intercambios_filas": datos.get("intercambios_filas", 0),
                 "factores_diagonales": datos.get("factores_diagonales", []),
@@ -724,11 +727,12 @@ class ControladorVectores:
 
     @staticmethod
     def verificar_propiedad_determinante(
-        A, propiedad, operacion_fila=None, fila_i=None, fila_j=None, k=None
+        A, propiedad, operacion_fila=None, fila_i=None, fila_j=None, k=None,
+        B=None
     ):
         try:
             return backend_determinantes.verificar_propiedad_determinante(
-                A, propiedad, operacion_fila, fila_i, fila_j, k
+                A, propiedad, operacion_fila, fila_i, fila_j, k, B=B
             )
         except (ValueError, TypeError, IndexError) as e:
             return {

@@ -5,11 +5,12 @@ PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."
 if PROJECT_DIR not in sys.path:
     sys.path.insert(0, PROJECT_DIR)
 
-from formato import formatear_numero
+from formato import formatear_numero, subindice
 from fractions import Fraction
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QFrame,
+    QBoxLayout,
     QGridLayout,
     QHBoxLayout,
     QLabel,
@@ -200,6 +201,7 @@ class VistaOperacionesMatriz(QWidget):
         # Controles superiores
         mops_controls = QHBoxLayout()
         mops_controls.setSpacing(24)
+        self.mops_controls = mops_controls
         
         rows_box = QVBoxLayout()
         rows_box.setSpacing(6)
@@ -231,14 +233,16 @@ class VistaOperacionesMatriz(QWidget):
         propiedad_box = QVBoxLayout(propiedad_widget)
         propiedad_box.setSpacing(6)
         propiedad_box.setContentsMargins(0, 0, 0, 0)
+        self.mops_propiedad_layout = propiedad_box
         self.lbl_mops_propiedad = QLabel("PROPIEDAD", propiedad_widget)
         self.lbl_mops_propiedad.setStyleSheet(lbl_mats.styleSheet())
         self.combo_mops_propiedad = QComboBox(propiedad_widget)
-        self.combo_mops_propiedad.setFixedWidth(260)
+        self.combo_mops_propiedad.setFixedWidth(220)
         self.combo_mops_propiedad.setFixedHeight(38)
         self.combo_mops_propiedad.hide()
         self.lbl_mops_propiedad.hide()
         self.combo_mops_propiedad.currentIndexChanged.connect(self._on_mops_property_changed)
+        self.mops_propiedad_widget = propiedad_widget
         propiedad_box.addWidget(self.lbl_mops_propiedad)
         propiedad_box.addWidget(self.combo_mops_propiedad)
 
@@ -253,6 +257,7 @@ class VistaOperacionesMatriz(QWidget):
         mops_controls.addLayout(cols_box)
         mops_controls.addLayout(mats_box)
         mops_controls.addWidget(propiedad_widget)
+        self._mops_propiedad_en_acciones = False
         dimension_matrix_box = QVBoxLayout()
         dimension_matrix_box.setSpacing(6)
         lbl_dimension_matrix = QLabel("EDITAR DIMENSIONES DE")
@@ -298,7 +303,12 @@ class VistaOperacionesMatriz(QWidget):
             columna.setSpacing(4)
             etiqueta = QLabel(texto)
             etiqueta.setStyleSheet(lbl_mats.styleSheet())
-            if texto == "Fila j":
+            if texto == "Operación de fila":
+                self.lbl_det_operacion_eje = etiqueta
+            elif texto == "Fila i":
+                self.lbl_det_eje_i = etiqueta
+            elif texto == "Fila j":
+                self.lbl_det_eje_j = etiqueta
                 self.lbl_det_fila_j = etiqueta
             elif texto == "k":
                 self.lbl_det_k = etiqueta
@@ -317,6 +327,23 @@ class VistaOperacionesMatriz(QWidget):
         )
         self.det_filas_container.hide()
         mops_layout.addWidget(self.det_filas_container)
+
+        self.mops_cofactores_container = QWidget(matrix_ops_view)
+        cofactores_layout = QVBoxLayout(self.mops_cofactores_container)
+        cofactores_layout.setContentsMargins(0, 0, 0, 0)
+        cofactores_layout.setSpacing(6)
+        self.lbl_mops_cofactor_axis = QLabel(
+            "DESARROLLAR POR", self.mops_cofactores_container
+        )
+        self.lbl_mops_cofactor_axis.setStyleSheet(lbl_mats.styleSheet())
+        self.combo_mops_cofactor_axis = QComboBox(self.mops_cofactores_container)
+        self.combo_mops_cofactor_axis.setFixedWidth(250)
+        self.combo_mops_cofactor_axis.setFixedHeight(38)
+        cofactores_layout.addWidget(self.lbl_mops_cofactor_axis)
+        cofactores_layout.addWidget(self.combo_mops_cofactor_axis)
+        self.mops_cofactores_container.hide()
+        self._actualizar_opciones_cofactores()
+        mops_layout.addWidget(self.mops_cofactores_container)
         
          # ============================================================
         # ÁREA DINÁMICA DE MATRICES
@@ -521,6 +548,7 @@ class VistaOperacionesMatriz(QWidget):
         # Botones de Acción y ComboBox
         mops_action_buttons = QHBoxLayout()
         mops_action_buttons.setSpacing(12)
+        self.mops_action_buttons = mops_action_buttons
         
         btn_calc_mops = QPushButton("Calcular")
         btn_calc_mops.setStyleSheet("""
@@ -577,7 +605,7 @@ class VistaOperacionesMatriz(QWidget):
             "Determinante",
             "Teoremas clave"
         ])
-        self.combo_mops_metodo.setFixedWidth(220)
+        self.combo_mops_metodo.setFixedWidth(180)
         self.combo_mops_metodo.setFixedHeight(38)
         self.combo_mops_metodo.setCurrentIndex(0)
         self.combo_mops_determinante = QComboBox()
@@ -585,7 +613,7 @@ class VistaOperacionesMatriz(QWidget):
         self.combo_mops_determinante.addItem("Matriz triangular", "triangular")
         self.combo_mops_determinante.addItem("Sarrus (3×3)", "sarrus")
         self.combo_mops_determinante.addItem("Cramer", "cramer")
-        self.combo_mops_determinante.setFixedWidth(190)
+        self.combo_mops_determinante.setFixedWidth(160)
         self.combo_mops_determinante.setFixedHeight(38)
         self.combo_mops_determinante.hide()
         self.combo_mops_vector_propiedad = QComboBox()
@@ -604,6 +632,17 @@ class VistaOperacionesMatriz(QWidget):
         self.combo_mops_vector_propiedad.setFixedWidth(320)
         self.combo_mops_vector_propiedad.setFixedHeight(38)
         self.combo_mops_vector_propiedad.hide()
+        vector_propiedad_widget = QWidget(matrix_ops_view)
+        vector_propiedad_box = QVBoxLayout(vector_propiedad_widget)
+        vector_propiedad_box.setSpacing(6)
+        vector_propiedad_box.setContentsMargins(0, 0, 0, 0)
+        self.lbl_mops_vector_propiedad = QLabel("OPERACIÓN", vector_propiedad_widget)
+        self.lbl_mops_vector_propiedad.setStyleSheet(lbl_mats.styleSheet())
+        vector_propiedad_box.addWidget(self.lbl_mops_vector_propiedad)
+        vector_propiedad_box.addWidget(self.combo_mops_vector_propiedad)
+        vector_propiedad_widget.hide()
+        self.mops_vector_propiedad_widget = vector_propiedad_widget
+        mops_controls.addWidget(vector_propiedad_widget)
         self.combo_mops_vector_propiedad.currentIndexChanged.connect(
             self._on_mops_vector_property_changed
         )
@@ -672,6 +711,8 @@ class VistaOperacionesMatriz(QWidget):
         self.combo_mops_metodo.view().setStyleSheet(combo_popup_style)
         self.combo_mops_determinante.setStyleSheet(self.combo_mops_metodo.styleSheet())
         self.combo_mops_determinante.view().setStyleSheet(combo_popup_style)
+        self.combo_mops_cofactor_axis.setStyleSheet(self.combo_mops_metodo.styleSheet())
+        self.combo_mops_cofactor_axis.view().setStyleSheet(combo_popup_style)
         self.combo_mops_vector_propiedad.setStyleSheet(self.combo_mops_metodo.styleSheet())
         self.combo_mops_vector_propiedad.view().setStyleSheet(combo_popup_style)
         self.combo_mops_traspuesta.setStyleSheet(self.combo_mops_metodo.styleSheet())
@@ -704,10 +745,10 @@ class VistaOperacionesMatriz(QWidget):
         mops_action_buttons.addWidget(btn_calc_mops)
         mops_action_buttons.addWidget(self.combo_mops_metodo)
         mops_action_buttons.addWidget(self.combo_mops_determinante)
-        mops_action_buttons.addWidget(self.combo_mops_vector_propiedad)
         mops_action_buttons.addWidget(self.combo_mops_traspuesta)
         mops_action_buttons.addWidget(btn_clear_mops)
         mops_action_buttons.addStretch()
+        self.btn_clear_mops = btn_clear_mops
         
         mops_layout.addLayout(mops_action_buttons)
         
@@ -944,7 +985,7 @@ class VistaOperacionesMatriz(QWidget):
             return 1
 
         if metodo == "Determinante":
-            return 1
+            return 2 if self.combo_mops_propiedad.currentData() == "det_multiplicativa" else 1
 
         if metodo == "Teoremas clave":
             return 0
@@ -1036,9 +1077,11 @@ class VistaOperacionesMatriz(QWidget):
             ],
             "Determinante": [
                 ("Operación normal", None),
-                ("Propiedad 4: det(A⁻¹) = 1/det(A)", "det_inversa"),
-                ("Propiedad 5: operaciones de fila", "det_filas"),
-                ("Propiedad 6: matriz triangular", "det_triangular")
+                ("Operaciones de fila", "det_filas"),
+                ("Teorema de matriz triangular", "det_triangular"),
+                ("Operaciones de columna", "det_columnas"),
+                ("det(AB) = det(A) · det(B)", "det_multiplicativa"),
+                ("det(A⁻¹) = 1/det(A)", "det_inversa")
             ]
         }
         self.combo_mops_propiedad.blockSignals(True)
@@ -1047,17 +1090,20 @@ class VistaOperacionesMatriz(QWidget):
             self.combo_mops_propiedad.addItem(etiqueta, propiedad)
         self.combo_mops_propiedad.blockSignals(False)
         tiene_propiedad = metodo in propiedades_por_operacion
+        self.mops_propiedad_widget.setVisible(tiene_propiedad)
         self.combo_mops_propiedad.setVisible(tiene_propiedad)
         self.lbl_mops_propiedad.setVisible(tiene_propiedad)
         self.combo_mops_determinante.setVisible(
             metodo == "Determinante"
-            and self.combo_mops_propiedad.currentData() is None
         )
         self.lbl_mops_escalar_r.setText("ESCALAR (k)")
         if hasattr(self, "lbl_mops_escalar_s"):
             self._actualizar_campo_escalares()
         es_matriz_vector = metodo == "Matriz por vector"
+        self.mops_vector_propiedad_widget.setVisible(es_matriz_vector)
         self.combo_mops_vector_propiedad.setVisible(es_matriz_vector)
+        self._actualizar_visibilidad_selector_cofactores()
+        self._actualizar_ubicacion_selector_propiedad(metodo)
         propiedad_vector = self._mops_vector_propiedad_actual()
         es_traspuesta = metodo == "Traspuesta"
         self.combo_mops_traspuesta.setVisible(es_traspuesta)
@@ -1082,7 +1128,9 @@ class VistaOperacionesMatriz(QWidget):
         elif metodo == "Inversa":
             matrices_requeridas = 2 if propiedad_suma == "inversa_producto" else 1
         elif metodo == "Determinante":
-            matrices_requeridas = 1
+            matrices_requeridas = (
+                2 if propiedad_suma == "det_multiplicativa" else 1
+            )
         necesita_selector_dimensiones = (
             metodo == "Multiplicar"
             or (metodo == "Inversa" and propiedad_suma == "inversa_producto")
@@ -1169,6 +1217,58 @@ class VistaOperacionesMatriz(QWidget):
                 ControladorVectores.ver_teoremas_clave()
             )
 
+    def _actualizar_ubicacion_selector_propiedad(self, metodo):
+        mover_a_acciones = metodo == "Inversa"
+        self.lbl_mops_propiedad.setVisible(
+            not mover_a_acciones and self.combo_mops_propiedad.isVisible()
+        )
+        self.mops_propiedad_layout.setDirection(
+            QBoxLayout.Direction.LeftToRight
+            if mover_a_acciones
+            else QBoxLayout.Direction.TopToBottom
+        )
+        if mover_a_acciones == self._mops_propiedad_en_acciones:
+            return
+        if mover_a_acciones:
+            self.mops_controls.removeWidget(self.mops_propiedad_widget)
+            indice_limpiar = self.mops_action_buttons.indexOf(self.btn_clear_mops)
+            self.mops_action_buttons.insertWidget(
+                indice_limpiar, self.mops_propiedad_widget
+            )
+        else:
+            self.mops_action_buttons.removeWidget(self.mops_propiedad_widget)
+            self.mops_controls.insertWidget(3, self.mops_propiedad_widget)
+        self._mops_propiedad_en_acciones = mover_a_acciones
+
+    def _actualizar_opciones_cofactores(self):
+        if not hasattr(self, "combo_mops_cofactor_axis"):
+            return
+        combo = self.combo_mops_cofactor_axis
+        seleccion_actual = combo.currentData()
+        filas = self.stepper_mops_rows.value
+        columnas = self.stepper_mops_cols.value
+        combo.blockSignals(True)
+        combo.clear()
+        combo.addItem("Automático: mayor número de ceros", "auto")
+        for indice in range(filas):
+            combo.addItem(f"Fila {indice + 1}", f"fila:{indice}")
+        for indice in range(columnas):
+            combo.addItem(f"Columna {indice + 1}", f"columna:{indice}")
+        indice_guardado = combo.findData(seleccion_actual)
+        combo.setCurrentIndex(indice_guardado if indice_guardado >= 0 else 0)
+        combo.blockSignals(False)
+
+    def _actualizar_visibilidad_selector_cofactores(self):
+        if not hasattr(self, "mops_cofactores_container"):
+            return
+        visible = (
+            self.combo_mops_metodo.currentText() == "Determinante"
+            and self.combo_mops_determinante.currentData() == "cofactores"
+            and self.combo_mops_propiedad.currentData() is None
+            and self.stepper_mops_rows.value > 2
+        )
+        self.mops_cofactores_container.setVisible(visible)
+
     def _on_mops_determinante_changed(self):
         if not hasattr(self, "stepper_mops_rows"):
             return
@@ -1191,6 +1291,8 @@ class VistaOperacionesMatriz(QWidget):
                 self.stepper_mops_cols,
                 self.stepper_mops_rows.value + 1
             )
+        self._actualizar_opciones_cofactores()
+        self._actualizar_visibilidad_selector_cofactores()
         self._rebuild_matrix_ops_grid()
 
     def _actualizar_campos_operacion_fila(self):
@@ -1203,17 +1305,31 @@ class VistaOperacionesMatriz(QWidget):
         self.lbl_det_k.setVisible(usa_k)
 
     def _actualizar_campos_propiedad(self, metodo, propiedad):
-        es_filas = metodo == "Determinante" and propiedad == "det_filas"
-        self.det_filas_container.setVisible(es_filas)
+        es_operacion_eje = metodo == "Determinante" and propiedad in (
+            "det_filas", "det_columnas"
+        )
+        es_columnas = propiedad == "det_columnas"
+        self.det_filas_container.setVisible(es_operacion_eje)
+        self.lbl_det_operacion_eje.setText(
+            "Operación de columna" if es_columnas else "Operación de fila"
+        )
+        self.lbl_det_eje_i.setText(
+            "Columna i" if es_columnas else "Fila i"
+        )
+        self.lbl_det_eje_j.setText(
+            "Columna j" if es_columnas else "Fila j"
+        )
         if metodo == "Determinante":
-            self.combo_mops_determinante.setVisible(propiedad is None)
+            self.combo_mops_determinante.setVisible(True)
         n = self.stepper_mops_rows.value
         for combo in (self.combo_det_fila_i, self.combo_det_fila_j):
             seleccionado = combo.currentIndex()
             combo.blockSignals(True)
             combo.clear()
             for fila in range(1, n + 1):
-                combo.addItem(f"F{fila}", fila - 1)
+                combo.addItem(
+                    f"{'C' if es_columnas else 'F'}{fila}", fila - 1
+                )
             combo.setCurrentIndex(min(max(seleccionado, 0), n - 1))
             combo.blockSignals(False)
         self._actualizar_campos_operacion_fila()
@@ -1228,7 +1344,7 @@ class VistaOperacionesMatriz(QWidget):
                 cantidad = 2 if propiedad == "inversa_producto" else 1
                 requiere_selector = propiedad == "inversa_producto"
             else:
-                cantidad = 1
+                cantidad = 2 if propiedad == "det_multiplicativa" else 1
                 requiere_selector = False
             self._set_stepper_value(self.stepper_mops_count, cantidad)
             self.stepper_mops_count.setEnabled(False)
@@ -1264,6 +1380,7 @@ class VistaOperacionesMatriz(QWidget):
             self._actualizar_campos_propiedad(metodo, propiedad)
         self._rebuild_matrix_ops_grid()
         self._actualizar_campo_escalares()
+        self._actualizar_visibilidad_selector_cofactores()
         self.mops_escalar_container.setVisible(
             metodo in ("Escalar", "Escalar producto")
             or (
@@ -1336,6 +1453,8 @@ class VistaOperacionesMatriz(QWidget):
         self._rebuild_matrix_ops_grid()
 
     def _on_mops_rows_changed(self):
+        self._actualizar_opciones_cofactores()
+        self._actualizar_visibilidad_selector_cofactores()
         if (
             self.combo_mops_metodo.currentText() == "Determinante"
             and self.combo_mops_determinante.currentData() == "cramer"
@@ -1346,15 +1465,18 @@ class VistaOperacionesMatriz(QWidget):
             )
         if (
             self.combo_mops_metodo.currentText() == "Determinante"
-            and self.combo_mops_propiedad.currentData() == "det_filas"
+            and self.combo_mops_propiedad.currentData() in (
+                "det_filas", "det_columnas"
+            )
         ):
             self._actualizar_campos_propiedad(
-                "Determinante", "det_filas"
+                "Determinante", self.combo_mops_propiedad.currentData()
             )
         self._guardar_dimensiones_matriz_seleccionada()
         self._rebuild_matrix_ops_grid()
 
     def _on_mops_cols_changed(self):
+        self._actualizar_opciones_cofactores()
         self._guardar_dimensiones_matriz_seleccionada()
         self._rebuild_matrix_ops_grid()
 
@@ -2108,7 +2230,9 @@ class VistaOperacionesMatriz(QWidget):
                 if modo == "Inversa":
                     matrices_requeridas = 2 if propiedad_suma == "inversa_producto" else 1
                 elif modo == "Determinante":
-                    matrices_requeridas = 1
+                    matrices_requeridas = (
+                        2 if propiedad_suma == "det_multiplicativa" else 1
+                    )
                 elif modo == "Escalar":
                     matrices_requeridas = 2 if propiedad_suma == "Distributividad escalar sobre suma" else 1
                 else:
@@ -2325,20 +2449,28 @@ class VistaOperacionesMatriz(QWidget):
                     resultado = ControladorVectores.verificar_propiedad_determinante(
                         matrices[0],
                         propiedad_suma,
-                        tipo_fila if propiedad_suma == "det_filas" else None,
-                        fila_i if propiedad_suma == "det_filas" else None,
-                        fila_j if propiedad_suma == "det_filas" else None,
-                        k if propiedad_suma == "det_filas" else None
+                        tipo_fila if propiedad_suma in ("det_filas", "det_columnas") else None,
+                        fila_i if propiedad_suma in ("det_filas", "det_columnas") else None,
+                        fila_j if propiedad_suma in ("det_filas", "det_columnas") else None,
+                        k if propiedad_suma in ("det_filas", "det_columnas") else None,
+                        B=matrices[1] if propiedad_suma == "det_multiplicativa" and len(matrices) > 1 else None
                     )
                 else:
                     metodo_determinante = self.combo_mops_determinante.currentData()
                     if metodo_determinante == "cramer":
                         aumentada = matrices[0]
                         if len(aumentada[0]) != len(aumentada) + 1:
-                            raise ValueError(
-                                "Para Cramer ingresa una matriz aumentada n×(n+1): "
-                                "coeficientes en las primeras n columnas y b en la última."
+                            QMessageBox.warning(
+                                self,
+                                "Dimensiones incompatibles",
+                                (
+                                    f"Cramer necesita {len(aumentada)} filas y "
+                                    f"{len(aumentada) + 1} columnas. Usa las primeras "
+                                    f"{len(aumentada)} columnas para los coeficientes "
+                                    "y la última para los términos independientes."
+                                )
                             )
+                            return
                         matriz_coeficientes = [fila[:-1] for fila in aumentada]
                         vector_terminos = [fila[-1] for fila in aumentada]
                         resultado = ControladorVectores.resolver_cramer(
@@ -2346,8 +2478,14 @@ class VistaOperacionesMatriz(QWidget):
                             vector_terminos
                         )
                     else:
+                        eje_desarrollo = (
+                            self.combo_mops_cofactor_axis.currentData()
+                            if metodo_determinante == "cofactores"
+                            else None
+                        )
                         resultado = ControladorVectores.calcular_determinante(
-                            matrices[0], metodo_determinante
+                            matrices[0], metodo_determinante,
+                            eje_desarrollo=eje_desarrollo
                         )
 
             elif modo == "Teoremas clave":
@@ -3105,14 +3243,14 @@ class VistaOperacionesMatriz(QWidget):
                     "No existe solución única por Cramer (det(A) = 0)."
                     if solucion is None
                     else "Solución: " + ", ".join(
-                        f"x{i + 1} = {formatear_numero(valor)}"
+                        f"x{subindice(i + 1)} = {formatear_numero(valor)}"
                         for i, valor in enumerate(solucion)
                     )
                 )
                 lbl_solucion = QLabel(texto_solucion)
                 lbl_solucion.setWordWrap(True)
                 lbl_solucion.setStyleSheet(
-                    "color: #0F172A; font-size: 18px; font-weight: 800;"
+                    "color: #0F172A; font-size: 16px; font-weight: 800;"
                     " background-color: #F8FAFC; border: 1px solid #E2E8F0;"
                     " border-radius: 10px; padding: 14px 16px;"
                 )
@@ -3667,7 +3805,7 @@ class VistaOperacionesMatriz(QWidget):
                     card_layout.setSpacing(2)
                     card_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-                    lbl_x = QLabel(f"x{i + 1}")
+                    lbl_x = QLabel(f"x{subindice(i + 1)}")
                     lbl_x.setAlignment(Qt.AlignmentFlag.AlignCenter)
                     lbl_x.setStyleSheet("""
                         color: #64748B;
