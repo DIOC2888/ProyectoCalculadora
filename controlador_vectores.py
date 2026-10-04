@@ -577,6 +577,21 @@ class ControladorVectores:
                 "proceso": []
             }
 
+    @staticmethod
+    def verificar_propiedad_inversa(propiedad, A, B=None):
+        try:
+            return backend_matrices.verificar_propiedad_inversa(
+                propiedad, A, B
+            )
+        except (ValueError, TypeError, IndexError) as e:
+            return {
+                "exito": False,
+                "operacion": "Propiedad de inversa",
+                "resultado": None,
+                "proceso": [],
+                "mensaje": str(e)
+            }
+
 
     @staticmethod
     def transponer_matriz(A):
@@ -696,7 +711,6 @@ class ControladorVectores:
                 "proceso": datos.get("proceso", []),
                 "mensaje": f"Determinante calculado por {metodo}."
             }
-
         except (ValueError, TypeError) as e:
             return {
                 "exito": False,
@@ -704,6 +718,23 @@ class ControladorVectores:
                 "matriz": A,
                 "resultado": None,
                 "determinante": None,
+                "proceso": [],
+                "mensaje": str(e)
+            }
+
+    @staticmethod
+    def verificar_propiedad_determinante(
+        A, propiedad, operacion_fila=None, fila_i=None, fila_j=None, k=None
+    ):
+        try:
+            return backend_determinantes.verificar_propiedad_determinante(
+                A, propiedad, operacion_fila, fila_i, fila_j, k
+            )
+        except (ValueError, TypeError, IndexError) as e:
+            return {
+                "exito": False,
+                "operacion": "Propiedad de determinante",
+                "resultado": None,
                 "proceso": [],
                 "mensaje": str(e)
             }

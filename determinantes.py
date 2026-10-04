@@ -102,15 +102,19 @@ def _determinante_sarrus(A):
     valor = sum(positivos) - sum(negativos)
     if abs(valor) <= TOLERANCIA:
         valor = 0
+    descendentes = (
+        f"({_formatear(a)}·{_formatear(e)}·{_formatear(i)} = {_formatear(positivos[0])}) + "
+        f"({_formatear(b)}·{_formatear(f)}·{_formatear(g)} = {_formatear(positivos[1])}) + "
+        f"({_formatear(c)}·{_formatear(d)}·{_formatear(h)} = {_formatear(positivos[2])})"
+    )
+    ascendentes = (
+        f"({_formatear(c)}·{_formatear(e)}·{_formatear(g)} = {_formatear(negativos[0])}) + "
+        f"({_formatear(b)}·{_formatear(d)}·{_formatear(i)} = {_formatear(negativos[1])}) + "
+        f"({_formatear(a)}·{_formatear(f)}·{_formatear(h)} = {_formatear(negativos[2])})"
+    )
     detalle = (
-        f"Diagonales descendentes: {_formatear(a)}·{_formatear(e)}·{_formatear(i)} "
-        f"+ {_formatear(b)}·{_formatear(f)}·{_formatear(g)} "
-        f"+ {_formatear(c)}·{_formatear(d)}·{_formatear(h)} "
-        f"= {_formatear(sum(positivos))}\n"
-        f"Diagonales ascendentes: {_formatear(c)}·{_formatear(e)}·{_formatear(g)} "
-        f"+ {_formatear(b)}·{_formatear(d)}·{_formatear(i)} "
-        f"+ {_formatear(a)}·{_formatear(f)}·{_formatear(h)} "
-        f"= {_formatear(sum(negativos))}\n"
+        f"Descendentes: {descendentes} = {_formatear(sum(positivos))}\n"
+        f"Ascendentes: {ascendentes} = {_formatear(sum(negativos))}\n"
         f"det(A) = {_formatear(sum(positivos))} - "
         f"{_formatear(sum(negativos))} = {_formatear(valor)}"
     )
@@ -122,14 +126,26 @@ def _determinante_triangular(A):
     matriz = _copiar_matriz(A)
     n = len(matriz)
     intercambios = 0
+    factor_extraido = 1
     proceso = []
     pivotes = []
 
     for columna in range(n):
-        fila_pivote = max(
-            range(columna, n),
-            key=lambda fila: abs(matriz[fila][columna])
-        )
+        if columna == 0:
+            fila_pivote = columna
+            if abs(matriz[fila_pivote][columna]) <= TOLERANCIA:
+                fila_pivote = next(
+                    (
+                        fila for fila in range(columna + 1, n)
+                        if abs(matriz[fila][columna]) > TOLERANCIA
+                    ),
+                    columna
+                )
+        else:
+            fila_pivote = max(
+                range(columna, n),
+                key=lambda fila: abs(matriz[fila][columna])
+            )
         if abs(matriz[fila_pivote][columna]) <= TOLERANCIA:
             pivotes.append(0)
             proceso.append({
@@ -137,7 +153,7 @@ def _determinante_triangular(A):
                 "operacion": f"Columna {columna + 1}",
                 "detalle": "No hay pivote distinto de cero; det(A) = 0."
             })
-            return 0, proceso, intercambios, pivotes, matriz
+            return 0, proceso, intercambios, pivotes, matriz, factor_extraido
 
         if fila_pivote != columna:
             matriz[columna], matriz[fila_pivote] = matriz[fila_pivote], matriz[columna]
@@ -150,9 +166,24 @@ def _determinante_triangular(A):
             })
 
         pivote = matriz[columna][columna]
+        if columna == 0 and abs(abs(pivote) - 1) > TOLERANCIA:
+            matriz[columna] = [valor / pivote for valor in matriz[columna]]
+            factor_extraido *= pivote
+            proceso.append({
+                "tipo": "operacion_fila",
+                "titulo": "Extraer factor de la primera fila",
+                "operacion": (
+                    f"F1 ← (1/{_formatear(pivote)})F1; "
+                    f"se conserva el factor {_formatear(pivote)}"
+                ),
+                "matriz": _copiar_matriz(matriz)
+            })
+            pivote = matriz[columna][columna]
         pivotes.append(pivote)
         for fila in range(columna + 1, n):
             factor = matriz[fila][columna] / pivote
+            if abs(factor) <= TOLERANCIA:
+                continue
             matriz[fila] = [
                 matriz[fila][j] - factor * matriz[columna][j]
                 for j in range(n)
@@ -171,21 +202,27 @@ def _determinante_triangular(A):
     producto_diagonal = 1
     for pivote in pivotes:
         producto_diagonal *= pivote
-    valor = (-1 if intercambios % 2 else 1) * producto_diagonal
+    valor = (
+        (-1 if intercambios % 2 else 1)
+        * factor_extraido
+        * producto_diagonal
+    )
     if abs(valor) <= TOLERANCIA:
         valor = 0
     proceso.append({
         "tipo": "formula",
         "titulo": "Determinante desde la forma triangular",
-        "operacion": "det(A) = (-1)^s · producto de los pivotes",
+        "operacion": "det(A) = (-1)^s · factores extraídos · producto diagonal",
         "detalle": (
             f"Intercambios s = {intercambios}; pivotes = "
             f"{' · '.join(_formatear(p) for p in pivotes)}; "
+            f"factor extraído = {_formatear(factor_extraido)}; "
             f"det(A) = {'-1' if intercambios % 2 else '1'} · "
+            f"{_formatear(factor_extraido)} · "
             f"{_formatear(producto_diagonal)} = {_formatear(valor)}"
         )
     })
-    return valor, proceso, intercambios, pivotes, matriz
+    return valor, proceso, intercambios, pivotes, matriz, factor_extraido
 
 
 def calcular_determinante(A, metodo="cofactores"):
@@ -202,16 +239,12 @@ def calcular_determinante(A, metodo="cofactores"):
     n = len(matriz)
 
     if metodo == "triangular":
-        determinante, pasos, intercambios, pivotes, triangular = (
+        determinante, pasos, intercambios, pivotes, triangular, factor_extraido = (
             _determinante_triangular(matriz)
         )
         proceso = [{
             "numero": 1, "tipo": "inicio", "titulo": "MATRIZ ORIGINAL",
             "operacion": "A", "matriz": _copiar_matriz(matriz)
-        }, {
-            "numero": 2, "tipo": "formula",
-            "titulo": "REDUCCIÓN A FORMA TRIANGULAR",
-            "operacion": "Usar operaciones de fila y producto diagonal"
         }]
         for paso in pasos:
             paso["numero"] = len(proceso) + 1
@@ -227,6 +260,7 @@ def calcular_determinante(A, metodo="cofactores"):
             "matriz": matriz, "metodo": metodo,
             "intercambios_filas": intercambios,
             "factores_diagonales": pivotes,
+            "factor_extraido": factor_extraido,
             "matriz_triangular": triangular, "proceso": proceso
         }
 
@@ -234,15 +268,24 @@ def calcular_determinante(A, metodo="cofactores"):
         if n != 3:
             raise ValueError("La regla de Sarrus solo se aplica a matrices 3x3.")
         determinante, detalle = _determinante_sarrus(matriz)
+        matriz_extendida = [
+            fila + fila[:2]
+            for fila in matriz
+        ]
         proceso = [{
             "numero": 1, "tipo": "inicio", "titulo": "MATRIZ ORIGINAL",
             "operacion": "A", "matriz": _copiar_matriz(matriz)
         }, {
-            "numero": 2, "tipo": "formula", "titulo": "REGLA DE SARRUS",
-            "operacion": "Diagonales descendentes menos ascendentes",
+            "numero": 2, "tipo": "operacion",
+            "titulo": "REPETIR LAS DOS PRIMERAS COLUMNAS",
+            "operacion": "A extendida para identificar las diagonales",
+            "matriz": matriz_extendida
+        }, {
+            "numero": 3, "tipo": "formula", "titulo": "PRODUCTOS DE LAS DIAGONALES",
+            "operacion": "Suma descendente menos suma ascendente",
             "detalle": detalle
         }, {
-            "numero": 3, "tipo": "determinante", "titulo": "RESULTADO",
+            "numero": 4, "tipo": "determinante", "titulo": "RESULTADO",
             "operacion": "det(A)",
             "detalle": f"det(A) = {_formatear(determinante)}",
             "valor": determinante
@@ -311,39 +354,71 @@ def calcular_determinante(A, metodo="cofactores"):
             "proceso": proceso
         }
 
-    # Igual que en el calculo interno, se desarrolla por la fila mas simple.
+    ceros_por_fila = [
+        sum(1 for valor in fila if abs(valor) <= TOLERANCIA)
+        for fila in matriz
+    ]
+    ceros_por_columna = [
+        sum(1 for fila in matriz if abs(fila[columna]) <= TOLERANCIA)
+        for columna in range(n)
+    ]
+    columna_desarrollo = max(
+        range(n), key=lambda j: ceros_por_columna[j]
+    )
     fila_desarrollo = max(
         range(n),
-        key=lambda i: sum(
-            1
-            for valor in matriz[i]
-            if abs(valor) <= TOLERANCIA
-        )
+        key=lambda i: ceros_por_fila[i]
+    )
+    # En caso de empate se elige columna, como en el ejemplo de la presentación.
+    desarrollar_por_columna = (
+        ceros_por_columna[columna_desarrollo]
+        >= ceros_por_fila[fila_desarrollo]
     )
     cofactores = []
     terminos_texto = []
     total = 0
 
+    if desarrollar_por_columna:
+        indices = [
+            (fila, columna_desarrollo, matriz[fila][columna_desarrollo])
+            for fila in range(n)
+        ]
+        titulo_desarrollo = "COLUMNA DE DESARROLLO"
+        etiqueta_desarrollo = f"Se desarrolla por C{columna_desarrollo + 1}"
+        detalle_desarrollo = (
+            f"Se elige C{columna_desarrollo + 1}, que tiene "
+            f"{ceros_por_columna[columna_desarrollo]} ceros, la mayor cantidad "
+            "entre filas y columnas (en empate se prioriza una columna)."
+        )
+    else:
+        indices = [
+            (fila_desarrollo, columna, matriz[fila_desarrollo][columna])
+            for columna in range(n)
+        ]
+        titulo_desarrollo = "FILA DE DESARROLLO"
+        etiqueta_desarrollo = f"Se desarrolla por F{fila_desarrollo + 1}"
+        detalle_desarrollo = (
+            f"Se elige F{fila_desarrollo + 1}, que tiene "
+            f"{ceros_por_fila[fila_desarrollo]} ceros, la mayor cantidad "
+            "entre filas y columnas."
+        )
+
     proceso.append({
         "numero": 2,
         "tipo": "formula",
-        "titulo": "FILA DE DESARROLLO",
-        "operacion": f"Se desarrolla por F{fila_desarrollo + 1}",
-        "detalle": (
-            "Se elige la fila "
-            f"{fila_desarrollo + 1} porque facilita el desarrollo "
-            "por cofactores."
-        )
+        "titulo": titulo_desarrollo,
+        "operacion": etiqueta_desarrollo,
+        "detalle": detalle_desarrollo
     })
 
-    for columna, elemento in enumerate(matriz[fila_desarrollo]):
+    for fila, columna, elemento in indices:
         # Desarrollo por cofactores:
         # 1. Tomar el elemento a_ij.
         # 2. Construir el menor M_ij.
         # 3. Calcular C_ij = (-1)^(i+j) det(M_ij).
         # 4. Sumar a_ij * C_ij al determinante.
-        signo = -1 if (fila_desarrollo + columna) % 2 else 1
-        menor = _menor(matriz, fila_desarrollo, columna)
+        signo = -1 if (fila + columna) % 2 else 1
+        menor = _menor(matriz, fila, columna)
         det_menor = _determinante_recursivo(menor)
         cofactor = signo * det_menor
         termino = elemento * cofactor
@@ -351,22 +426,36 @@ def calcular_determinante(A, metodo="cofactores"):
         if abs(termino) <= TOLERANCIA:
             termino = 0
 
-        # Se acumula la suma de todos los terminos de la fila elegida.
+        # Se acumula la suma de todos los términos del eje elegido.
         total += termino
 
         signo_texto = "+" if signo > 0 else "-"
+        if len(menor) == 2:
+            x, y = menor[0]
+            z, w = menor[1]
+            detalle_menor = (
+                f"det(M{fila + 1}{columna + 1}) = "
+                f"{_formatear(x)}·{_formatear(w)} - "
+                f"{_formatear(y)}·{_formatear(z)} = "
+                f"{_formatear(x * w)} - {_formatear(y * z)} = "
+                f"{_formatear(det_menor)}"
+            )
+        else:
+            detalle_menor = (
+                f"det(M{fila + 1}{columna + 1}) = "
+                f"{_formatear(det_menor)}"
+            )
         detalle = (
-            f"a{fila_desarrollo + 1}{columna + 1} = {_formatear(elemento)}\n"
-            f"C{fila_desarrollo + 1}{columna + 1} = "
-            f"({signo_texto}) det(M{fila_desarrollo + 1}{columna + 1})\n"
-            f"det(M{fila_desarrollo + 1}{columna + 1}) = "
-            f"{_formatear(det_menor)}\n"
+            f"a{fila + 1}{columna + 1} = {_formatear(elemento)}\n"
+            f"C{fila + 1}{columna + 1} = "
+            f"({signo_texto}) det(M{fila + 1}{columna + 1})\n"
+            f"{detalle_menor}\n"
             f"Termino = {_formatear(elemento)} * "
             f"{_formatear(cofactor)} = {_formatear(termino)}"
         )
 
         cofactores.append({
-            "fila": fila_desarrollo,
+            "fila": fila,
             "columna": columna,
             "elemento": elemento,
             "signo": signo,
@@ -378,11 +467,21 @@ def calcular_determinante(A, metodo="cofactores"):
 
         proceso.append({
             "numero": len(proceso) + 1,
-            "tipo": "formula",
-            "titulo": f"COFACTOR C{fila_desarrollo + 1}{columna + 1}",
+            "tipo": "operacion",
+            "titulo": f"MENOR M{fila + 1}{columna + 1}",
             "operacion": (
-                f"a{fila_desarrollo + 1}{columna + 1}"
-                f"C{fila_desarrollo + 1}{columna + 1}"
+                f"Eliminar fila {fila + 1} y columna {columna + 1}"
+            ),
+            "matriz": menor
+        })
+
+        proceso.append({
+            "numero": len(proceso) + 1,
+            "tipo": "formula",
+            "titulo": f"COFACTOR C{fila + 1}{columna + 1}",
+            "operacion": (
+                f"a{fila + 1}{columna + 1}"
+                f"C{fila + 1}{columna + 1}"
             ),
             "detalle": detalle
         })
@@ -392,7 +491,14 @@ def calcular_determinante(A, metodo="cofactores"):
             terminos_texto.append(_formatear(termino))
 
     determinante = 0 if abs(total) <= TOLERANCIA else total
-    expresion = " + ".join(terminos_texto) if terminos_texto else "0"
+    expresion = "0"
+    if terminos_texto:
+        expresion = terminos_texto[0]
+        for termino in terminos_texto[1:]:
+            if termino.startswith("-"):
+                expresion += " - " + termino[1:]
+            else:
+                expresion += " + " + termino
 
     proceso.append({
         "numero": len(proceso) + 1,
@@ -413,7 +519,8 @@ def calcular_determinante(A, metodo="cofactores"):
         "resultado": determinante,
         "matriz": matriz,
         "metodo": "cofactores",
-        "fila_desarrollo": fila_desarrollo,
+        "fila_desarrollo": None if desarrollar_por_columna else fila_desarrollo,
+        "columna_desarrollo": columna_desarrollo if desarrollar_por_columna else None,
         "cofactores": cofactores,
         "proceso": proceso
     }
@@ -500,4 +607,141 @@ def resolver_sistema_cramer(A, b):
         "resultado": solucion, "determinante": base["determinante"],
         "determinantes_reemplazo": determinantes,
         "proceso": proceso, "mensaje": "Solución calculada por la regla de Cramer."
+    }
+
+
+def verificar_propiedad_determinante(
+    A, propiedad, operacion_fila=None, fila_i=None, fila_j=None, k=None
+):
+    """Verifica las propiedades solicitadas mostrando ambos lados."""
+    _validar_matriz_cuadrada(A)
+    matriz = _copiar_matriz(A)
+    n = len(matriz)
+    proceso = [{
+        "numero": 1, "tipo": "inicio", "titulo": "Matriz original",
+        "operacion": "A", "matriz": _copiar_matriz(matriz)
+    }]
+
+    if propiedad == "det_inversa":
+        from matrices import invertir_matriz
+        datos_a = calcular_determinante(matriz, "cofactores")
+        inversa = invertir_matriz(matriz)
+        if not inversa["invertible"]:
+            raise ValueError("A es singular; det(A⁻¹) no está definido.")
+        det_inversa = calcular_determinante(
+            inversa["matriz_inversa"], "cofactores"
+        )
+        esperado = 1 / datos_a["determinante"]
+        proceso.extend(
+            {**paso, "titulo": f"Calcular det(A): {paso.get('titulo', 'Paso')}"}
+            for paso in datos_a["proceso"][1:]
+        )
+        proceso.extend(
+            {**paso, "titulo": f"Inversa de A: {paso.get('titulo', 'Paso')}"}
+            for paso in inversa["proceso"][1:]
+        )
+        proceso.append({
+            "tipo": "resultado", "titulo": "Matriz inversa", "operacion": "A⁻¹",
+            "matriz": inversa["matriz_inversa"]
+        })
+        proceso.extend(
+            {**paso, "titulo": f"Calcular det(A⁻¹): {paso.get('titulo', 'Paso')}"}
+            for paso in det_inversa["proceso"][1:]
+        )
+        proceso.append({
+            "tipo": "formula", "titulo": "Recíproco de det(A)",
+            "operacion": f"1 / det(A) = {_formatear(esperado)}",
+            "detalle": f"1 / {_formatear(datos_a['determinante'])} = {_formatear(esperado)}"
+        })
+        actual = det_inversa["determinante"]
+        esperado_final = esperado
+        expresion = "det(A⁻¹) = 1 / det(A)"
+
+    elif propiedad == "det_filas":
+        if operacion_fila not in ("intercambio", "reemplazo", "escalar"):
+            raise ValueError("Selecciona una operación de fila válida.")
+        if not isinstance(fila_i, int) or not 0 <= fila_i < n:
+            raise ValueError("Selecciona una fila válida.")
+        transformada = _copiar_matriz(matriz)
+        datos_a = calcular_determinante(matriz, "cofactores")
+        det_a = datos_a["determinante"]
+        proceso.extend(
+            {**paso, "titulo": f"Calcular det(A): {paso.get('titulo', 'Paso')}"}
+            for paso in datos_a["proceso"][1:]
+        )
+        if operacion_fila == "intercambio":
+            if not isinstance(fila_j, int) or not 0 <= fila_j < n or fila_j == fila_i:
+                raise ValueError("El intercambio requiere dos filas distintas y válidas.")
+            transformada[fila_i], transformada[fila_j] = transformada[fila_j], transformada[fila_i]
+            esperado = -det_a
+            operacion = f"F{fila_i + 1} ↔ F{fila_j + 1}"
+            expresion = "det(A nueva) = -det(A)"
+        elif operacion_fila == "reemplazo":
+            if not isinstance(fila_j, int) or not 0 <= fila_j < n or fila_j == fila_i:
+                raise ValueError("El reemplazo requiere filas distintas y válidas.")
+            if not isinstance(k, (int, float)):
+                raise ValueError("Indica un valor numérico para k.")
+            transformada[fila_i] = [
+                transformada[fila_i][j] + k * transformada[fila_j][j]
+                for j in range(n)
+            ]
+            esperado = det_a
+            operacion = f"F{fila_i + 1} ← F{fila_i + 1} + ({_formatear(k)})F{fila_j + 1}"
+            expresion = "det(A nueva) = det(A)"
+        else:
+            if not isinstance(k, (int, float)):
+                raise ValueError("Indica un valor numérico para k.")
+            transformada[fila_i] = [k * valor for valor in transformada[fila_i]]
+            esperado = k * det_a
+            operacion = f"F{fila_i + 1} ← ({_formatear(k)})F{fila_i + 1}"
+            expresion = "det(A nueva) = k · det(A)"
+
+        datos_transformada = calcular_determinante(transformada, "cofactores")
+        proceso.append({
+            "tipo": "operacion_fila", "titulo": "Aplicar operación de fila",
+            "operacion": operacion, "matriz": transformada
+        })
+        proceso.append({
+            "tipo": "determinante", "titulo": "Determinante esperado",
+            "operacion": expresion,
+            "detalle": f"{expresion}; valor esperado = {_formatear(esperado)}"
+        })
+        proceso.extend(
+            {**paso, "titulo": f"A nueva: {paso.get('titulo', 'Paso')}"}
+            for paso in datos_transformada["proceso"][1:]
+        )
+        actual = datos_transformada["determinante"]
+        esperado_final = esperado
+
+    elif propiedad == "det_triangular":
+        datos_cofactores = calcular_determinante(matriz, "cofactores")
+        datos_triangular = calcular_determinante(matriz, "triangular")
+        proceso.extend(
+            {**paso, "titulo": f"Cofactores: {paso.get('titulo', 'Paso')}"}
+            for paso in datos_cofactores["proceso"][1:]
+        )
+        proceso.extend(
+            {**paso, "titulo": f"Triangular: {paso.get('titulo', 'Paso')}"}
+            for paso in datos_triangular["proceso"][1:]
+        )
+        actual = datos_triangular["determinante"]
+        esperado_final = datos_cofactores["determinante"]
+        expresion = "Producto diagonal corregido = expansión por cofactores"
+    else:
+        raise ValueError("Selecciona una propiedad del determinante válida.")
+
+    igualdad = abs(actual - esperado_final) <= TOLERANCIA
+    proceso.append({
+        "tipo": "verificacion", "titulo": "Comparación final",
+        "operacion": expresion,
+        "detalle": f"Resultado obtenido: {_formatear(actual)}; esperado: {_formatear(esperado_final)}",
+        "resultado": igualdad
+    })
+    return {
+        "exito": True, "operacion": "Propiedad de determinante",
+        "propiedad": propiedad, "expresion": expresion,
+        "igualdad": igualdad, "valor_obtenido": actual,
+        "valor_esperado": esperado_final,
+        "proceso": proceso,
+        "mensaje": "La propiedad se cumple." if igualdad else "La propiedad no se cumple."
     }

@@ -227,11 +227,13 @@ class VistaOperacionesMatriz(QWidget):
         mats_box.addWidget(lbl_mats)
         mats_box.addWidget(self.stepper_mops_count)
 
-        propiedad_box = QVBoxLayout()
+        propiedad_widget = QWidget(matrix_ops_view)
+        propiedad_box = QVBoxLayout(propiedad_widget)
         propiedad_box.setSpacing(6)
-        self.lbl_mops_propiedad = QLabel("PROPIEDAD")
+        propiedad_box.setContentsMargins(0, 0, 0, 0)
+        self.lbl_mops_propiedad = QLabel("PROPIEDAD", propiedad_widget)
         self.lbl_mops_propiedad.setStyleSheet(lbl_mats.styleSheet())
-        self.combo_mops_propiedad = QComboBox()
+        self.combo_mops_propiedad = QComboBox(propiedad_widget)
         self.combo_mops_propiedad.setFixedWidth(260)
         self.combo_mops_propiedad.setFixedHeight(38)
         self.combo_mops_propiedad.hide()
@@ -250,7 +252,7 @@ class VistaOperacionesMatriz(QWidget):
         mops_controls.addLayout(rows_box)
         mops_controls.addLayout(cols_box)
         mops_controls.addLayout(mats_box)
-        mops_controls.addLayout(propiedad_box)
+        mops_controls.addWidget(propiedad_widget)
         dimension_matrix_box = QVBoxLayout()
         dimension_matrix_box.setSpacing(6)
         lbl_dimension_matrix = QLabel("EDITAR DIMENSIONES DE")
@@ -261,6 +263,60 @@ class VistaOperacionesMatriz(QWidget):
         mops_controls.addLayout(dimension_matrix_box)
         mops_controls.addStretch()
         mops_layout.addLayout(mops_controls)
+
+        self.det_filas_container = QWidget()
+        self.det_filas_container.setStyleSheet("background: transparent;")
+        det_filas_layout = QHBoxLayout(self.det_filas_container)
+        det_filas_layout.setContentsMargins(0, 0, 0, 0)
+        det_filas_layout.setSpacing(8)
+        self.combo_det_operacion_fila = QComboBox()
+        self.combo_det_operacion_fila.addItem("Intercambio", "intercambio")
+        self.combo_det_operacion_fila.addItem("Reemplazo", "reemplazo")
+        self.combo_det_operacion_fila.addItem("Multiplicar por k", "escalar")
+        self.combo_det_operacion_fila.setFixedWidth(170)
+        self.combo_det_operacion_fila.setFixedHeight(38)
+        self.combo_det_fila_i = QComboBox()
+        self.combo_det_fila_j = QComboBox()
+        for combo in (self.combo_det_fila_i, self.combo_det_fila_j):
+            combo.setFixedHeight(38)
+            combo.setMinimumWidth(130)
+        self.inp_det_k = QLineEdit("1")
+        self.inp_det_k.setPlaceholderText("k")
+        self.inp_det_k.setFixedWidth(80)
+        self.inp_det_k.setStyleSheet(
+            "QLineEdit { background: white; border: 1px solid #CBD5E1;"
+            " border-radius: 8px; padding: 8px; color: #0F172A; }"
+        )
+        columnas_fila = []
+        for texto, widget in (
+            ("Operación de fila", self.combo_det_operacion_fila),
+            ("Fila i", self.combo_det_fila_i),
+            ("Fila j", self.combo_det_fila_j),
+            ("k", self.inp_det_k)
+        ):
+            columna = QVBoxLayout()
+            columna.setSpacing(4)
+            etiqueta = QLabel(texto)
+            etiqueta.setStyleSheet(lbl_mats.styleSheet())
+            if texto == "Fila j":
+                self.lbl_det_fila_j = etiqueta
+            elif texto == "k":
+                self.lbl_det_k = etiqueta
+            columna.addWidget(etiqueta)
+            columna.addWidget(widget)
+            det_filas_layout.addLayout(columna)
+            columnas_fila.append(columna)
+        for columna in columnas_fila[1:3]:
+            columna.setStretch(1, 1)
+        det_filas_layout.setStretch(0, 2)
+        det_filas_layout.setStretch(1, 3)
+        det_filas_layout.setStretch(2, 3)
+        det_filas_layout.setStretch(3, 1)
+        self.combo_det_operacion_fila.currentIndexChanged.connect(
+            self._actualizar_campos_operacion_fila
+        )
+        self.det_filas_container.hide()
+        mops_layout.addWidget(self.det_filas_container)
         
          # ============================================================
         # ÁREA DINÁMICA DE MATRICES
@@ -557,6 +613,7 @@ class VistaOperacionesMatriz(QWidget):
                 padding: 6px 10px;
                 color: #0F172A;
                 background-color: #FFFFFF;
+                font-weight: 400;
             }
             QListView::item:selected,
             QListView::item:hover {
@@ -571,7 +628,7 @@ class VistaOperacionesMatriz(QWidget):
                 border-radius: 8px;
                 padding: 0px 8px;
                 font-size: 13px;
-                font-weight: 600;
+                font-weight: 400;
                 color: #475569;
             }
 
@@ -604,6 +661,15 @@ class VistaOperacionesMatriz(QWidget):
         self.combo_mops_propiedad.view().setStyleSheet(combo_popup_style)
         self.combo_mops_dimension_matrix.setStyleSheet(self.combo_mops_metodo.styleSheet())
         self.combo_mops_dimension_matrix.view().setStyleSheet(combo_popup_style)
+        self.combo_det_operacion_fila.setStyleSheet(self.combo_mops_metodo.styleSheet())
+        self.combo_det_fila_i.setStyleSheet(self.combo_mops_metodo.styleSheet())
+        self.combo_det_fila_j.setStyleSheet(self.combo_mops_metodo.styleSheet())
+        for combo in (
+            self.combo_det_operacion_fila,
+            self.combo_det_fila_i,
+            self.combo_det_fila_j
+        ):
+            combo.view().setStyleSheet(combo_popup_style)
 
         self.combo_mops_metodo.currentIndexChanged.connect(self._on_mops_operation_changed)
         self.combo_mops_determinante.currentIndexChanged.connect(
@@ -628,7 +694,7 @@ class VistaOperacionesMatriz(QWidget):
         # Suscribir steppers de matrices
         self.stepper_mops_rows.on_change_callback = self._on_mops_rows_changed
         self.stepper_mops_cols.on_change_callback = self._on_mops_cols_changed
-        self.stepper_mops_count.on_change_callback = self._rebuild_matrix_ops_grid
+        self.stepper_mops_count.on_change_callback = self._on_mops_count_changed
         
         self._on_mops_operation_changed()
         self.stacked_layout.addWidget(matrix_ops_view)
@@ -869,6 +935,34 @@ class VistaOperacionesMatriz(QWidget):
         stepper.value = value
         stepper.lbl_val.setText(str(value))
 
+    def _actualizar_combo_dimensiones_multiplicacion(self, cantidad):
+        indice_actual = self.combo_mops_dimension_matrix.currentIndex()
+        self.combo_mops_dimension_matrix.blockSignals(True)
+        self.combo_mops_dimension_matrix.clear()
+        for indice in range(cantidad):
+            nombre = chr(ord("A") + indice)
+            self.combo_mops_dimension_matrix.addItem(
+                f"Dimensiones de {nombre}", indice
+            )
+        self.combo_mops_dimension_matrix.setCurrentIndex(
+            min(max(indice_actual, 0), cantidad - 1)
+        )
+        self.combo_mops_dimension_matrix.blockSignals(False)
+
+    def _on_mops_count_changed(self):
+        if self.combo_mops_metodo.currentText() == "Multiplicar":
+            cantidad = self.stepper_mops_count.value
+            indice_anterior = self.combo_mops_dimension_matrix.currentIndex()
+            while len(self.mops_matrix_dimensions) < cantidad:
+                self.mops_matrix_dimensions.append([
+                    self.stepper_mops_rows.value,
+                    self.stepper_mops_cols.value
+                ])
+            self._actualizar_combo_dimensiones_multiplicacion(cantidad)
+            if self.combo_mops_dimension_matrix.currentIndex() != indice_anterior:
+                self._cargar_dimensiones_matriz_seleccionada()
+        self._rebuild_matrix_ops_grid()
+
     def _on_mops_operation_changed(self):
 
         metodo = self.combo_mops_metodo.currentText()
@@ -887,7 +981,7 @@ class VistaOperacionesMatriz(QWidget):
         self.lbl_mops_cols.setText(
             "COLUMNAS (A | b)" if es_cramer else "COLUMNAS (n)"
         )
-        self.stepper_mops_cols.setEnabled(not es_cramer)
+        self.stepper_mops_cols.setEnabled(True)
         if es_cramer:
             self._set_stepper_value(
                 self.stepper_mops_cols,
@@ -905,6 +999,18 @@ class VistaOperacionesMatriz(QWidget):
                 ("r(A + B) = rA + rB", "Distributividad escalar sobre suma"),
                 ("(r + s)A = rA + sA", "Distributividad de suma de escalares"),
                 ("r(sA) = (rs)A", "Asociatividad escalar")
+            ],
+            "Inversa": [
+                ("Operación normal", None),
+                ("Propiedad 1: (A⁻¹)⁻¹ = A", "inversa_doble"),
+                ("Propiedad 2: (AB)⁻¹ = B⁻¹A⁻¹", "inversa_producto"),
+                ("Propiedad 3: (Aᵀ)⁻¹ = (A⁻¹)ᵀ", "inversa_traspuesta")
+            ],
+            "Determinante": [
+                ("Operación normal", None),
+                ("Propiedad 4: det(A⁻¹) = 1/det(A)", "det_inversa"),
+                ("Propiedad 5: operaciones de fila", "det_filas"),
+                ("Propiedad 6: matriz triangular", "det_triangular")
             ]
         }
         self.combo_mops_propiedad.blockSignals(True)
@@ -915,21 +1021,48 @@ class VistaOperacionesMatriz(QWidget):
         tiene_propiedad = metodo in propiedades_por_operacion
         self.combo_mops_propiedad.setVisible(tiene_propiedad)
         self.lbl_mops_propiedad.setVisible(tiene_propiedad)
+        self.combo_mops_determinante.setVisible(
+            metodo == "Determinante"
+            and self.combo_mops_propiedad.currentData() is None
+        )
         self.lbl_mops_escalar_r.setText("ESCALAR (k)")
         if hasattr(self, "lbl_mops_escalar_s"):
             self._actualizar_campo_escalares()
         es_traspuesta = metodo == "Traspuesta"
         self.combo_mops_traspuesta.setVisible(es_traspuesta)
+        if es_traspuesta:
+            self.combo_mops_dimension_matrix.blockSignals(True)
+            self.combo_mops_dimension_matrix.clear()
+            self.combo_mops_dimension_matrix.addItems([
+                "Dimensiones de A",
+                "Dimensiones de B"
+            ])
+            self.combo_mops_dimension_matrix.setCurrentIndex(0)
+            self.combo_mops_dimension_matrix.blockSignals(False)
 
         matrices_requeridas = self._mops_matrices_requeridas(metodo)
-        propiedad_suma = self.combo_mops_propiedad.currentData() if metodo in ("Sumar", "Escalar") else None
-        if propiedad_suma:
+        propiedad_suma = self.combo_mops_propiedad.currentData() if metodo in (
+            "Sumar", "Escalar", "Inversa", "Determinante"
+        ) else None
+        if propiedad_suma and metodo in ("Sumar", "Escalar"):
             matrices_requeridas = 3 if propiedad_suma == "Asociatividad de la suma" else 2 if propiedad_suma in ("Conmutatividad de la suma", "Distributividad escalar sobre suma") else 1
         if es_traspuesta:
             matrices_requeridas = self._mops_traspuesta_matrices_requeridas()
-        necesita_dos_matrices = es_traspuesta and matrices_requeridas == 2
-        self.combo_mops_dimension_matrix.setVisible(necesita_dos_matrices)
-        self.lbl_mops_dimension_matrix.setVisible(necesita_dos_matrices)
+        elif metodo == "Inversa":
+            matrices_requeridas = 2 if propiedad_suma == "inversa_producto" else 1
+        elif metodo == "Determinante":
+            matrices_requeridas = 1
+        necesita_selector_dimensiones = (
+            metodo == "Multiplicar"
+            or (metodo == "Inversa" and propiedad_suma == "inversa_producto")
+            or (es_traspuesta and matrices_requeridas == 2)
+        )
+        self.combo_mops_dimension_matrix.setVisible(
+            necesita_selector_dimensiones
+        )
+        self.lbl_mops_dimension_matrix.setVisible(
+            necesita_selector_dimensiones
+        )
         if (
             matrices_requeridas is not None
             and matrices_requeridas > 0
@@ -939,7 +1072,33 @@ class VistaOperacionesMatriz(QWidget):
                 matrices_requeridas
             )
         elif metodo in ("Sumar", "Escalar", "Multiplicar"):
-            self._set_stepper_value(self.stepper_mops_count, 2 if metodo == "Sumar" else 1)
+            self._set_stepper_value(
+                self.stepper_mops_count,
+                2 if metodo in ("Sumar", "Multiplicar") else 1
+            )
+
+        if metodo == "Multiplicar":
+            while len(self.mops_matrix_dimensions) < self.stepper_mops_count.value:
+                self.mops_matrix_dimensions.append([
+                    self.stepper_mops_rows.value,
+                    self.stepper_mops_cols.value
+                ])
+            self._actualizar_combo_dimensiones_multiplicacion(
+                self.stepper_mops_count.value
+            )
+            self._cargar_dimensiones_matriz_seleccionada()
+        elif metodo == "Inversa" and propiedad_suma == "inversa_producto":
+            self.combo_mops_dimension_matrix.blockSignals(True)
+            self.combo_mops_dimension_matrix.clear()
+            self.combo_mops_dimension_matrix.addItems([
+                "Dimensiones de A", "Dimensiones de B"
+            ])
+            self.combo_mops_dimension_matrix.setCurrentIndex(0)
+            self.combo_mops_dimension_matrix.blockSignals(False)
+            self._cargar_dimensiones_matriz_seleccionada()
+        elif es_traspuesta:
+            self._cargar_dimensiones_matriz_seleccionada()
+        self._actualizar_campos_propiedad(metodo, propiedad_suma)
 
         es_escalar = metodo in (
             "Escalar",
@@ -998,7 +1157,7 @@ class VistaOperacionesMatriz(QWidget):
         self.lbl_mops_cols.setText(
             "COLUMNAS (A | b)" if es_cramer else "COLUMNAS (n)"
         )
-        self.stepper_mops_cols.setEnabled(not es_cramer)
+        self.stepper_mops_cols.setEnabled(True)
         if es_cramer:
             self._set_stepper_value(
                 self.stepper_mops_cols,
@@ -1006,23 +1165,76 @@ class VistaOperacionesMatriz(QWidget):
             )
         self._rebuild_matrix_ops_grid()
 
+    def _actualizar_campos_operacion_fila(self):
+        tipo = self.combo_det_operacion_fila.currentData()
+        usa_fila_j = tipo in ("intercambio", "reemplazo")
+        usa_k = tipo in ("reemplazo", "escalar")
+        self.combo_det_fila_j.setVisible(usa_fila_j)
+        self.lbl_det_fila_j.setVisible(usa_fila_j)
+        self.inp_det_k.setVisible(usa_k)
+        self.lbl_det_k.setVisible(usa_k)
+
+    def _actualizar_campos_propiedad(self, metodo, propiedad):
+        es_filas = metodo == "Determinante" and propiedad == "det_filas"
+        self.det_filas_container.setVisible(es_filas)
+        if metodo == "Determinante":
+            self.combo_mops_determinante.setVisible(propiedad is None)
+        n = self.stepper_mops_rows.value
+        for combo in (self.combo_det_fila_i, self.combo_det_fila_j):
+            seleccionado = combo.currentIndex()
+            combo.blockSignals(True)
+            combo.clear()
+            for fila in range(1, n + 1):
+                combo.addItem(f"F{fila}", fila - 1)
+            combo.setCurrentIndex(min(max(seleccionado, 0), n - 1))
+            combo.blockSignals(False)
+        self._actualizar_campos_operacion_fila()
+
     def _on_mops_property_changed(self):
         if not hasattr(self, "stepper_mops_count"):
             return
+        metodo = self.combo_mops_metodo.currentText()
         propiedad = self.combo_mops_propiedad.currentData()
-        cantidad = 3 if propiedad == "Asociatividad de la suma" else 2 if propiedad in ("Conmutatividad de la suma", "Distributividad escalar sobre suma") else 1
-        if propiedad:
+        if metodo in ("Inversa", "Determinante"):
+            if metodo == "Inversa":
+                cantidad = 2 if propiedad == "inversa_producto" else 1
+                requiere_selector = propiedad == "inversa_producto"
+            else:
+                cantidad = 1
+                requiere_selector = False
             self._set_stepper_value(self.stepper_mops_count, cantidad)
             self.stepper_mops_count.setEnabled(False)
+            self.combo_mops_dimension_matrix.setVisible(requiere_selector)
+            self.lbl_mops_dimension_matrix.setVisible(requiere_selector)
+            if requiere_selector:
+                self.combo_mops_dimension_matrix.blockSignals(True)
+                self.combo_mops_dimension_matrix.clear()
+                self.combo_mops_dimension_matrix.addItems([
+                    "Dimensiones de A", "Dimensiones de B"
+                ])
+                self.combo_mops_dimension_matrix.setCurrentIndex(0)
+                self.combo_mops_dimension_matrix.blockSignals(False)
+                self._cargar_dimensiones_matriz_seleccionada()
+            self._actualizar_campos_propiedad(metodo, propiedad)
         else:
-            metodo = self.combo_mops_metodo.currentText()
-            if metodo == "Sumar":
-                self._set_stepper_value(self.stepper_mops_count, 2)
-            elif metodo == "Escalar":
-                self._set_stepper_value(self.stepper_mops_count, 1)
-            self.stepper_mops_count.setEnabled(metodo == "Sumar")
+            cantidad = (
+                3 if propiedad == "Asociatividad de la suma"
+                else 2 if propiedad in (
+                    "Conmutatividad de la suma",
+                    "Distributividad escalar sobre suma"
+                ) else 1
+            )
+            if propiedad:
+                self._set_stepper_value(self.stepper_mops_count, cantidad)
+                self.stepper_mops_count.setEnabled(False)
+            else:
+                if metodo == "Sumar":
+                    self._set_stepper_value(self.stepper_mops_count, 2)
+                elif metodo == "Escalar":
+                    self._set_stepper_value(self.stepper_mops_count, 1)
+                self.stepper_mops_count.setEnabled(metodo == "Sumar")
+            self._actualizar_campos_propiedad(metodo, propiedad)
         self._rebuild_matrix_ops_grid()
-        metodo = self.combo_mops_metodo.currentText()
         self._actualizar_campo_escalares()
         self.mops_escalar_container.setVisible(
             metodo in ("Escalar", "Homogeneidad", "Escalar producto")
@@ -1087,6 +1299,13 @@ class VistaOperacionesMatriz(QWidget):
                 self.stepper_mops_cols,
                 self.stepper_mops_rows.value + 1
             )
+        if (
+            self.combo_mops_metodo.currentText() == "Determinante"
+            and self.combo_mops_propiedad.currentData() == "det_filas"
+        ):
+            self._actualizar_campos_propiedad(
+                "Determinante", "det_filas"
+            )
         self._guardar_dimensiones_matriz_seleccionada()
         self._rebuild_matrix_ops_grid()
 
@@ -1095,6 +1314,12 @@ class VistaOperacionesMatriz(QWidget):
         self._rebuild_matrix_ops_grid()
 
     def _guardar_dimensiones_matriz_seleccionada(self):
+        metodo = self.combo_mops_metodo.currentText()
+        if metodo not in ("Traspuesta", "Multiplicar") and not (
+            metodo == "Inversa"
+            and self.combo_mops_propiedad.currentData() == "inversa_producto"
+        ):
+            return
         indice = self.combo_mops_dimension_matrix.currentIndex()
         while len(self.mops_matrix_dimensions) <= indice:
             self.mops_matrix_dimensions.append([3, 3])
@@ -1185,11 +1410,15 @@ class VistaOperacionesMatriz(QWidget):
         matrices_requeridas = self._mops_matrices_requeridas(metodo)
         if metodo == "Traspuesta":
             matrices_requeridas = self._mops_traspuesta_matrices_requeridas()
-        propiedad_actual = self.combo_mops_propiedad.currentData() if metodo in ("Sumar", "Escalar") else None
+        propiedad_actual = self.combo_mops_propiedad.currentData() if metodo in (
+            "Sumar", "Escalar", "Inversa", "Determinante"
+        ) else None
         if metodo == "Sumar" and propiedad_actual:
             matrices_requeridas = 3 if propiedad_actual == "Asociatividad de la suma" else 2 if propiedad_actual in ("Conmutatividad de la suma", "Distributividad escalar sobre suma") else 1
         elif metodo == "Escalar" and propiedad_actual:
             matrices_requeridas = 2 if propiedad_actual == "Distributividad escalar sobre suma" else 1
+        elif metodo == "Inversa":
+            matrices_requeridas = 2 if propiedad_actual == "inversa_producto" else 1
         es_escalar = metodo in (
             "Escalar",
             "Homogeneidad",
@@ -1218,7 +1447,9 @@ class VistaOperacionesMatriz(QWidget):
         else:
             num_matrices = self.stepper_mops_count.value
 
-        if metodo == "Traspuesta":
+        if metodo in ("Traspuesta", "Multiplicar") or (
+            metodo == "Inversa" and propiedad_actual == "inversa_producto"
+        ):
             while len(self.mops_matrix_dimensions) < num_matrices:
                 self.mops_matrix_dimensions.append([rows, cols])
             matrix_dimensions = self.mops_matrix_dimensions[:num_matrices]
@@ -1340,11 +1571,6 @@ class VistaOperacionesMatriz(QWidget):
                 )
             else:
                 etiqueta_matriz = f"A<sub>{m + 1}</sub>"
-                if (
-                    metodo == "Determinante"
-                    and self.combo_mops_determinante.currentData() == "cramer"
-                ):
-                    etiqueta_matriz = "Matriz aumentada [A | b]"
 
             lbl_m = QLabel(etiqueta_matriz)
 
@@ -1819,9 +2045,15 @@ class VistaOperacionesMatriz(QWidget):
             modo = self.combo_mops_metodo.currentText()
             matrices = self._leer_matrices_mops()
             matrices_requeridas = self._mops_matrices_requeridas(modo)
-            propiedad_suma = self.combo_mops_propiedad.currentData() if modo in ("Sumar", "Escalar") else None
+            propiedad_suma = self.combo_mops_propiedad.currentData() if modo in (
+                "Sumar", "Escalar", "Inversa", "Determinante"
+            ) else None
             if propiedad_suma:
-                if modo == "Escalar":
+                if modo == "Inversa":
+                    matrices_requeridas = 2 if propiedad_suma == "inversa_producto" else 1
+                elif modo == "Determinante":
+                    matrices_requeridas = 1
+                elif modo == "Escalar":
                     matrices_requeridas = 2 if propiedad_suma == "Distributividad escalar sobre suma" else 1
                 else:
                     matrices_requeridas = 3 if propiedad_suma == "Asociatividad de la suma" else 2 if propiedad_suma in ("Conmutatividad de la suma", "Distributividad escalar sobre suma") else 1
@@ -2000,9 +2232,16 @@ class VistaOperacionesMatriz(QWidget):
                 )
 
             elif modo == "Inversa":
-                resultado = ControladorVectores.invertir_matriz(
-                    matrices[0]
-                )
+                if propiedad_suma:
+                    resultado = ControladorVectores.verificar_propiedad_inversa(
+                        propiedad_suma,
+                        matrices[0],
+                        matrices[1] if len(matrices) > 1 else None
+                    )
+                else:
+                    resultado = ControladorVectores.invertir_matriz(
+                        matrices[0]
+                    )
 
             elif modo == "Traspuesta":
                 propiedad = self.combo_mops_traspuesta.currentData()
@@ -2019,24 +2258,42 @@ class VistaOperacionesMatriz(QWidget):
                 )
 
             elif modo == "Determinante":
-                metodo_determinante = self.combo_mops_determinante.currentData()
-                if metodo_determinante == "cramer":
-                    aumentada = matrices[0]
-                    if len(aumentada[0]) != len(aumentada) + 1:
-                        raise ValueError(
-                            "Para Cramer ingresa una matriz aumentada n×(n+1): "
-                            "coeficientes en las primeras n columnas y b en la última."
-                        )
-                    matriz_coeficientes = [fila[:-1] for fila in aumentada]
-                    vector_terminos = [fila[-1] for fila in aumentada]
-                    resultado = ControladorVectores.resolver_cramer(
-                        matriz_coeficientes,
-                        vector_terminos
+                if propiedad_suma:
+                    tipo_fila = self.combo_det_operacion_fila.currentData()
+                    fila_i = self.combo_det_fila_i.currentData()
+                    fila_j = self.combo_det_fila_j.currentData()
+                    k = (
+                        self._leer_float(self.inp_det_k)
+                        if tipo_fila in ("reemplazo", "escalar")
+                        else None
+                    )
+                    resultado = ControladorVectores.verificar_propiedad_determinante(
+                        matrices[0],
+                        propiedad_suma,
+                        tipo_fila if propiedad_suma == "det_filas" else None,
+                        fila_i if propiedad_suma == "det_filas" else None,
+                        fila_j if propiedad_suma == "det_filas" else None,
+                        k if propiedad_suma == "det_filas" else None
                     )
                 else:
-                    resultado = ControladorVectores.calcular_determinante(
-                        matrices[0], metodo_determinante
-                    )
+                    metodo_determinante = self.combo_mops_determinante.currentData()
+                    if metodo_determinante == "cramer":
+                        aumentada = matrices[0]
+                        if len(aumentada[0]) != len(aumentada) + 1:
+                            raise ValueError(
+                                "Para Cramer ingresa una matriz aumentada n×(n+1): "
+                                "coeficientes en las primeras n columnas y b en la última."
+                            )
+                        matriz_coeficientes = [fila[:-1] for fila in aumentada]
+                        vector_terminos = [fila[-1] for fila in aumentada]
+                        resultado = ControladorVectores.resolver_cramer(
+                            matriz_coeficientes,
+                            vector_terminos
+                        )
+                    else:
+                        resultado = ControladorVectores.calcular_determinante(
+                            matrices[0], metodo_determinante
+                        )
 
             elif modo == "Teoremas clave":
                 resultado = ControladorVectores.ver_teoremas_clave()
@@ -2445,8 +2702,8 @@ class VistaOperacionesMatriz(QWidget):
                 # La operación se muestra en el contenido; evita repetirla
                 # también en la línea secundaria del encabezado.
                 etiqueta = ""
-            elif tipo == "determinante" and not paso.get("detalle"):
-                # El título identifica el paso; la ecuación aparece una sola vez abajo.
+            elif tipo == "determinante":
+                # El título y el contenido muestran el resultado una sola vez.
                 etiqueta = ""
 
             if tipo in ("operacion", "inicio", "operacion_fila"):
@@ -2515,7 +2772,11 @@ class VistaOperacionesMatriz(QWidget):
                 contenido_layout.addStretch()
 
             elif tipo == "resultado":
-                if paso.get("vector") is not None:
+                if paso.get("matrices") is not None:
+                    contenido = self._crear_fila_matrices_widget(
+                        paso.get("matrices", [])
+                    )
+                elif paso.get("vector") is not None:
                     contenido = envolver_con_margen(
                         self._crear_vector_widget(
                             paso.get("vector", [])
@@ -2615,7 +2876,11 @@ class VistaOperacionesMatriz(QWidget):
                     )
                     verificacion_layout.addWidget(lbl_estado)
                 else:
-                    contenido = QLabel(texto)
+                    detalle = paso.get("detalle")
+                    contenido = QLabel(
+                        f"{texto}\n{detalle}" if detalle else texto
+                    )
+                    contenido.setWordWrap(True)
                     contenido.setStyleSheet("""
                         color: #0F172A;
                         font-size: 13px;
@@ -2808,41 +3073,14 @@ class VistaOperacionesMatriz(QWidget):
             lbl_det.setStyleSheet("""
                 color: #0F172A;
                 font-family: 'Consolas', 'Courier New', monospace;
-                font-size: 22px;
-                font-weight: 800;
+                font-size: 16px;
+                font-weight: 700;
                 background-color: #F8FAFC;
                 border: 1px solid #E2E8F0;
                 border-radius: 10px;
                 padding: 14px 16px;
             """)
             layout_principal.addWidget(lbl_det)
-
-            metodo = resultado.get("metodo", "cofactores")
-            etiqueta_metodo = {
-                "cofactores": "Expansión por cofactores",
-                "triangular": "Reducción a forma triangular",
-                "sarrus": "Regla de Sarrus"
-            }.get(metodo, metodo)
-            extra = ""
-            if metodo == "cofactores":
-                fila_desarrollo = resultado.get("fila_desarrollo")
-                if fila_desarrollo is not None:
-                    extra = f" en la fila {fila_desarrollo + 1}"
-                extra += "; su costo puede crecer cerca de n! multiplicaciones"
-            elif metodo == "triangular":
-                extra = (
-                    f"; intercambios de filas: "
-                    f"{resultado.get('intercambios_filas', 0)}; factores "
-                    f"diagonales: {resultado.get('factores_diagonales', [])}"
-                )
-            lbl_metodo = QLabel(f"Método: {etiqueta_metodo}{extra}.")
-            lbl_metodo.setWordWrap(True)
-            lbl_metodo.setStyleSheet(
-                "color: #475569; font-size: 13px; font-weight: 600;"
-                " background-color: #F8FAFC; border: 1px solid #E2E8F0;"
-                " border-radius: 10px; padding: 12px;"
-            )
-            layout_principal.addWidget(lbl_metodo)
 
         elif operacion == "Teoremas clave":
             self._agregar_titulo_seccion(
@@ -3019,6 +3257,49 @@ class VistaOperacionesMatriz(QWidget):
                 lados.addLayout(columna)
             lados.addStretch()
             layout_principal.addLayout(lados)
+
+        elif operacion in ("Propiedad de inversa", "Propiedad de determinante"):
+            self._agregar_titulo_seccion(
+                layout_principal,
+                resultado.get("expresion", "VERIFICACIÓN DE PROPIEDAD")
+            )
+            estado = QLabel(resultado.get("mensaje", ""))
+            estado.setStyleSheet(
+                "color: #0F172A; font-size: 13px; font-weight: 700; "
+                "background-color: #F8FAFC; border: 1px solid #E2E8F0; "
+                "border-radius: 10px; padding: 12px;"
+            )
+            layout_principal.addWidget(estado)
+
+            if operacion == "Propiedad de inversa":
+                lados = QHBoxLayout()
+                nombres = ("Lado izquierdo", "Lado derecho")
+                for titulo, matriz in zip(
+                    nombres, resultado.get("comparaciones", [])
+                ):
+                    columna = QVBoxLayout()
+                    etiqueta = QLabel(titulo)
+                    etiqueta.setStyleSheet(
+                        "color: #64748B; font-weight: 700; font-size: 11px; "
+                        "border: none;"
+                    )
+                    columna.addWidget(etiqueta)
+                    columna.addWidget(self._crear_matriz_widget(matriz))
+                    lados.addLayout(columna)
+                lados.addStretch()
+                layout_principal.addLayout(lados)
+            else:
+                obtenido = resultado.get("valor_obtenido")
+                esperado = resultado.get("valor_esperado")
+                detalle = QLabel(
+                    f"Valor obtenido: {formatear_numero(obtenido)}; "
+                    f"valor esperado: {formatear_numero(esperado)}"
+                )
+                detalle.setStyleSheet(
+                    "color: #0F172A; font-family: 'Consolas', monospace; "
+                    "font-size: 13px; font-weight: 700; border: none;"
+                )
+                layout_principal.addWidget(detalle)
 
         elif operacion in (
             "Sumar matrices",
@@ -3880,6 +4161,8 @@ class VistaOperacionesMatriz(QWidget):
             "Inversa de matriz",
             "Traspuesta",
             "Propiedad de la traspuesta",
+            "Propiedad de inversa",
+            "Propiedad de determinante",
             "Propiedad suma y escalares",
             "Determinante",
             "Cramer"

@@ -672,6 +672,86 @@ def invertir_matriz(A):
     }
 
 
+def verificar_propiedad_inversa(propiedad, A, B=None):
+    """Comprueba propiedades de matrices inversas y devuelve sus pasos."""
+    validar_matriz(A)
+    if len(A) != len(A[0]):
+        raise ValueError("La propiedad de inversa requiere matrices cuadradas.")
+
+    proceso = [{
+        "tipo": "inicio", "titulo": "Matriz A", "operacion": "A",
+        "matriz": _copiar_matriz(A)
+    }]
+
+    if propiedad == "inversa_doble":
+        datos_inversa = invertir_matriz(A)
+        if not datos_inversa["invertible"]:
+            raise ValueError("A es singular; no se puede calcular (A⁻¹)⁻¹.")
+        inversa = datos_inversa["matriz_inversa"]
+        doble = invertir_matriz(inversa)["matriz_inversa"]
+        proceso.extend([
+            {"tipo": "resultado", "titulo": "Primera inversa", "operacion": "A⁻¹", "matriz": inversa},
+            {"tipo": "resultado", "titulo": "Inversa de la inversa", "operacion": "(A⁻¹)⁻¹", "matriz": doble},
+            {"tipo": "resultado", "titulo": "Matriz original", "operacion": "A", "matriz": _copiar_matriz(A)}
+        ])
+        izquierda, derecha = doble, A
+        expresion = "(A⁻¹)⁻¹ = A"
+
+    elif propiedad == "inversa_producto":
+        if B is None:
+            raise ValueError("La propiedad necesita las matrices A y B.")
+        validar_matriz(B)
+        if len(B) != len(B[0]) or len(A) != len(B):
+            raise ValueError("A y B deben ser cuadradas del mismo orden.")
+        datos_a, datos_b = invertir_matriz(A), invertir_matriz(B)
+        if not datos_a["invertible"] or not datos_b["invertible"]:
+            raise ValueError("A y B deben ser invertibles para aplicar la propiedad.")
+        producto = _multiplicar_dos_matrices(A, B)
+        datos_producto = invertir_matriz(producto)
+        if not datos_producto["invertible"]:
+            raise ValueError("AB es singular; no se puede calcular (AB)⁻¹.")
+        izquierda = datos_producto["matriz_inversa"]
+        derecha = _multiplicar_dos_matrices(
+            datos_b["matriz_inversa"], datos_a["matriz_inversa"]
+        )
+        proceso.extend([
+            {"tipo": "operacion", "titulo": "Producto", "operacion": "AB", "matriz": producto},
+            {"tipo": "resultado", "titulo": "Lado izquierdo", "operacion": "(AB)⁻¹", "matriz": izquierda},
+            {"tipo": "resultado", "titulo": "Inversas de A y B", "operacion": "A⁻¹ y B⁻¹", "matrices": [datos_a["matriz_inversa"], datos_b["matriz_inversa"]]},
+            {"tipo": "resultado", "titulo": "Lado derecho", "operacion": "B⁻¹A⁻¹", "matriz": derecha}
+        ])
+        expresion = "(AB)⁻¹ = B⁻¹A⁻¹"
+
+    elif propiedad == "inversa_traspuesta":
+        inversa = invertir_matriz(A)
+        if not inversa["invertible"]:
+            raise ValueError("A es singular; no se puede aplicar la propiedad.")
+        AT = transponer_matriz(A)["resultado"]
+        izquierda = invertir_matriz(AT)["matriz_inversa"]
+        derecha = transponer_matriz(inversa["matriz_inversa"])["resultado"]
+        proceso.extend([
+            {"tipo": "resultado", "titulo": "Inversa de la traspuesta", "operacion": "(Aᵀ)⁻¹", "matriz": izquierda},
+            {"tipo": "resultado", "titulo": "Traspuesta de la inversa", "operacion": "(A⁻¹)ᵀ", "matriz": derecha}
+        ])
+        expresion = "(Aᵀ)⁻¹ = (A⁻¹)ᵀ"
+    else:
+        raise ValueError("Selecciona una propiedad de la inversa válida.")
+
+    igualdad = _matrices_son_iguales(izquierda, derecha)
+    proceso.append({
+        "tipo": "verificacion", "titulo": "Verificar la propiedad",
+        "operacion": expresion, "matriz": izquierda,
+        "esperado": derecha, "resultado": igualdad
+    })
+    return {
+        "exito": True, "operacion": "Propiedad de inversa",
+        "propiedad": propiedad, "expresion": expresion,
+        "igualdad": igualdad, "comparaciones": [izquierda, derecha],
+        "proceso": proceso,
+        "mensaje": "La propiedad se cumple." if igualdad else "La propiedad no se cumple."
+    }
+
+
 # ============================================================
 # SUMA DE MATRICES
 # ============================================================
