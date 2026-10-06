@@ -1,3 +1,10 @@
+"""Operaciones del modulo de algebra de matrices.
+
+Implementa suma, resta, escalares, producto, transpuesta e inversas.
+Las funciones reciben datos ya capturados y devuelven resultados con pasos,
+para que consola o interfaz puedan reutilizar la misma logica.
+"""
+
 # matrices.py
 # Operaciones matriciales básicas.
 # Restricción: únicamente Python estándar.
@@ -55,6 +62,53 @@ def _copiar_matriz(matriz):
         fila[:]
         for fila in matriz
     ]
+
+
+def _menor_matriz(A, fila_eliminar, columna_eliminar):
+    """Construye el menor M_ij eliminando una fila y una columna."""
+
+    return [
+        [
+            valor
+            for j, valor in enumerate(fila)
+            if j != columna_eliminar
+        ]
+        for i, fila in enumerate(A)
+        if i != fila_eliminar
+    ]
+
+
+def _limpiar_ceros_matriz(matriz):
+    """Normaliza ceros pequenos producidos por operaciones con float."""
+
+    return [
+        [
+            0 if isinstance(valor, (int, float)) and abs(valor) < TOLERANCIA else valor
+            for valor in fila
+        ]
+        for fila in matriz
+    ]
+
+
+def _diagnostico_invertibilidad(determinante, orden, pivotes=None):
+    """Resume la relacion entre det(A), pivotes, inversa y columnas."""
+
+    if abs(determinante) <= TOLERANCIA:
+        detalle_pivotes = (
+            f" Solo tiene {pivotes} de {orden} posiciones pivote."
+            if pivotes is not None
+            else ""
+        )
+        return (
+            "det(A) = 0; la matriz es singular, sus columnas son "
+            f"linealmente dependientes y no generan R^{orden}."
+            f"{detalle_pivotes}"
+        )
+
+    return (
+        "det(A) != 0; la matriz es invertible, sus columnas son "
+        f"linealmente independientes y generan R^{orden}."
+    )
 
 
 def _matrices_son_iguales(A, B):
@@ -133,6 +187,8 @@ def _obtener_pivotes(A):
 
 
 def _paso_resumen_pivotes(cantidad):
+    """Construye un paso de proceso con la cantidad de pivotes encontrados."""
+
     return {
         "tipo": "formula",
         "titulo": "Cantidad de pivotes",
@@ -400,10 +456,19 @@ def invertir_matriz(A):
 
         if determinante == 0:
             pivotes = _obtener_pivotes(matriz_original)
+            diagnostico = _diagnostico_invertibilidad(
+                determinante, filas, len(pivotes)
+            )
             proceso.append({
                 "tipo": "singular",
                 "titulo": "Matriz singular",
                 "operacion": "La matriz no tiene inversa."
+            })
+            proceso.append({
+                "tipo": "formula",
+                "titulo": "Diagnostico",
+                "operacion": "",
+                "detalle": diagnostico
             })
             paso_pivotes = _paso_resumen_pivotes(len(pivotes))
             paso_pivotes["numero"] = len(proceso) + 1
@@ -419,6 +484,8 @@ def invertir_matriz(A):
                 "determinante": 0,
                 "invertible": False,
                 "cantidad_pivotes": len(pivotes),
+                "diagnostico": diagnostico,
+                "metodo_inversa": "formula_2x2",
                 "mensaje": "La matriz es singular y no tiene inversa.",
                 "proceso": proceso
             }
@@ -480,6 +547,9 @@ def invertir_matriz(A):
             "esperado": identidad,
             "resultado": verificacion
         })
+        diagnostico = _diagnostico_invertibilidad(
+            determinante, filas, filas
+        )
         return {
             "exito": True,
             "operacion": "Inversa de matriz",
@@ -490,6 +560,9 @@ def invertir_matriz(A):
             "resultado": inversa,
             "determinante": determinante,
             "invertible": True,
+            "cantidad_pivotes": filas,
+            "diagnostico": diagnostico,
+            "metodo_inversa": "formula_2x2",
             "mensaje": "La matriz es invertible.",
             "proceso": proceso
         }
@@ -523,6 +596,9 @@ def invertir_matriz(A):
                 "valor": 0
             }
             pivotes = _obtener_pivotes(matriz_original)
+            diagnostico = _diagnostico_invertibilidad(
+                0, filas, len(pivotes)
+            )
             proceso_singular = [{
                 "tipo": "inicio",
                 "titulo": "Matriz original",
@@ -538,6 +614,12 @@ def invertir_matriz(A):
                     f"en la columna {columna + 1}."
                 )
             })
+            proceso_singular.append({
+                "tipo": "formula",
+                "titulo": "Diagnostico",
+                "operacion": "",
+                "detalle": diagnostico
+            })
             paso_pivotes = _paso_resumen_pivotes(len(pivotes))
             paso_pivotes["numero"] = len(proceso_singular) + 1
             proceso_singular.append(paso_pivotes)
@@ -552,6 +634,8 @@ def invertir_matriz(A):
                 "determinante": 0,
                 "invertible": False,
                 "cantidad_pivotes": len(pivotes),
+                "diagnostico": diagnostico,
+                "metodo_inversa": "gauss_jordan",
                 "mensaje": "La matriz es singular y no tiene inversa.",
                 "proceso": proceso_singular
             }
@@ -657,6 +741,8 @@ def invertir_matriz(A):
         "resultado": verificacion
     })
 
+    diagnostico = _diagnostico_invertibilidad(determinante, filas, filas)
+
     return {
         "exito": True,
         "operacion": "Inversa de matriz",
@@ -667,7 +753,206 @@ def invertir_matriz(A):
         "resultado": inversa,
         "determinante": determinante,
         "invertible": True,
+        "cantidad_pivotes": filas,
+        "diagnostico": diagnostico,
+        "metodo_inversa": "gauss_jordan",
         "mensaje": "La matriz es invertible.",
+        "proceso": proceso
+    }
+
+
+def invertir_matriz_adjunta(A):
+    """Calcula A^{-1} usando A^{-1} = (1/det(A)) adj(A)."""
+    validar_matriz(A)
+
+    filas = len(A)
+    columnas = len(A[0])
+    if filas != columnas:
+        raise ValueError("Solo se puede invertir una matriz cuadrada.")
+
+    from determinantes import calcular_determinante
+
+    matriz_original = _copiar_matriz(A)
+    identidad = _crear_matriz_identidad(filas)
+    datos_det = calcular_determinante(matriz_original, "cofactores")
+    determinante = datos_det["determinante"]
+    proceso = [{
+        "tipo": "inicio",
+        "titulo": "Matriz original",
+        "operacion": "A",
+        "matriz": _copiar_matriz(matriz_original)
+    }]
+
+    proceso.extend(
+        {
+            **paso,
+            "titulo": f"Determinante: {paso.get('titulo', 'Paso')}"
+        }
+        for paso in datos_det.get("proceso", [])[1:]
+    )
+
+    if abs(determinante) <= TOLERANCIA:
+        pivotes = _obtener_pivotes(matriz_original)
+        diagnostico = _diagnostico_invertibilidad(
+            0, filas, len(pivotes)
+        )
+        proceso.append({
+            "tipo": "singular",
+            "titulo": "Matriz singular",
+            "operacion": "No hay inversa porque det(A) = 0."
+        })
+        proceso.append({
+            "tipo": "formula",
+            "titulo": "Diagnostico",
+            "operacion": "",
+            "detalle": diagnostico
+        })
+        paso_pivotes = _paso_resumen_pivotes(len(pivotes))
+        paso_pivotes["numero"] = len(proceso) + 1
+        proceso.append(paso_pivotes)
+        return {
+            "exito": True,
+            "operacion": "Inversa de matriz",
+            "matriz_original": matriz_original,
+            "matriz_aumentada": None,
+            "matriz_inversa": None,
+            "matriz_cofactores": None,
+            "matriz_adjunta": None,
+            "inversa": None,
+            "resultado": 0,
+            "determinante": 0,
+            "invertible": False,
+            "cantidad_pivotes": len(pivotes),
+            "diagnostico": diagnostico,
+            "metodo_inversa": "adjunta",
+            "mensaje": "La matriz es singular y no tiene inversa.",
+            "proceso": proceso
+        }
+
+    matriz_cofactores = []
+    for i in range(filas):
+        fila_cofactores = []
+        for j in range(columnas):
+            if filas == 1:
+                cofactor = 1
+            else:
+                menor = _menor_matriz(matriz_original, i, j)
+                det_menor = calcular_determinante(
+                    menor, "cofactores"
+                )["determinante"]
+                signo = -1 if (i + j) % 2 else 1
+                cofactor = signo * det_menor
+            fila_cofactores.append(
+                0 if abs(cofactor) < TOLERANCIA else cofactor
+            )
+        matriz_cofactores.append(fila_cofactores)
+
+    matriz_adjunta = transponer_matriz(matriz_cofactores)["resultado"]
+    inversa = [
+        [
+            valor / determinante
+            for valor in fila
+        ]
+        for fila in matriz_adjunta
+    ]
+    inversa = _limpiar_ceros_matriz(inversa)
+
+    proceso.append({
+        "tipo": "resultado",
+        "titulo": "Matriz de cofactores",
+        "operacion": "C_ij = (-1)^(i+j) det(M_ij)",
+        "matriz": _copiar_matriz(matriz_cofactores)
+    })
+    proceso.append({
+        "tipo": "resultado",
+        "titulo": "Matriz adjunta",
+        "operacion": "adj(A) = C^T",
+        "matriz": _copiar_matriz(matriz_adjunta)
+    })
+    proceso.append({
+        "tipo": "division_determinante",
+        "titulo": "Dividir adj(A) por det(A)",
+        "operacion": "A^-1 = (1/det(A)) adj(A)",
+        "matriz": [
+            [
+                f"{_formatear_numero(valor)}/{_formatear_numero(determinante)}"
+                for valor in fila
+            ]
+            for fila in matriz_adjunta
+        ],
+        "determinante": determinante
+    })
+    proceso.append({
+        "tipo": "resultado",
+        "titulo": "Matriz inversa",
+        "operacion": "A^-1",
+        "matriz": _copiar_matriz(inversa)
+    })
+
+    producto_verificacion = _multiplicar_dos_matrices(
+        matriz_original, inversa
+    )
+    producto_verificacion = _limpiar_ceros_matriz(producto_verificacion)
+    verificacion = _matrices_son_iguales(
+        producto_verificacion, identidad
+    )
+    proceso.append({
+        "tipo": "verificacion",
+        "titulo": "Comprobacion automatica",
+        "operacion": "A * A^-1 = I",
+        "matriz": producto_verificacion,
+        "esperado": identidad,
+        "resultado": verificacion
+    })
+
+    datos_gauss = invertir_matriz(matriz_original)
+    inversa_gauss = datos_gauss.get("matriz_inversa")
+    metodos_coinciden = (
+        bool(datos_gauss.get("invertible"))
+        and inversa_gauss is not None
+        and _matrices_son_iguales(inversa, inversa_gauss)
+    )
+    proceso.append({
+        "tipo": "resultado",
+        "titulo": "Inversa por Gauss-Jordan",
+        "operacion": "Resultado independiente para comparar metodos",
+        "matriz": _copiar_matriz(inversa_gauss) if inversa_gauss else []
+    })
+    proceso.append({
+        "tipo": "verificacion",
+        "titulo": "Comparacion de metodos",
+        "operacion": "A^-1 por adjunta = A^-1 por Gauss-Jordan",
+        "matriz": _copiar_matriz(inversa),
+        "esperado": _copiar_matriz(inversa_gauss) if inversa_gauss else [],
+        "resultado": metodos_coinciden,
+        "detalle": (
+            "Ambos metodos dan la misma matriz inversa."
+            if metodos_coinciden
+            else "Los metodos no dieron la misma matriz inversa."
+        )
+    })
+    diagnostico = _diagnostico_invertibilidad(
+        determinante, filas, filas
+    )
+
+    return {
+        "exito": True,
+        "operacion": "Inversa de matriz",
+        "matriz_original": matriz_original,
+        "matriz_aumentada": None,
+        "matriz_inversa": inversa,
+        "matriz_inversa_gauss_jordan": inversa_gauss,
+        "matriz_cofactores": matriz_cofactores,
+        "matriz_adjunta": matriz_adjunta,
+        "inversa": inversa,
+        "resultado": inversa,
+        "determinante": determinante,
+        "invertible": True,
+        "cantidad_pivotes": filas,
+        "metodos_coinciden": metodos_coinciden,
+        "diagnostico": diagnostico,
+        "metodo_inversa": "adjunta",
+        "mensaje": "La matriz es invertible; se calculo la inversa por matriz adjunta.",
         "proceso": proceso
     }
 

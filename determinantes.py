@@ -1,3 +1,10 @@
+"""Determinantes y propiedades del modulo de algebra de matrices.
+
+Calcula determinantes por cofactores, Sarrus y forma triangular.
+Tambien verifica propiedades de determinantes e integra Cramer.
+No usa librerias externas de algebra lineal.
+"""
+
 # determinantes.py
 # Calculo de determinantes sin librerias externas.
 
@@ -36,6 +43,21 @@ def _validar_matriz_cuadrada(A):
         raise ValueError(
             "El determinante solo se puede calcular en matrices cuadradas."
         )
+
+
+def _diagnostico_por_determinante(determinante, orden):
+    """Relaciona det(A) con invertibilidad, pivotes y columnas."""
+
+    if abs(determinante) <= TOLERANCIA:
+        return (
+            "det(A) = 0; A es singular, sus columnas son linealmente "
+            f"dependientes y no generan R^{orden}."
+        )
+
+    return (
+        "det(A) != 0; A es invertible, tiene n posiciones pivote, "
+        f"sus columnas son linealmente independientes y generan R^{orden}."
+    )
 
 
 def _menor(A, fila_eliminar, columna_eliminar):
@@ -121,7 +143,7 @@ def _determinante_sarrus(A):
     return valor, detalle
 
 
-def _determinante_triangular(A):
+def _determinante_triangular_con_pivoteo(A):
     """Reduce por operaciones de fila y conserva signo y pivotes."""
     matriz = _copiar_matriz(A)
     n = len(matriz)
@@ -234,6 +256,118 @@ def _determinante_triangular(A):
     return valor, proceso, intercambios, pivotes, matriz, factor_extraido
 
 
+def _determinante_triangular(A):
+    """Reduce a triangular con reemplazos y swaps solo si hacen falta."""
+
+    matriz = _copiar_matriz(A)
+    n = len(matriz)
+    intercambios = 0
+    factor_extraido = 1
+    proceso = []
+    pivotes = []
+    factores_eliminacion = []
+
+    for columna in range(n):
+        fila_pivote = columna
+        if abs(matriz[fila_pivote][columna]) <= TOLERANCIA:
+            fila_pivote = next(
+                (
+                    fila for fila in range(columna + 1, n)
+                    if abs(matriz[fila][columna]) > TOLERANCIA
+                ),
+                columna
+            )
+
+        if abs(matriz[fila_pivote][columna]) <= TOLERANCIA:
+            pivotes.append(0)
+            proceso.append({
+                "tipo": "formula",
+                "titulo": "PIVOTE NULO",
+                "operacion": f"Columna {columna + 1}",
+                "detalle": (
+                    "No hay pivote distinto de cero en esta columna; "
+                    "la matriz no tiene n pivotes y det(A) = 0."
+                )
+            })
+            return 0, proceso, intercambios, pivotes, matriz, factor_extraido
+
+        if fila_pivote != columna:
+            matriz[columna], matriz[fila_pivote] = (
+                matriz[fila_pivote],
+                matriz[columna]
+            )
+            intercambios += 1
+            proceso.append({
+                "tipo": "operacion_fila",
+                "titulo": "Intercambio de filas",
+                "operacion": (
+                    f"F{columna + 1} <-> F{fila_pivote + 1}; "
+                    "un intercambio cambia el signo del determinante"
+                ),
+                "matriz": _copiar_matriz(matriz)
+            })
+
+        pivote = matriz[columna][columna]
+        pivotes.append(pivote)
+        for fila in range(columna + 1, n):
+            factor = matriz[fila][columna] / pivote
+            if abs(factor) <= TOLERANCIA:
+                continue
+
+            factores_eliminacion.append(factor)
+            matriz[fila] = [
+                matriz[fila][j] - factor * matriz[columna][j]
+                for j in range(n)
+            ]
+            matriz[fila][columna] = 0
+            proceso.append({
+                "tipo": "operacion_fila",
+                "titulo": "Anular entrada bajo el pivote",
+                "operacion": (
+                    f"F{fila + 1} <- F{fila + 1} - "
+                    f"({_formatear(factor)})F{columna + 1}; "
+                    "un reemplazo de fila no cambia el determinante"
+                ),
+                "matriz": _copiar_matriz(matriz)
+            })
+
+    proceso.append({
+        "tipo": "operacion_fila",
+        "titulo": "FORMA TRIANGULAR",
+        "operacion": "Se usa el producto de la diagonal principal",
+        "matriz": _copiar_matriz(matriz)
+    })
+
+    producto_diagonal = 1
+    for pivote in pivotes:
+        producto_diagonal *= pivote
+
+    valor = (-1 if intercambios % 2 else 1) * producto_diagonal
+    if abs(valor) <= TOLERANCIA:
+        valor = 0
+
+    factores_texto = (
+        "Ninguno"
+        if not factores_eliminacion
+        else ", ".join(_formatear(factor) for factor in factores_eliminacion)
+    )
+    proceso.append({
+        "tipo": "formula",
+        "titulo": "Determinante desde la forma triangular",
+        "operacion": "det(A) = (-1)^s * producto diagonal",
+        "detalle": (
+            f"Intercambios s = {intercambios}; diagonal triangular = "
+            f"{' * '.join(_formatear(p) for p in pivotes)}; "
+            f"factores usados para eliminar = {factores_texto}.\n"
+            "Los reemplazos de fila no cambian el determinante; solo los "
+            "intercambios cambian el signo.\n"
+            f"det(A) = {'-1' if intercambios % 2 else '1'} * "
+            f"{_formatear(producto_diagonal)} = {_formatear(valor)}"
+        )
+    })
+    return valor, proceso, intercambios, pivotes, matriz, factor_extraido
+
+
 def calcular_determinante(A, metodo="cofactores", eje_desarrollo=None):
     """
     Calcula det(A) usando solo el método solicitado.
@@ -266,9 +400,19 @@ def calcular_determinante(A, metodo="cofactores", eje_desarrollo=None):
             "detalle": f"det(A) = {_formatear(determinante)}",
             "valor": determinante
         })
+        diagnostico = _diagnostico_por_determinante(determinante, n)
+        proceso.append({
+            "numero": len(proceso) + 1,
+            "tipo": "formula",
+            "titulo": "DIAGNOSTICO",
+            "operacion": "",
+            "detalle": diagnostico
+        })
         return {
             "determinante": determinante, "resultado": determinante,
             "matriz": matriz, "metodo": metodo,
+            "diagnostico": diagnostico,
+            "invertible": abs(determinante) > TOLERANCIA,
             "intercambios_filas": intercambios,
             "factores_diagonales": pivotes,
             "factor_extraido": factor_extraido,
@@ -300,9 +444,20 @@ def calcular_determinante(A, metodo="cofactores", eje_desarrollo=None):
             "detalle": f"det(A) = {_formatear(determinante)}",
             "valor": determinante
         }]
+        diagnostico = _diagnostico_por_determinante(determinante, n)
+        proceso.append({
+            "numero": len(proceso) + 1,
+            "tipo": "formula",
+            "titulo": "DIAGNOSTICO",
+            "operacion": "",
+            "detalle": diagnostico
+        })
         return {
             "determinante": determinante, "resultado": determinante,
-            "matriz": matriz, "metodo": metodo, "proceso": proceso
+            "matriz": matriz, "metodo": metodo,
+            "diagnostico": diagnostico,
+            "invertible": abs(determinante) > TOLERANCIA,
+            "proceso": proceso
         }
 
     if metodo != "cofactores":
@@ -325,6 +480,14 @@ def calcular_determinante(A, metodo="cofactores", eje_desarrollo=None):
             "operacion": f"det(A) = {_formatear(determinante)}",
             "detalle": f"det(A) = {_formatear(determinante)}"
         })
+        diagnostico = _diagnostico_por_determinante(determinante, n)
+        proceso.append({
+            "numero": len(proceso) + 1,
+            "tipo": "formula",
+            "titulo": "DIAGNOSTICO",
+            "operacion": "",
+            "detalle": diagnostico
+        })
 
         return {
             "determinante": determinante,
@@ -333,6 +496,8 @@ def calcular_determinante(A, metodo="cofactores", eje_desarrollo=None):
             "metodo": "cofactores",
             "fila_desarrollo": 0,
             "cofactores": [],
+            "diagnostico": diagnostico,
+            "invertible": abs(determinante) > TOLERANCIA,
             "proceso": proceso
         }
 
@@ -353,6 +518,14 @@ def calcular_determinante(A, metodo="cofactores", eje_desarrollo=None):
                 f"{_formatear(b * c)} = {_formatear(determinante)}"
             )
         })
+        diagnostico = _diagnostico_por_determinante(determinante, n)
+        proceso.append({
+            "numero": len(proceso) + 1,
+            "tipo": "formula",
+            "titulo": "DIAGNOSTICO",
+            "operacion": "",
+            "detalle": diagnostico
+        })
 
         return {
             "determinante": determinante,
@@ -361,6 +534,8 @@ def calcular_determinante(A, metodo="cofactores", eje_desarrollo=None):
             "metodo": "cofactores",
             "fila_desarrollo": 0,
             "cofactores": [],
+            "diagnostico": diagnostico,
+            "invertible": abs(determinante) > TOLERANCIA,
             "proceso": proceso
         }
 
@@ -592,6 +767,14 @@ def calcular_determinante(A, metodo="cofactores", eje_desarrollo=None):
         ),
         "valor": determinante
     })
+    diagnostico = _diagnostico_por_determinante(determinante, n)
+    proceso.append({
+        "numero": len(proceso) + 1,
+        "tipo": "formula",
+        "titulo": "DIAGNOSTICO",
+        "operacion": "",
+        "detalle": diagnostico
+    })
 
     return {
         "determinante": determinante,
@@ -601,6 +784,8 @@ def calcular_determinante(A, metodo="cofactores", eje_desarrollo=None):
         "fila_desarrollo": None if desarrollar_por_columna else fila_desarrollo,
         "columna_desarrollo": columna_desarrollo if desarrollar_por_columna else None,
         "cofactores": cofactores,
+        "diagnostico": diagnostico,
+        "invertible": abs(determinante) > TOLERANCIA,
         "proceso": proceso
     }
 

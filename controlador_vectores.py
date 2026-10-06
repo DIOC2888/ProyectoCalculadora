@@ -1,3 +1,9 @@
+"""Controlador entre la interfaz y los modulos matematicos.
+
+Normaliza respuestas del backend para que las vistas puedan mostrar resultados,
+procesos y mensajes de error sin duplicar calculos algebraicos.
+Incluye vectores, matrices, determinantes y teoremas clave.
+"""
 
 # controlador_vectores.py
 #
@@ -558,10 +564,62 @@ class ControladorVectores:
                     else datos.get("determinante")
                 ),
                 "matriz_inversa": datos.get("matriz_inversa"),
+                "matriz_inversa_gauss_jordan": datos.get(
+                    "matriz_inversa_gauss_jordan"
+                ),
+                "matriz_cofactores": datos.get("matriz_cofactores"),
+                "matriz_adjunta": datos.get("matriz_adjunta"),
                 "inversa": datos.get("matriz_inversa"),
                 "determinante": datos.get("determinante"),
                 "invertible": datos.get("invertible", False),
                 "cantidad_pivotes": datos.get("cantidad_pivotes", 0),
+                "metodos_coinciden": datos.get("metodos_coinciden"),
+                "diagnostico": datos.get("diagnostico", ""),
+                "metodo_inversa": datos.get("metodo_inversa", "gauss_jordan"),
+                "mensaje": datos.get("mensaje", ""),
+                "proceso": datos.get("proceso", [])
+            }
+        except (ValueError, TypeError) as e:
+            return {
+                "exito": False,
+                "operacion": "Inversa de matriz",
+                "matriz": A,
+                "resultado": None,
+                "determinante": None,
+                "invertible": False,
+                "mensaje": str(e),
+                "proceso": []
+            }
+
+    @staticmethod
+    def invertir_matriz_adjunta(A):
+        """Calcula la inversa por matriz adjunta para la vista."""
+        try:
+            datos = backend_matrices.invertir_matriz_adjunta(A)
+            return {
+                "exito": True,
+                "operacion": "Inversa de matriz",
+                "matriz": datos.get("matriz_original", A),
+                "matriz_original": datos.get("matriz_original", A),
+                "matriz_aumentada": datos.get("matriz_aumentada"),
+                "resultado": (
+                    datos.get("matriz_inversa")
+                    if datos.get("invertible", False)
+                    else datos.get("determinante")
+                ),
+                "matriz_inversa": datos.get("matriz_inversa"),
+                "matriz_inversa_gauss_jordan": datos.get(
+                    "matriz_inversa_gauss_jordan"
+                ),
+                "matriz_cofactores": datos.get("matriz_cofactores"),
+                "matriz_adjunta": datos.get("matriz_adjunta"),
+                "inversa": datos.get("matriz_inversa"),
+                "determinante": datos.get("determinante"),
+                "invertible": datos.get("invertible", False),
+                "cantidad_pivotes": datos.get("cantidad_pivotes", 0),
+                "metodos_coinciden": datos.get("metodos_coinciden"),
+                "diagnostico": datos.get("diagnostico", ""),
+                "metodo_inversa": "adjunta",
                 "mensaje": datos.get("mensaje", ""),
                 "proceso": datos.get("proceso", [])
             }
@@ -579,6 +637,8 @@ class ControladorVectores:
 
     @staticmethod
     def verificar_propiedad_inversa(propiedad, A, B=None):
+        """Verifica una propiedad de matrices inversas desde el backend."""
+
         try:
             return backend_matrices.verificar_propiedad_inversa(
                 propiedad, A, B
@@ -649,6 +709,8 @@ class ControladorVectores:
 
     @staticmethod
     def verificar_propiedad_traspuesta(propiedad, A, B=None, escalar=None):
+        """Verifica propiedades de la transpuesta y adapta la respuesta."""
+
         try:
             datos = backend_matrices.verificar_propiedad_traspuesta(
                 propiedad, A, B, escalar
@@ -672,6 +734,8 @@ class ControladorVectores:
 
     @staticmethod
     def verificar_propiedad_suma_escalar(propiedad, A, B=None, C=None, r=None, s=None):
+        """Verifica propiedades de suma de matrices y escalares."""
+
         try:
             datos = backend_matrices.verificar_propiedad_suma_escalar(
                 propiedad, A, B, C, r, s
@@ -705,6 +769,8 @@ class ControladorVectores:
                 "resultado": datos.get("resultado"),
                 "determinante": datos.get("determinante"),
                 "metodo": datos.get("metodo"),
+                "diagnostico": datos.get("diagnostico", ""),
+                "invertible": datos.get("invertible", False),
                 "fila_desarrollo": datos.get("fila_desarrollo"),
                 "columna_desarrollo": datos.get("columna_desarrollo"),
                 "cofactores": datos.get("cofactores", []),
@@ -730,6 +796,8 @@ class ControladorVectores:
         A, propiedad, operacion_fila=None, fila_i=None, fila_j=None, k=None,
         B=None
     ):
+        """Verifica propiedades de determinantes y captura errores de entrada."""
+
         try:
             return backend_determinantes.verificar_propiedad_determinante(
                 A, propiedad, operacion_fila, fila_i, fila_j, k, B=B

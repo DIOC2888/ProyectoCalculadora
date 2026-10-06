@@ -1,3 +1,9 @@
+"""Formato de valores matematicos para consola e interfaz.
+
+Centraliza subindices, superindices y conversion de numeros a texto.
+Esto evita repetir reglas de presentacion en cada modulo algebraico.
+"""
+
 from fractions import Fraction
 from config import TOLERANCIA
 

@@ -1,3 +1,10 @@
+"""Vista grafica para operaciones del modulo de matrices.
+
+Construye los formularios de matrices, vectores, determinantes e inversas.
+La vista no calcula directamente: lee entradas, llama al controlador y
+renderiza resultados, procesos y diagnosticos para el usuario.
+"""
+
 import sys
 import os
 
@@ -237,8 +244,9 @@ class VistaOperacionesMatriz(QWidget):
         self.lbl_mops_propiedad = QLabel("PROPIEDAD", propiedad_widget)
         self.lbl_mops_propiedad.setStyleSheet(lbl_mats.styleSheet())
         self.combo_mops_propiedad = QComboBox(propiedad_widget)
-        self.combo_mops_propiedad.setFixedWidth(220)
+        self.combo_mops_propiedad.setFixedWidth(300)
         self.combo_mops_propiedad.setFixedHeight(38)
+        self.combo_mops_propiedad.setMaxVisibleItems(8)
         self.combo_mops_propiedad.hide()
         self.lbl_mops_propiedad.hide()
         self.combo_mops_propiedad.currentIndexChanged.connect(self._on_mops_property_changed)
@@ -677,6 +685,29 @@ class VistaOperacionesMatriz(QWidget):
                 color: #2563EB;
             }
         """
+        propiedad_popup_style = """
+            QListView {
+                background-color: #FFFFFF;
+                color: #0F172A;
+                border: 1px solid #CBD5E1;
+                border-radius: 8px;
+                padding: 6px;
+                outline: 0px;
+                font-size: 13px;
+            }
+            QListView::item {
+                min-height: 38px;
+                padding: 8px 14px;
+                color: #0F172A;
+                background-color: #FFFFFF;
+                font-weight: 400;
+            }
+            QListView::item:selected,
+            QListView::item:hover {
+                background-color: #EFF6FF;
+                color: #2563EB;
+            }
+        """
         self.combo_mops_metodo.setStyleSheet("""
             QComboBox {
                 background-color: #FFFFFF;
@@ -718,7 +749,8 @@ class VistaOperacionesMatriz(QWidget):
         self.combo_mops_traspuesta.setStyleSheet(self.combo_mops_metodo.styleSheet())
         self.combo_mops_traspuesta.view().setStyleSheet(combo_popup_style)
         self.combo_mops_propiedad.setStyleSheet(self.combo_mops_metodo.styleSheet())
-        self.combo_mops_propiedad.view().setStyleSheet(combo_popup_style)
+        self.combo_mops_propiedad.view().setMinimumWidth(500)
+        self.combo_mops_propiedad.view().setStyleSheet(propiedad_popup_style)
         self.combo_mops_dimension_matrix.setStyleSheet(self.combo_mops_metodo.styleSheet())
         self.combo_mops_dimension_matrix.view().setStyleSheet(combo_popup_style)
         self.combo_det_operacion_fila.setStyleSheet(self.combo_mops_metodo.styleSheet())
@@ -1071,9 +1103,11 @@ class VistaOperacionesMatriz(QWidget):
             ],
             "Inversa": [
                 ("Operación normal", None),
+                ("Matriz adjunta: A^-1 = (1/det(A)) adj(A)", "inversa_adjunta"),
                 ("Propiedad 1: (A⁻¹)⁻¹ = A", "inversa_doble"),
                 ("Propiedad 2: (AB)⁻¹ = B⁻¹A⁻¹", "inversa_producto"),
-                ("Propiedad 3: (Aᵀ)⁻¹ = (A⁻¹)ᵀ", "inversa_traspuesta")
+                ("Propiedad 3: (Aᵀ)⁻¹ = (A⁻¹)ᵀ", "inversa_traspuesta"),
+                ("Propiedad 4: det(A^-1) = 1/det(A)", "inversa_det")
             ],
             "Determinante": [
                 ("Operación normal", None),
@@ -2411,7 +2445,16 @@ class VistaOperacionesMatriz(QWidget):
                 )
 
             elif modo == "Inversa":
-                if propiedad_suma:
+                if propiedad_suma == "inversa_adjunta":
+                    resultado = ControladorVectores.invertir_matriz_adjunta(
+                        matrices[0]
+                    )
+                elif propiedad_suma == "inversa_det":
+                    resultado = ControladorVectores.verificar_propiedad_determinante(
+                        matrices[0],
+                        "det_inversa"
+                    )
+                elif propiedad_suma:
                     resultado = ControladorVectores.verificar_propiedad_inversa(
                         propiedad_suma,
                         matrices[0],
@@ -3274,6 +3317,20 @@ class VistaOperacionesMatriz(QWidget):
                 padding: 14px 16px;
             """)
             layout_principal.addWidget(lbl_det)
+            diagnostico = resultado.get("diagnostico")
+            if diagnostico:
+                lbl_diag = QLabel(diagnostico)
+                lbl_diag.setWordWrap(True)
+                lbl_diag.setStyleSheet("""
+                    color: #0F172A;
+                    font-size: 13px;
+                    font-weight: 700;
+                    background-color: #F8FAFC;
+                    border: 1px solid #E2E8F0;
+                    border-radius: 10px;
+                    padding: 12px;
+                """)
+                layout_principal.addWidget(lbl_diag)
 
         elif operacion == "Teoremas clave":
             self._agregar_titulo_seccion(
@@ -3353,6 +3410,20 @@ class VistaOperacionesMatriz(QWidget):
                 padding: 12px;
             """)
             layout_principal.addWidget(mensaje)
+            diagnostico = resultado.get("diagnostico")
+            if diagnostico:
+                lbl_diag = QLabel(diagnostico)
+                lbl_diag.setWordWrap(True)
+                lbl_diag.setStyleSheet("""
+                    color: #0F172A;
+                    font-size: 13px;
+                    font-weight: 700;
+                    background-color: #F8FAFC;
+                    border: 1px solid #E2E8F0;
+                    border-radius: 10px;
+                    padding: 12px;
+                """)
+                layout_principal.addWidget(lbl_diag)
 
             if not resultado.get("invertible", False):
                 lbl_pivotes = QLabel(
@@ -3368,6 +3439,18 @@ class VistaOperacionesMatriz(QWidget):
                 layout_principal.addWidget(lbl_pivotes)
 
             inversa = resultado.get("matriz_inversa")
+            matriz_adjunta = resultado.get("matriz_adjunta")
+            if matriz_adjunta is not None:
+                self._agregar_titulo_seccion(layout_principal, "MATRIZ ADJUNTA")
+                wrapper_adj = QWidget()
+                wrapper_adj.setStyleSheet("background: transparent; border: none;")
+                wrapper_adj_layout = QHBoxLayout(wrapper_adj)
+                wrapper_adj_layout.setContentsMargins(0, 0, 0, 0)
+                wrapper_adj_layout.addWidget(
+                    self._crear_matriz_widget(matriz_adjunta)
+                )
+                wrapper_adj_layout.addStretch()
+                layout_principal.addWidget(wrapper_adj)
             if inversa is not None:
                 self._agregar_titulo_seccion(layout_principal, "MATRIZ INVERSA")
                 wrapper = QWidget()
@@ -3377,6 +3460,31 @@ class VistaOperacionesMatriz(QWidget):
                 wrapper_layout.addWidget(self._crear_matriz_widget(inversa))
                 wrapper_layout.addStretch()
                 layout_principal.addWidget(wrapper)
+
+            metodos_coinciden = resultado.get("metodos_coinciden")
+            if metodos_coinciden is not None:
+                color = "#059669" if metodos_coinciden else "#B45309"
+                texto = (
+                    "Comparacion de metodos: A^-1 por adjunta = "
+                    "A^-1 por Gauss-Jordan. Se cumple."
+                    if metodos_coinciden
+                    else (
+                        "Comparacion de metodos: la inversa por adjunta "
+                        "no coincide con la inversa por Gauss-Jordan."
+                    )
+                )
+                lbl_comparacion = QLabel(texto)
+                lbl_comparacion.setWordWrap(True)
+                lbl_comparacion.setStyleSheet(f"""
+                    color: {color};
+                    font-size: 13px;
+                    font-weight: 800;
+                    background-color: #F8FAFC;
+                    border: 1px solid #E2E8F0;
+                    border-radius: 10px;
+                    padding: 12px;
+                """)
+                layout_principal.addWidget(lbl_comparacion)
 
         elif operacion == "Traspuesta":
             transpuestas = resultado.get("transpuestas", [])
@@ -4188,6 +4296,12 @@ class VistaOperacionesMatriz(QWidget):
         banner = QFrame()
         banner.setObjectName("BannerEstado")
 
+        def det_es_cero(valor):
+            try:
+                return abs(float(valor)) <= 1e-9
+            except (TypeError, ValueError):
+                return False
+
         if modo == "Independencia columnas":
             if resultado.get("es_independiente", False):
                 color_icono = "#059669"
@@ -4207,7 +4321,10 @@ class VistaOperacionesMatriz(QWidget):
         elif modo == "Inversa de matriz" and not resultado.get("invertible", False):
             color_icono = "#B45309"
             titulo_estado = "Matriz singular"
-            sub_estado = "El determinante es cero; no existe inversa."
+            sub_estado = resultado.get(
+                "diagnostico",
+                "El determinante es cero; no existe inversa."
+            )
             texto_icono = "NO"
             banner_bg = "#FFFBEB"
             banner_border = "#FDE68A"
@@ -4215,7 +4332,16 @@ class VistaOperacionesMatriz(QWidget):
         elif modo == "Inversa de matriz":
             color_icono = "#059669"
             titulo_estado = "Matriz invertible"
-            sub_estado = "Se calculo la inversa mediante Gauss-Jordan."
+            metodo = resultado.get("metodo_inversa", "gauss_jordan")
+            metodo_texto = (
+                "matriz adjunta"
+                if metodo == "adjunta"
+                else "Gauss-Jordan"
+            )
+            sub_estado = resultado.get(
+                "diagnostico",
+                f"Se calculo la inversa mediante {metodo_texto}."
+            )
             texto_icono = "OK"
             banner_bg = "#ECFDF5"
             banner_border = "#A7F3D0"
@@ -4233,16 +4359,20 @@ class VistaOperacionesMatriz(QWidget):
             banner_border = "#A7F3D0" if invertible else "#FDE68A"
 
         elif modo == "Determinante":
-            color_icono = "#2563EB"
-            titulo_estado = "Determinante calculado"
-            sub_estado = {
+            es_cero = det_es_cero(resultado.get("determinante"))
+            color_icono = "#B45309" if es_cero else "#2563EB"
+            titulo_estado = (
+                "Determinante cero"
+                if es_cero else "Determinante no nulo"
+            )
+            sub_estado = resultado.get("diagnostico") or {
                 "cofactores": "Expansión por cofactores",
                 "triangular": "Reducción a forma triangular",
                 "sarrus": "Regla de Sarrus"
             }.get(resultado.get("metodo"), "Determinante calculado")
             texto_icono = "DET"
-            banner_bg = "#EFF6FF"
-            banner_border = "#BFDBFE"
+            banner_bg = "#FFFBEB" if es_cero else "#EFF6FF"
+            banner_border = "#FDE68A" if es_cero else "#BFDBFE"
 
         elif modo == "Teoremas clave":
             color_icono = "#2563EB"
@@ -4324,6 +4454,7 @@ class VistaOperacionesMatriz(QWidget):
         )
 
         lbl_status_sub = QLabel(sub_estado)
+        lbl_status_sub.setWordWrap(True)
         lbl_status_sub.setStyleSheet(
             f"color: {color_icono}; font-size: 11px; "
             "border: none; background: transparent;"

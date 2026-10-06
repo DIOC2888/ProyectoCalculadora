@@ -1,3 +1,10 @@
+"""Entrada de consola heredada para resolver sistemas lineales.
+
+Lee una matriz aumentada, aplica eliminacion y presenta clasificacion,
+rango, pivotes y solucion. La interfaz grafica actual arranca desde
+Interfaz/maintemporal.py, pero este archivo conserva el flujo de consola.
+"""
+
 from entrada import ingresar_matriz
 
 from formato import (
