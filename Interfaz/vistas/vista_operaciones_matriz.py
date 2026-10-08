@@ -14,7 +14,7 @@ if PROJECT_DIR not in sys.path:
 
 from formato import formatear_numero, subindice
 from fractions import Fraction
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QRect
 from PySide6.QtWidgets import (
     QFrame,
     QBoxLayout,
@@ -44,6 +44,23 @@ try:
     from entrada import leer_sistema_desde_texto
 except ImportError:
     leer_sistema_desde_texto = None
+
+
+class EtiquetaDetalle(QLabel):
+    """Etiqueta con altura calculada para el texto envuelto y su ancho real."""
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        margen = self.contentsMargins()
+        ancho_texto = max(1, width - margen.left() - margen.right() - 4)
+        limites = QRect(0, 0, ancho_texto, 100000)
+        flags = Qt.TextFlag.TextWordWrap
+        alto_texto = self.fontMetrics().boundingRect(
+            limites, flags, self.text()
+        ).height()
+        return alto_texto + margen.top() + margen.bottom() + 6
 
 
 class VistaOperacionesMatriz(QWidget):
@@ -3030,10 +3047,19 @@ class VistaOperacionesMatriz(QWidget):
                     )
 
             elif tipo in ("determinante", "singular", "formula"):
-                contenido = QLabel(
+                contenido = EtiquetaDetalle(
                     paso.get("detalle", operacion_paso)
                 )
                 contenido.setWordWrap(True)
+                contenido.setContentsMargins(12, 10, 12, 10)
+                # Preserve QLabel's height-for-width behavior so multiline
+                # details grow vertically when the card constrains their width.
+                politica = QSizePolicy(
+                    QSizePolicy.Policy.Expanding,
+                    QSizePolicy.Policy.Preferred
+                )
+                politica.setHeightForWidth(True)
+                contenido.setSizePolicy(politica)
                 contenido.setStyleSheet("""
                     color: #0F172A;
                     font-family: 'Consolas', 'Courier New', monospace;
@@ -3042,7 +3068,7 @@ class VistaOperacionesMatriz(QWidget):
                     background-color: #F8FAFC;
                     border: 1px solid #E2E8F0;
                     border-radius: 8px;
-                    padding: 10px 12px;
+                    padding: 0px;
                     margin-left: 40px;
                 """)
 
