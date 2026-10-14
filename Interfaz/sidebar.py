@@ -128,7 +128,7 @@ class Sidebar(QFrame):
             ("Espacios vectoriales", False,None),
             ("Autovalores", False,None),
             ("Transformaciones", False,None),
-            ("Factorizaciones", False,None),
+            ("Factorizaciones", True,3),
         ]
 
         for row_idx, (name, is_available, stack_index) in enumerate(items):

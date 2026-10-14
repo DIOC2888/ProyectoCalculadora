@@ -18,6 +18,7 @@ from sistema import (
     sustitucion_atras
 )
 from verificacion import verificar_solucion
+from factorizacion import factorizar_y_resolver
 
 
 class ControladorMatriz:
@@ -137,6 +138,13 @@ class ControladorMatriz:
             "conjunto_solucion": conjunto_solucion,
             "verificacion": reporte_verificacion
         }
+
+    @staticmethod
+    def factorizar_y_resolver(matriz, vector):
+        """Puente entre la vista LU y el módulo de factorización."""
+        return factorizar_y_resolver(matriz, vector)
+
+
 class ControladorVectores:
     """Clase encargada de conectar la interfaz en PySide6 con la lógica del backend para operaciones vectoriales."""
 
