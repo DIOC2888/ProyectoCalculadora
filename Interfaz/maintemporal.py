@@ -29,7 +29,7 @@ from vistas.vista_matriz import VistaMatriz
 from vistas.vista_vectores import VistaVectores
 from vistas.vista_operaciones_matriz import VistaOperacionesMatriz
 from vistas.vista_factorizacion import VistaFactorizacion
-# from vistas.vista_otra import VistaOtra  # Tus futuras vistas
+# from vistas.vista_otra import VistaOtra 
 
 
 class MainWindow(QMainWindow):

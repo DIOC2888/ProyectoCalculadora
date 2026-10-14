@@ -135,10 +135,10 @@ class VistaFactorizacion(QWidget):
         back.setStyleSheet("QPushButton { color: #64748B; font-weight: 600; font-size: 13px; border: none; background: transparent; text-align: left; padding: 0px; } QPushButton:hover { color: #0F172A; }")
         back.clicked.connect(self._back)
         result_layout.addWidget(back)
-        self.card_proceso = CollapsibleCard("Proceso")
+        self.card_proceso = CollapsibleCard("Procedimiento por etapas")
         self.card_solucion = CollapsibleCard("Solución")
-        result_layout.addWidget(self.card_proceso)
         result_layout.addWidget(self.card_solucion)
+        result_layout.addWidget(self.card_proceso)
         self.results_card.hide()
         layout.addWidget(self.results_card)
         self.dog_main = SleepingDogContainer(small=False)
@@ -155,6 +155,7 @@ class VistaFactorizacion(QWidget):
             item = self.matrixes_layout.takeAt(0)
             widget = item.widget()
             if widget is not None:
+                widget.hide()
                 widget.deleteLater()
         while self.vector_grid.count():
             item = self.vector_grid.takeAt(0)
@@ -229,6 +230,7 @@ class VistaFactorizacion(QWidget):
             item = layout.takeAt(0)
             widget = item.widget()
             if widget is not None:
+                widget.hide()
                 widget.deleteLater()
             elif item.layout() is not None:
                 VistaFactorizacion._clear_layout(item.layout())
@@ -241,14 +243,13 @@ class VistaFactorizacion(QWidget):
         try:
             self._clear_layout(self.card_proceso.content_layout)
             b = [float(field.text()) for field in self.vector_inputs]
-            solutions, process_blocks = [], []
+            solutions = []
             for index, matrix_fields in enumerate(self.matrix_inputs, start=1):
                 A = [[float(field.text()) for field in row] for row in matrix_fields]
                 result = ControladorMatriz.factorizar_y_resolver(A, b)
-                process_blocks.append((index, result.get("proceso", [])))
                 solutions.append((index, result))
             self._render_solutions(solutions)
-            self._render_process(process_blocks)
+            self._render_process(solutions)
             self.card.hide()
             self.results_card.show()
             self.dog_main.hide()
@@ -266,49 +267,94 @@ class VistaFactorizacion(QWidget):
             self.results_card.show()
             self.dog_main.hide()
 
-    def _render_process(self, matrix_processes):
-        number = 1
-        for matrix_index, steps in matrix_processes:
-            heading = QLabel(f"PROCESO PARA A{subindice(matrix_index)}")
-            heading.setStyleSheet("color: #64748B; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; background: transparent; border: none;")
+    @staticmethod
+    def _set_expanded(card, expanded):
+        card.is_expanded = expanded
+        card.content_widget.setVisible(expanded)
+        card.btn_toggle.setText("−" if expanded else "+")
+
+    @staticmethod
+    def _etapa_del_paso(step):
+        tipo = step.get("tipo", "")
+        if tipo.startswith("adelante") or tipo in ("vector_b", "vector_y"):
+            return "adelante"
+        if tipo.startswith("atras"):
+            return "atras"
+        if tipo.startswith("verificacion") or tipo == "diagnostico_sistema":
+            return "comprobaciones"
+        return "factorizacion"
+
+    def _render_process(self, matrix_results):
+        self._clear_layout(self.card_proceso.content_layout)
+        etapas = (
+            ("factorizacion", "Construcción de L y U"),
+            ("adelante", "Sustitución hacia adelante: Ly = b"),
+            ("atras", "Sustitución hacia atrás: Ux = y"),
+            ("comprobaciones", "Comprobaciones"),
+        )
+        for matrix_index, result in matrix_results:
+            heading = self._result_label(f"PROCEDIMIENTO DE A{subindice(matrix_index)}")
             self.card_proceso.add_widget(heading)
-            for step in steps:
-                frame = QFrame()
-                frame.setObjectName("LuStepCard")
-                frame.setStyleSheet("QFrame#LuStepCard { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; }")
-                row = QHBoxLayout(frame)
-                row.setContentsMargins(16, 14, 16, 14)
-                row.setSpacing(12)
-                badge = QLabel(str(number))
-                badge.setFixedSize(28, 28)
-                badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                badge.setStyleSheet("background: #EEF2FF; color: #4F46E5; font-size: 13px; font-weight: 700; border: none; border-radius: 14px;")
-                row.addWidget(badge, alignment=Qt.AlignmentFlag.AlignTop)
-                detail = QVBoxLayout()
-                title = QLabel(step.get("titulo", "PASO"))
-                title.setStyleSheet("color: #64748B; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; background: transparent; border: none;")
-                description = QLabel(step.get("descripcion", ""))
-                description.setWordWrap(True)
-                description.setStyleSheet("color: #0F172A; font-family: Consolas, monospace; font-size: 13px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px;")
-                detail.addWidget(title)
-                detail.addWidget(description)
-                for key, label in (("A", "MATRIZ A"), ("L", "MATRIZ L"), ("U", "MATRIZ U"), ("LU", "PRODUCTO L · U"), ("matriz", "MATRIZ AUMENTADA [A|b]")):
-                    if key in step:
-                        detail.addWidget(self._result_label(label))
-                        detail.addWidget(self._matrix_widget(step[key]))
-                for key, label in (("b", "VECTOR b"), ("y", "VECTOR y"), ("x", "VECTOR x"), ("Ax", "PRODUCTO A · x")):
-                    if key in step:
-                        detail.addWidget(self._result_label(label))
-                        detail.addWidget(self._vector_widget(step[key]))
-                row.addLayout(detail, 1)
-                self.card_proceso.add_widget(frame)
-                number += 1
-        self.card_proceso.is_expanded = True
-        self.card_proceso.content_widget.setVisible(True)
-        self.card_proceso.btn_toggle.setText("−")
-        self.card_solucion.is_expanded = True
-        self.card_solucion.content_widget.setVisible(True)
-        self.card_solucion.btn_toggle.setText("−")
+            steps = result.get("proceso", [])
+            for key, title in etapas:
+                stage_steps = [step for step in steps if self._etapa_del_paso(step) == key]
+                if not stage_steps:
+                    continue
+                stage = CollapsibleCard(f"{title} ({len(stage_steps)} pasos)")
+                stage.setObjectName(f"LuStage-{key}-A{matrix_index}")
+                for number, step in enumerate(stage_steps, start=1):
+                    stage.add_widget(self._step_widget(step, number))
+                self.card_proceso.add_widget(stage)
+            comparison_steps = result.get("comparacion_gauss", {}).get("pasos", [])
+            if comparison_steps:
+                comparison = CollapsibleCard("Comparación con Gauss-Jordan (opcional)")
+                comparison.setObjectName(f"LuComparison-A{matrix_index}")
+                for number, step in enumerate(comparison_steps, start=1):
+                    comparison.add_widget(self._step_widget(step, number))
+                self.card_proceso.add_widget(comparison)
+        self._set_expanded(self.card_proceso, False)
+
+    def _step_widget(self, step, number):
+        frame = QFrame()
+        frame.setObjectName("LuStepCard")
+        frame.setStyleSheet("QFrame#LuStepCard { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; }")
+        row = QHBoxLayout(frame)
+        row.setContentsMargins(16, 14, 16, 14)
+        row.setSpacing(12)
+        badge = QLabel(str(number))
+        badge.setFixedSize(28, 28)
+        badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        badge.setStyleSheet("background: #EEF2FF; color: #4F46E5; font-size: 13px; font-weight: 700; border: none; border-radius: 14px;")
+        row.addWidget(badge, alignment=Qt.AlignmentFlag.AlignTop)
+        detail = QVBoxLayout()
+        title = self._result_label(step.get("titulo", "PASO"))
+        description = QLabel(step.get("descripcion", ""))
+        description.setWordWrap(True)
+        description.setStyleSheet("color: #0F172A; font-family: Consolas, monospace; font-size: 13px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px;")
+        detail.addWidget(title)
+        detail.addWidget(description)
+        tipo = step.get("tipo")
+        label_l = (
+            "MATRIZ L INICIAL (IDENTIDAD)" if tipo == "inicio"
+            else "MATRIZ L FINAL" if tipo == "factorizacion"
+            else "MATRIZ L EN CONSTRUCCIÓN"
+        )
+        for key, label in (
+            ("A", "MATRIZ A"),
+            ("L", label_l),
+            ("U", "MATRIZ U FINAL" if tipo == "factorizacion" else "MATRIZ U EN CONSTRUCCIÓN"),
+            ("LU", "PRODUCTO L · U"),
+            ("matriz", step.get("etiqueta_matriz", "MATRIZ AUMENTADA")),
+        ):
+            if key in step:
+                detail.addWidget(self._result_label(label))
+                detail.addWidget(self._matrix_widget(step[key]))
+        for key, label in (("b", "VECTOR b"), ("y", "VECTOR y"), ("x", "VECTOR x"), ("Ax", "PRODUCTO A · x")):
+            if key in step:
+                detail.addWidget(self._result_label(label))
+                detail.addWidget(self._vector_widget(step[key]))
+        row.addLayout(detail, 1)
+        return frame
 
     def _render_solutions(self, solutions):
         self._clear_layout(self.card_solucion.content_layout)
@@ -318,48 +364,44 @@ class VistaFactorizacion(QWidget):
             section_layout = QVBoxLayout(section)
             section_layout.setContentsMargins(0, 0, 0, 12)
             section_layout.setSpacing(12)
-            title = QLabel(f"FACTORIZACIÓN DE A{subindice(index)}")
-            title.setStyleSheet("color: #64748B; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; background: transparent;")
-            section_layout.addWidget(title)
-            for caption, key in (("MATRIZ L", "L"), ("MATRIZ U", "U"), ("PRODUCTO L · U", "LU")):
+            section_layout.addWidget(self._result_label(f"FACTORIZACIÓN DE A{subindice(index)}"))
+            for caption, key in (("MATRIZ L FINAL", "L"), ("MATRIZ U FINAL", "U")):
                 section_layout.addWidget(self._result_label(caption))
                 section_layout.addWidget(self._matrix_widget(result[key]))
-            lu_message = QLabel("La factorización es correcta (L · U = A)." if result["factorizacion_correcta"] else "La factorización no coincide con A.")
+            lu_message = QLabel(
+                "La factorización es correcta (L · U = A)."
+                if result["factorizacion_correcta"] else "La factorización no coincide con A."
+            )
+            lu_message.setWordWrap(True)
             lu_message.setStyleSheet("color: #0F172A; font-size: 13px; font-weight: 600; background: transparent;")
             section_layout.addWidget(lu_message)
+            vectors = QHBoxLayout()
+            for key, caption in (("y", "VECTOR INTERMEDIO y"), ("x", "VECTOR SOLUCIÓN x")):
+                if result.get(key) is not None:
+                    column = QVBoxLayout()
+                    column.addWidget(self._result_label(caption))
+                    column.addWidget(self._vector_widget(result[key]))
+                    vectors.addLayout(column)
+            if vectors.count():
+                section_layout.addLayout(vectors)
             if result["x"] is not None:
-                section_layout.addWidget(self._result_label(f"SISTEMA A{subindice(index)}x = b"))
-                section_layout.addWidget(self._result_label("VECTOR INTERMEDIO y"))
-                section_layout.addWidget(self._vector_widget(result["y"]))
-                section_layout.addWidget(self._result_label("VECTOR SOLUCIÓN x"))
-                section_layout.addWidget(self._vector_widget(result["x"]))
-                check = QLabel("Comprobación exitosa: A · x = b." if result["verificacion_sistema"] else "La comprobación A · x = b no se cumple.")
-                check.setStyleSheet("color: #0F172A; font-size: 13px; font-weight: 600; background: transparent;")
-                section_layout.addWidget(check)
-                section_layout.addWidget(self._result_label("PRODUCTO A · x"))
-                section_layout.addWidget(self._vector_widget(result["Ax"]))
-                comparison = result.get("comparacion_gauss", {})
-                comparison_ok = comparison.get("coincide_con_LU") and comparison.get("solucion_coincide")
-                comparison_label = QLabel(
-                    "Comparación exitosa: la reducción de [A|b] produce el mismo U, y y x."
-                    if comparison_ok else "La reducción ordinaria de [A|b] no coincide con el proceso LU."
+                text = (
+                    "Comprobación exitosa: A · x = b."
+                    if result["verificacion_sistema"] else "La comprobación A · x = b no se cumple."
                 )
-                comparison_label.setWordWrap(True)
-                comparison_label.setStyleSheet("color: #0F172A; font-size: 13px; font-weight: 600; background: transparent;")
-                section_layout.addWidget(comparison_label)
-                if comparison.get("matriz_final"):
-                    section_layout.addWidget(self._result_label("REDUCCIÓN ORDINARIA FINAL [A|b]"))
-                    section_layout.addWidget(self._matrix_widget(comparison["matriz_final"]))
             else:
-                section_layout.addWidget(self._result_label(result.get("mensaje_sistema", "No se pudo resolver el sistema.")))
+                text = result.get("mensaje_sistema", "No se pudo resolver el sistema.")
+            message = QLabel(text)
+            message.setWordWrap(True)
+            message.setStyleSheet("color: #0F172A; font-size: 13px; font-weight: 600; background: transparent;")
+            section_layout.addWidget(message)
             self.card_solucion.add_widget(section)
-        self.card_solucion.is_expanded = True
-        self.card_solucion.content_widget.setVisible(True)
-        self.card_solucion.btn_toggle.setText("−")
+        self._set_expanded(self.card_solucion, True)
 
     @staticmethod
     def _result_label(text):
         label = QLabel(text)
+        label.setWordWrap(True)
         label.setStyleSheet("color: #64748B; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; background: transparent;")
         return label
 
@@ -376,7 +418,10 @@ class VistaFactorizacion(QWidget):
         grid.setVerticalSpacing(4)
         for i, row in enumerate(matrix):
             for j, value in enumerate(row):
-                cell = QLabel(formatear_numero(value))
+                text = formatear_numero(value)
+                if text == "0" and value != 0:
+                    text = f"{value:.12g}"
+                cell = QLabel(text)
                 cell.setMinimumWidth(42)
                 cell.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 cell.setStyleSheet("color: #0F172A; font-size: 13px; font-family: 'Segoe UI', sans-serif; background: transparent;")
