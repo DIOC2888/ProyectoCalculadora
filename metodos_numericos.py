@@ -93,6 +93,8 @@ def bisecar(expresion, a, b, tolerancia, max_iteraciones):
     if isinstance(max_iteraciones, bool) or not math.isfinite(iteraciones_numero) or not iteraciones_numero.is_integer() or iteraciones_numero < 1:
         raise ValueError("El maximo de iteraciones debe ser un entero mayor o igual que 1.")
     max_iteraciones = int(iteraciones_numero)
+    datos_entrada = {"expresion": expresion, "tolerancia": tolerancia,
+                     "max_iteraciones": max_iteraciones}
     fa, fb = f(a), f(b)
     if not math.isfinite(fa) or not math.isfinite(fb):
         raise ValueError("La funcion no esta definida o no es finita en los extremos.")
@@ -103,7 +105,7 @@ def bisecar(expresion, a, b, tolerancia, max_iteraciones):
     teoricas = max(0, math.ceil(math.log2(ancho_inicial) - math.log2(tolerancia))) if ancho_inicial > tolerancia else 0
     if fa == 0 or fb == 0:
         raiz = a if fa == 0 else b
-        return {"raiz": raiz, "f_raiz": 0.0, "cota": 0.0, "error_relativo": "—", "iteraciones": 0,
+        return {**datos_entrada, "raiz": raiz, "f_raiz": 0.0, "cota": 0.0, "error_relativo": "—", "iteraciones": 0,
                 "teoricas": teoricas, "estado": "Raiz exacta encontrada en un extremo.", "tabla": [], "intervalo_inicial": (a, b), "funcion": f}
     if (fa > 0 and fb > 0) or (fa < 0 and fb < 0):
         raise ValueError("El intervalo no cumple la condicion de cambio de signo; puede buscar una raiz en otro intervalo.")
@@ -147,7 +149,7 @@ def bisecar(expresion, a, b, tolerancia, max_iteraciones):
         else:
             a, fa = xr, fr
         anterior = xr
-    return {"raiz": raiz, "f_raiz": fr, "cota": cota, "error_relativo": error_relativo,
+    return {**datos_entrada, "raiz": raiz, "f_raiz": fr, "cota": cota, "error_relativo": error_relativo,
             "iteraciones": len(tabla), "teoricas": teoricas, "estado": estado, "tabla": tabla,
             "intervalo_inicial": intervalo_inicial, "funcion": f, "intervalo_final": (a, b)}
 

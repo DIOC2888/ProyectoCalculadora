@@ -153,8 +153,12 @@ class VistaMetodosNumericos(QWidget):
 
     @staticmethod
     def _combo_style():
+        # El desplegable necesita colores propios para no heredar texto blanco del tema oscuro.
         return ("QComboBox { background: #FFFFFF; border: 1px solid #2563EB; border-radius: 8px; "
                 "padding: 8px 12px; color: #0F172A; } QComboBox:focus { border: 1px solid #2563EB; } "
+                "QComboBox QAbstractItemView { background-color: #FFFFFF; color: #0F172A; "
+                "border: 1px solid #CBD5E1; outline: 0px; "
+                "selection-background-color: #DBEAFE; selection-color: #0F172A; } "
                 "QComboBox::drop-down { border: none; width: 0px; } "
                 "QComboBox::down-arrow { image: none; width: 0px; height: 0px; }")
 
@@ -558,6 +562,7 @@ class VistaMetodosNumericos(QWidget):
         self._numero_paso = getattr(self, "_numero_paso", 0) + 1
         frame = QFrame()
         frame.setObjectName("NumericMethodStep")
+        frame.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Minimum)
         frame.setStyleSheet("QFrame#NumericMethodStep { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; }")
         row = QHBoxLayout(frame)
         row.setContentsMargins(16, 14, 16, 14)
@@ -651,6 +656,86 @@ class VistaMetodosNumericos(QWidget):
         table.horizontalHeader().setStretchLastSection(True)
         table.setMinimumHeight(min(430, max(100, len(result["tabla"]) * 34 + 42)))
         self.card_proceso.add_widget(table)
+        self._mostrar_procedimiento_biseccion(result)
+
+    def _mostrar_procedimiento_biseccion(self, result):
+        """Explica las operaciones y decisiones de las iteraciones ya calculadas."""
+        a0, b0 = result["intervalo_inicial"]
+        tolerancia = result["tolerancia"]
+        filas = result["tabla"]
+        self.card_proceso.add_widget(self._texto_resultado("Desarrollo paso a paso", "valor"))
+        self._agregar_paso(
+            "Datos iniciales",
+            f"f(x) = {result['expresion']}. Intervalo inicial: [{a0:.12g}, {b0:.12g}]. "
+            f"Tolerancia absoluta E = {tolerancia:.12g}; máximo de iteraciones = {result['max_iteraciones']}.",
+        )
+        self._agregar_paso(
+            "Comprobación del intervalo",
+            f"a = {a0:.12g} < b = {b0:.12g}. "
+            f"f(a) = {filas[0]['fa']:.12g} y f(b) = {filas[0]['fb']:.12g} tienen signos opuestos, "
+            "por lo que f(a) · f(b) < 0. La garantía de una raíz requiere que f sea continua en todo el intervalo.",
+        )
+        self._agregar_paso(
+            "Iteraciones teóricas",
+            f"n mínimo = máx(0, ⌈log₂((b₀ − a₀)/E)⌉) = "
+            f"máx(0, ⌈log₂(({b0:.12g} − ({a0:.12g}))/{tolerancia:.12g})⌉) = {result['teoricas']}. "
+            "Este número corresponde a la cota del error; se puede terminar antes si se encuentra una raíz exacta.",
+        )
+        anterior = None
+        for fila in filas:
+            a, b, xr, fa, fr, eb = (fila[clave] for clave in ("a", "b", "xr", "fa", "fr", "eb"))
+            cumple = eb <= tolerancia
+            detalle = [
+                f"Intervalo usado: [{a:.12g}, {b:.12g}].",
+                f"Punto medio: xᵣ = (a + b)/2 = ({a:.12g} + ({b:.12g}))/2 = {xr:.12g}.",
+                f"Evaluación: f(xᵣ) = f({xr:.12g}) = {fr:.12g}.",
+                f"Cota: Eᵦ = (b − a)/2 = ({b:.12g} − ({a:.12g}))/2 = {eb:.12g}. "
+                f"Eᵦ {'≤' if cumple else '>'} E = {tolerancia:.12g}.",
+            ]
+            if anterior is None:
+                detalle.append("Eₐ y εₐ: —. No hay una aproximación anterior para compararlos.")
+            else:
+                detalle.append(
+                    f"Error absoluto aproximado: Eₐ = |xᵣ − xᵣ anterior| = "
+                    f"|{xr:.12g} − ({anterior:.12g})| = {fila['error_abs']:.12g}."
+                )
+                if xr == 0:
+                    detalle.append("Error relativo aproximado εₐ: No definido porque xᵣ = 0.")
+                else:
+                    detalle.append(
+                        f"Error relativo aproximado: εₐ = Eₐ/|xᵣ| = "
+                        f"{fila['error_abs']:.12g}/|{xr:.12g}| = {fila['error_relativo']:.12g}."
+                    )
+            if fr == 0:
+                detalle.append("Se detiene: f(xᵣ) = 0. Se encontró una raíz exacta en aritmética de máquina.")
+            elif cumple:
+                detalle.append("Se detiene: la cota Eᵦ es menor o igual que E. Se alcanzó la tolerancia absoluta.")
+            else:
+                if (fa < 0 < fr) or (fr < 0 < fa):
+                    detalle.append(
+                        "f(a) y f(xᵣ) tienen signos opuestos: f(a) · f(xᵣ) < 0. "
+                        f"Se actualiza b = xᵣ y se conserva [{a:.12g}, {xr:.12g}]."
+                    )
+                else:
+                    detalle.append(
+                        "f(a) y f(xᵣ) tienen el mismo signo: f(a) · f(xᵣ) > 0. "
+                        f"Se actualiza a = xᵣ y se conserva [{xr:.12g}, {b:.12g}]."
+                    )
+                if fila["k"] == result["iteraciones"]:
+                    detalle.append(
+                        f"Se detiene al alcanzar el máximo de {result['max_iteraciones']} iteraciones "
+                        "sin garantizar la tolerancia solicitada."
+                    )
+                else:
+                    detalle.append("Se continúa con el intervalo conservado.")
+            self._agregar_paso(f"Iteración {fila['k']}", "\n".join(detalle))
+            anterior = xr
+        self._agregar_paso(
+            "Resultado y motivo de finalización",
+            f"xᵣ ≈ {result['raiz']:.12g}, f(xᵣ) = {result['f_raiz']:.12g} y Eᵦ = {result['cota']:.12g}. "
+            f"Se ejecutaron {result['iteraciones']} iteraciones frente a {result['teoricas']} teóricas. "
+            f"{result['estado']}",
+        )
 
     def _mostrar_grafica(self):
         from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
