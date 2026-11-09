@@ -124,7 +124,7 @@ class Sidebar(QFrame):
             ("Vectores", True,1),
             ("Matrices", True,2),
             ("Espacios vectoriales", False,None),
-            ("Producto interno", False,None),
+            ("Métodos Numéricos",True,4),
             ("Espacios vectoriales", False,None),
             ("Autovalores", False,None),
             ("Transformaciones", False,None),

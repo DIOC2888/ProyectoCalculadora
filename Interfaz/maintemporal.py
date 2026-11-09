@@ -29,6 +29,7 @@ from vistas.vista_matriz import VistaMatriz
 from vistas.vista_vectores import VistaVectores
 from vistas.vista_operaciones_matriz import VistaOperacionesMatriz
 from vistas.vista_factorizacion import VistaFactorizacion
+from vistas.vista_metodos_numericos import VistaMetodosNumericos
 # from vistas.vista_otra import VistaOtra 
 
 
@@ -79,11 +80,13 @@ class MainWindow(QMainWindow):
         self.vista_vectores = VistaVectores()
         self.vista_operaciones_matriz = VistaOperacionesMatriz()
         self.vista_factorizacion = VistaFactorizacion()
+        self.vista_metodos_numericos = VistaMetodosNumericos()
 
         self.stack.addWidget(self.vista_matriz)  # Índice 0
         self.stack.addWidget(self.vista_vectores)  # Índice 1
         self.stack.addWidget(self.vista_operaciones_matriz) #Indice 2
         self.stack.addWidget(self.vista_factorizacion) #Indice 3
+        self.stack.addWidget(self.vista_metodos_numericos) # Indice 4
 
       
 
