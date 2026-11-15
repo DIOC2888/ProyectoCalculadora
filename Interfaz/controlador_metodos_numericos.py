@@ -9,6 +9,7 @@ if PROJECT_DIR not in sys.path:
     sys.path.insert(0, PROJECT_DIR)
 
 from metodos_numericos import (
+    CRITERIOS_ERROR_ITERATIVO,
     TIPOS_ERROR,
     bisecar,
     comparar_inestabilidad,
@@ -25,10 +26,14 @@ from metodos_numericos import (
 class ControladorMetodosNumericos:
     """Valida y conecta los datos de la interfaz con cada modulo numerico."""
 
+    CRITERIOS_ERROR_ITERATIVO = CRITERIOS_ERROR_ITERATIVO
+
     @staticmethod
-    def resolver_iterativo(matriz, vector, inicial, tolerancia, max_iteraciones, metodo, reordenar=True):
+    def resolver_iterativo(matriz, vector, inicial, tolerancia, max_iteraciones, metodo,
+                          reordenar=True, criterio_error="infinito"):
         """Ejecuta Jacobi o Gauss-Seidel en el motor numérico propio."""
-        return resolver_metodo_iterativo(matriz, vector, inicial, tolerancia, max_iteraciones, metodo, reordenar)
+        return resolver_metodo_iterativo(matriz, vector, inicial, tolerancia, max_iteraciones,
+                                        metodo, reordenar, criterio_error)
 
     @staticmethod
     def resolver_biseccion(funcion, a, b, tolerancia, max_iteraciones):

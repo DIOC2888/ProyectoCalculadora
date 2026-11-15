@@ -8,8 +8,20 @@ from decimal import Decimal, localcontext
 import numpy as np
 
 
-def resolver_metodo_iterativo(matriz, vector, inicial, tolerancia, max_iteraciones, metodo, reordenar=True):
-    """Resuelve Ax=b por Jacobi o Gauss-Seidel y conserva cada iteración."""
+CRITERIOS_ERROR_ITERATIVO = {
+    "infinito": ("Norma infinito (Tarea 8)", "‖x⁽ᵏ⁾ − x⁽ᵏ⁻¹⁾‖∞"),
+    "euclideo": ("Norma euclídea (presentación)", "‖x⁽ᵏ⁾ − x⁽ᵏ⁻¹⁾‖₂"),
+    "porcentual": ("Relativo porcentual máximo (Chapra)", "máx. εₐ (%)"),
+}
+
+
+def resolver_metodo_iterativo(matriz, vector, inicial, tolerancia, max_iteraciones, metodo,
+                             reordenar=True, criterio_error="infinito"):
+    """Resuelve Ax=b conservando las iteraciones sin redondear valores intermedios.
+
+    El criterio predeterminado es el de la Tarea 8. La norma 2 permite comparar
+    los ejemplos 1 y 2 de la presentación, y el porcentual, el ejemplo de Chapra.
+    """
     A = np.asarray(matriz, dtype=float)
     b = np.asarray(vector, dtype=float)
     x0 = np.asarray(inicial, dtype=float)
@@ -26,11 +38,13 @@ def resolver_metodo_iterativo(matriz, vector, inicial, tolerancia, max_iteracion
         raise ValueError("La tolerancia y el máximo de iteraciones deben ser numéricos.") from exc
     if not math.isfinite(tol_num) or tol_num <= 0:
         raise ValueError("La tolerancia debe ser positiva y finita.")
-    if not math.isfinite(max_num) or not max_num.is_integer() or max_num < 1:
+    if isinstance(max_iteraciones, bool) or not math.isfinite(max_num) or not max_num.is_integer() or max_num < 1:
         raise ValueError("El máximo de iteraciones debe ser un entero positivo.")
     max_iteraciones = int(max_num)
     if metodo not in {"Jacobi", "Gauss-Seidel"}:
         raise ValueError("Seleccione Jacobi o Gauss-Seidel.")
+    if criterio_error not in CRITERIOS_ERROR_ITERATIVO:
+        raise ValueError("Seleccione un criterio de error válido: infinito, euclideo o porcentual.")
 
     indices = list(range(n))
     diagonal = np.diag(A)
@@ -62,12 +76,17 @@ def resolver_metodo_iterativo(matriz, vector, inicial, tolerancia, max_iteracion
                 return None
             return dfs(0)
 
-        permutacion = buscar(True) if reordenar else None
+        permutacion = buscar(True)
         dominancia_encontrada = permutacion is not None
-        if permutacion is None and reordenar:
+        if permutacion is None and np.any(diagonal == 0):
             permutacion = buscar(False)
         if permutacion is None:
-            raise ValueError("La diagonal contiene ceros y no se encontró un reordenamiento de filas con diagonal no nula.")
+            if np.any(diagonal == 0):
+                raise ValueError("La diagonal contiene ceros y no se encontró un reordenamiento de filas con diagonal no nula.")
+            # Tener diagonal no nula ya permite iterar. Una permutación sin
+            # dominancia garantizada puede convertir un proceso convergente en
+            # uno divergente: conservar el orden original en este caso.
+            permutacion = indices
         A, b = A[permutacion, :], b[permutacion]
         indices = permutacion
     else:
@@ -78,43 +97,76 @@ def resolver_metodo_iterativo(matriz, vector, inicial, tolerancia, max_iteracion
     dominante_final = bool(np.all(np.abs(diagonal) > np.sum(np.abs(A), axis=1) - np.abs(diagonal)))
 
     x = x0.copy()
-    tabla = [{"k": 0, "x": x.copy(), "error": None, "residuo": float(np.linalg.norm(A @ x - b, ord=np.inf))}]
+    tabla = [{"k": 0, "x": x.copy(), "error": None, "error_infinito": None,
+              "error_euclideo": None, "error_porcentual": None,
+              "residuo": float(np.linalg.norm(A @ x - b, ord=np.inf))}]
     errores_crecen = 0
+    advertencias = []
+    convergio = False
+    motivo_parada = "maximo_iteraciones"
     estado = "Máximo de iteraciones alcanzado; posible no convergencia."
     for k in range(1, max_iteraciones + 1):
         anterior = x.copy()
-        if metodo == "Jacobi":
-            x = (b - (A - np.diag(diagonal)) @ anterior) / diagonal
-        else:
-            for i in range(n):
-                x[i] = (b[i] - A[i, :i] @ x[:i] - A[i, i + 1:] @ anterior[i + 1:]) / diagonal[i]
+        with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+            if metodo == "Jacobi":
+                x = (b - (A - np.diag(diagonal)) @ anterior) / diagonal
+            else:
+                for i in range(n):
+                    x[i] = (b[i] - A[i, :i] @ x[:i] - A[i, i + 1:] @ anterior[i + 1:]) / diagonal[i]
         if not np.isfinite(x).all():
             estado = f"{metodo}: se detuvo porque aparecieron valores no finitos en la iteración {k}."
+            motivo_parada = "no_finito"
             x = anterior
             break
-        error = float(np.linalg.norm(x - anterior, ord=np.inf))
-        residuo = float(np.linalg.norm(A @ x - b, ord=np.inf))
-        tabla.append({"k": k, "x": x.copy(), "error": error, "residuo": residuo})
+        with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+            cambios = np.abs(x - anterior)
+            error_infinito = float(np.max(cambios))
+            # hypot evita desbordar al elevar al cuadrado componentes grandes.
+            error_euclideo = math.hypot(*cambios)
+            relativos = np.zeros(n)
+            np.divide(cambios, np.abs(x), out=relativos, where=x != 0)
+            relativos[(x == 0) & (cambios != 0)] = np.inf
+            error_porcentual = float(np.max(relativos) * 100)
+        error = {"infinito": error_infinito, "euclideo": error_euclideo,
+                 "porcentual": error_porcentual}[criterio_error]
+        with np.errstate(over="ignore", invalid="ignore"):
+            residuo = float(np.linalg.norm(A @ x - b, ord=np.inf))
+        tabla.append({"k": k, "x": x.copy(), "error": error,
+                      "error_infinito": error_infinito, "error_euclideo": error_euclideo,
+                      "error_porcentual": error_porcentual, "residuo": residuo})
+        if not math.isfinite(residuo) or not math.isfinite(error_infinito) or (criterio_error == "euclideo" and not math.isfinite(error_euclideo)):
+            estado = f"{metodo}: se detuvo porque el error o el residuo dejó de ser finito en la iteración {k}."
+            motivo_parada = "no_finito"
+            break
         if error <= tol_num:
-            estado = "Convergencia alcanzada según ‖x⁽ᵏ⁾ − x⁽ᵏ⁻¹⁾‖∞ ≤ ε."
+            convergio = True
+            motivo_parada = "tolerancia"
+            estado = f"Convergencia alcanzada según {CRITERIOS_ERROR_ITERATIVO[criterio_error][1]} ≤ ε."
             break
         errores_crecen = errores_crecen + 1 if len(tabla) > 2 and error > tabla[-2]["error"] else 0
-        if errores_crecen >= 5:
-            estado = f"Advertencia: el error creció durante varias iteraciones de {metodo}; posible no convergencia."
-            break
-    residuo_final = float(np.linalg.norm(A @ x - b, ord=np.inf))
+        if errores_crecen == 5 and not advertencias:
+            # El crecimiento transitorio no prueba divergencia (por ejemplo,
+            # una matriz triangular puede converger después de varios aumentos).
+            advertencias.append(f"El error creció durante cinco iteraciones consecutivas de {metodo}; se continuó hasta la tolerancia o el límite indicado.")
+    residuo_final = tabla[-1]["residuo"]
     try:
         referencia = np.linalg.solve(A, b)
         diferencia = float(np.linalg.norm(x - referencia, ord=np.inf))
+        diferencia_euclidea = math.hypot(*(x - referencia))
     except np.linalg.LinAlgError:
-        referencia = diferencia = None
+        referencia = diferencia = diferencia_euclidea = None
+    for fila in tabla:
+        fila["error_referencia_euclideo"] = None if referencia is None else math.hypot(*(fila["x"] - referencia))
     return {"metodo": metodo, "A": A, "b": b, "x0": x0, "solucion": x,
             "tabla": tabla, "iteraciones": len(tabla) - 1, "error": tabla[-1]["error"],
             "residuo": residuo_final, "estado": estado, "tolerancia": tol_num,
+            "convergio": convergio, "motivo_parada": motivo_parada, "advertencias": advertencias,
+            "criterio_error": criterio_error, "formula_error": CRITERIOS_ERROR_ITERATIVO[criterio_error][1],
             "max_iteraciones": max_iteraciones, "dominante_original": dominante,
             "dominante": dominante_final, "dominancia_por_reordenamiento": dominancia_encontrada,
             "reordenada": indices != list(range(n)), "permutacion": [i + 1 for i in indices],
-            "referencia": referencia, "diferencia_referencia": diferencia}
+            "referencia": referencia, "diferencia_referencia": diferencia,
+            "diferencia_referencia_euclidea": diferencia_euclidea}
 
 
 _BINARIOS = {

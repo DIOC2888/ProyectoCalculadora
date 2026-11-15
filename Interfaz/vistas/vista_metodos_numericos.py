@@ -331,18 +331,33 @@ class VistaMetodosNumericos(QWidget):
             box = QVBoxLayout()
             label = QLabel(caption)
             label.setStyleSheet(self._label_style())
+            if widget is self.iter_tol:
+                self.iter_tol_label = label
             box.addWidget(label)
             box.addWidget(widget)
             controls.addLayout(box, 0, col)
+        self.iter_error = QComboBox()
+        for clave, (nombre, _) in ControladorMetodosNumericos.CRITERIOS_ERROR_ITERATIVO.items():
+            self.iter_error.addItem(nombre, clave)
+        self.iter_error.setMinimumHeight(38)
+        self.iter_error.setStyleSheet(self._combo_style())
+        error_box = QVBoxLayout()
+        error_label = QLabel("CRITERIO DE ERROR Y PARADA")
+        error_label.setStyleSheet(self._label_style())
+        error_box.addWidget(error_label)
+        error_box.addWidget(self.iter_error)
+        controls.addLayout(error_box, 1, 0, 1, 4)
         layout.addLayout(controls)
-        self.iter_reorder = QCheckBox("Evaluar reordenamiento de ecuaciones para evitar ceros y buscar diagonal estrictamente dominante")
+        self.iter_reorder = QCheckBox("Reordenar ecuaciones para evitar ceros y buscar dominancia diagonal")
+        self.iter_reorder.setToolTip("Busca una diagonal estrictamente dominante por filas. Si no existe y la diagonal original no tiene ceros, conserva el orden original.")
         self.iter_reorder.setChecked(True)
         self.iter_reorder.setStyleSheet("color: #475569; font-size: 12px; background: transparent;")
         layout.addWidget(self.iter_reorder)
-        note = QLabel("Ingresa A, el vector b y la aproximación inicial x⁽⁰⁾. La tolerancia se aplica al error ‖x⁽ᵏ⁾ − x⁽ᵏ⁻¹⁾‖∞; también se informa ‖Ax − b‖∞.")
+        note = QLabel("La Tarea 8 recomienda la norma infinito (mayor cambio absoluto). Los ejemplos 1 y 2 de la presentación usan la norma euclídea (raíz de la suma de cuadrados). Chapra usa el máximo error relativo porcentual; en ese modo, 0.05 significa 0.05 %. El residuo siempre usa la norma infinito.")
         note.setWordWrap(True)
         note.setStyleSheet("color: #64748B; font-size: 11px; background: transparent;")
         layout.addWidget(note)
+        self.iter_error.currentIndexChanged.connect(self._actualizar_criterio_iterativo)
         self.iter_matrix_grid_widget = QWidget()
         self.iter_matrix_grid = QGridLayout(self.iter_matrix_grid_widget)
         self.iter_matrix_grid.setContentsMargins(0, 0, 0, 0)
@@ -354,6 +369,10 @@ class VistaMetodosNumericos(QWidget):
         self.iter_matrix_fields, self.iter_b_fields, self.iter_x_fields = [], [], []
         self._rebuild_iterative_matrix()
         self.pages.addWidget(page)
+
+    def _actualizar_criterio_iterativo(self):
+        porcentual = self.iter_error.currentData() == "porcentual"
+        self.iter_tol_label.setText("TOLERANCIA ε (%)" if porcentual else "TOLERANCIA ε")
 
     def _rebuild_iterative_matrix(self):
         while self.iter_matrix_grid.count():
@@ -555,6 +574,7 @@ class VistaMetodosNumericos(QWidget):
         resultados = [ControladorMetodosNumericos.resolver_iterativo(
             matriz, vector, inicial, self.iter_tol.text(), self.iter_max.text(), metodo,
             self.iter_reorder.isChecked(),
+            self.iter_error.currentData(),
         ) for metodo in metodos]
         self._mostrar_iterativos(resultados)
 
@@ -816,12 +836,12 @@ class VistaMetodosNumericos(QWidget):
             metricas = QGridLayout()
             metricas.setHorizontalSpacing(10)
             metricas.setVerticalSpacing(10)
-            referencia = "No disponible (matriz singular)" if result["referencia"] is None else f"({', '.join(f'{v:.7g}' for v in result['referencia'])})  ·  diferencia = {result['diferencia_referencia']:.5g}"
+            referencia = "No disponible (matriz singular)" if result["referencia"] is None else f"({', '.join(f'{v:.7g}' for v in result['referencia'])})  ·  diferencia ∞ = {result['diferencia_referencia']:.5g}; diferencia 2 = {result['diferencia_referencia_euclidea']:.5g}"
             items = (
                 ("Solución aproximada", "(" + ", ".join(f"{v:.8g}" for v in result["solucion"]) + ")"),
                 ("Estado", result["estado"]),
                 ("Iteraciones", result["iteraciones"]),
-                ("Error final ‖x⁽ᵏ⁾ − x⁽ᵏ⁻¹⁾‖∞", "—" if result["error"] is None else f"{result['error']:.7g}"),
+                (f"Error final {result['formula_error']}", "—" if result["error"] is None else f"{result['error']:.7g}"),
                 ("Residuo ‖Ax − b‖∞", f"{result['residuo']:.7g}"),
                 ("Referencia NumPy · diferencia", referencia),
             )
@@ -829,16 +849,23 @@ class VistaMetodosNumericos(QWidget):
                 self._agregar_metrica(metricas, label, value, (i // 2, i % 2))
             grupo_layout.addLayout(metricas)
             self.card_solucion.add_widget(grupo)
-            dom = "sí" if result["dominante"] else "no"
+            descripciones = {
+                "infinito": "Se toma el mayor cambio absoluto de las componentes. Es el criterio recomendado en la Tarea 8.",
+                "euclideo": "Se calcula la raíz de la suma de los cuadrados de los cambios. Es el criterio de los ejemplos 1 y 2 de la presentación.",
+                "porcentual": "Se toma el máximo de 100·|xᵢ⁽ᵏ⁾ − xᵢ⁽ᵏ⁻¹⁾|/|xᵢ⁽ᵏ⁾|. La tolerancia está en %. Si una componente nueva es cero y cambió, su error es infinito; si ambos valores son cero, no aporta cambio. Cerca de cero conviene usar una norma absoluta.",
+            }
+            self._agregar_paso("Criterio de error", f"{result['formula_error']} ≤ ε = {result['tolerancia']:g}. {descripciones[result['criterio_error']]} Los cálculos conservan toda la precisión; solo se redondea el texto mostrado. La fila k = 0 no tiene error entre iteraciones porque no existe una iteración previa.")
+            for aviso in result["advertencias"]:
+                self._agregar_paso("Advertencia durante el proceso", aviso)
             self._agregar_paso("Dominancia diagonal", f"La matriz original {'sí' if result['dominante_original'] else 'no'} cumple dominancia estricta por filas; después del reordenamiento, {'sí' if result['dominante'] else 'no'}. Es una condición suficiente, no necesaria: no cumplirla no demuestra que el método diverja.")
             if result["reordenada"]:
                 self._agregar_paso("Orden de las ecuaciones", f"Se aplicó el orden de filas {', '.join(map(str, result['permutacion']))}. El vector b se reordenó junto con A; x⁽⁰⁾ mantiene el orden de las variables.")
             elif not result["dominante"]:
-                self._agregar_paso("Convergencia", "No hay dominancia diagonal estricta en el orden usado. Esto no prueba divergencia; revise el estado final y el residuo.")
+                self._agregar_paso("Convergencia", "No hay dominancia diagonal estricta en el orden usado. Esto no prueba divergencia; revise el estado final y el residuo. Si se solicitó reordenar y no se encontró un orden dominante, se conserva la diagonal no nula original.")
             n = len(result["solucion"])
             subscript = str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")
             superscript = str.maketrans("0123456789-", "⁰¹²³⁴⁵⁶⁷⁸⁹⁻")
-            headers = ["k", *(f"x{str(i+1).translate(subscript)}" for i in range(n)), "‖x⁽ᵏ⁾ − x⁽ᵏ⁻¹⁾‖∞", "Residuo ‖Ax − b‖∞"]
+            headers = ["k", *(f"x{str(i+1).translate(subscript)}" for i in range(n)), result["formula_error"], "‖x − x_ref‖₂", "Residuo ‖Ax − b‖∞"]
             table = QTableWidget(len(result["tabla"]), len(headers))
             table.setHorizontalHeaderLabels(headers)
             table.verticalHeader().setVisible(False)
@@ -846,7 +873,7 @@ class VistaMetodosNumericos(QWidget):
             table.setAlternatingRowColors(True)
             table.setStyleSheet("QTableWidget { background: white; alternate-background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; color: #0F172A; gridline-color: #E2E8F0; } QHeaderView::section { background: #F1F5F9; color: #475569; font-weight: 700; border: none; border-bottom: 1px solid #E2E8F0; padding: 8px 5px; }")
             for ri, fila in enumerate(result["tabla"]):
-                valores = [fila["k"], *fila["x"], fila["error"], fila["residuo"]]
+                valores = [fila["k"], *fila["x"], fila["error"], fila["error_referencia_euclideo"], fila["residuo"]]
                 for ci, valor in enumerate(valores):
                     item = QTableWidgetItem("—" if valor is None else (f"{valor:.7g}" if isinstance(valor, (float, np.floating)) else str(valor)))
                     item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -875,26 +902,35 @@ class VistaMetodosNumericos(QWidget):
                     ecuaciones.append(f"{variable}⁽{indice_iteracion}⁾ = [{numerador}] / ({result['A'][i, i]:.6g}) = {calculado[i]:.8g}")
                 detalle = "\n".join(ecuaciones)
                 detalle += f"\nVector nuevo: x⁽{indice_iteracion}⁾ = ({', '.join(f'{v:.8g}' for v in calculado)})."
-                detalle += f"\nError ‖x⁽ᵏ⁾ − x⁽ᵏ⁻¹⁾‖∞ = {fila['error']:.8g}; residuo ‖Ax⁽ᵏ⁾ − b‖∞ = {fila['residuo']:.8g}. Criterio: {fila['error']:.8g} {'≤' if fila['error'] <= result['tolerancia'] else '>'} ε = {result['tolerancia']:.8g}."
+                detalle += f"\nError {result['formula_error']} = {fila['error']:.8g}; norma infinito = {fila['error_infinito']:.8g}; norma euclídea = {fila['error_euclideo']:.8g}."
+                detalle += f"\nResiduo ‖Ax⁽ᵏ⁾ − b‖∞ = {fila['residuo']:.8g}. Criterio: {fila['error']:.8g} {'≤' if fila['error'] <= result['tolerancia'] else '>'} ε = {result['tolerancia']:.8g}."
                 self._agregar_paso(f"Iteración {fila['k']} · {metodo}", detalle)
         if len(resultados) == 2:
             j, g = resultados
-            ganador = "Jacobi" if j["iteraciones"] < g["iteraciones"] else "Gauss-Seidel" if g["iteraciones"] < j["iteraciones"] else "ambos necesitaron el mismo número"
-            self._agregar_paso("Comparación de métodos", f"Menos iteraciones: {ganador}. Diferencia entre soluciones ‖x_J − x_GS‖∞ = {np.linalg.norm(j['solucion']-g['solucion'], ord=np.inf):.8g}. La comparación se interpreta junto con los estados y residuos de ambos métodos.")
-            validos = [r for r in resultados if len(r["tabla"]) > 1 and all(f["error"] is not None for f in r["tabla"][1:])]
+            if all(r["convergio"] for r in resultados):
+                ganador = "Jacobi" if j["iteraciones"] < g["iteraciones"] else "Gauss-Seidel" if g["iteraciones"] < j["iteraciones"] else "ambos necesitaron el mismo número"
+                comparacion = f"Menos iteraciones: {ganador}."
+            else:
+                comparacion = "La tolerancia no fue alcanzada por ambos métodos; no se establece cuál convergió más rápido."
+            self._agregar_paso("Comparación de métodos", f"{comparacion} Diferencia entre aproximaciones ‖x_J − x_GS‖∞ = {np.linalg.norm(j['solucion']-g['solucion'], ord=np.inf):.8g}. Revise también los estados y residuos.")
+            validos = [r for r in resultados if any(f["error"] is not None and np.isfinite(f["error"]) and f["error"] > 0 for f in r["tabla"][1:])]
             if len(validos) == 2:
                 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
                 from matplotlib.figure import Figure
                 figure = Figure(figsize=(7.5, 3.8), tight_layout=True)
                 ax = figure.add_subplot(111)
                 for r in validos:
-                    ax.semilogy([f["k"] for f in r["tabla"][1:] if f["error"] > 0], [f["error"] for f in r["tabla"][1:] if f["error"] > 0], marker="o", label=r["metodo"])
+                    filas = [f for f in r["tabla"][1:] if np.isfinite(f["error"]) and f["error"] > 0]
+                    ax.semilogy([f["k"] for f in filas], [f["error"] for f in filas], marker="o", label=r["metodo"])
+                ax.axhline(j["tolerancia"], color="#64748B", linestyle="--", label="Tolerancia ε")
                 ax.set_title("Convergencia del error entre iteraciones")
                 ax.set_xlabel("Iteración k")
-                ax.set_ylabel("‖x⁽ᵏ⁾ − x⁽ᵏ⁻¹⁾‖∞")
+                ax.set_ylabel(j["formula_error"])
                 ax.grid(True, alpha=0.3)
                 ax.legend()
-                self.card_proceso.add_widget(FigureCanvasQTAgg(figure))
+                canvas = FigureCanvasQTAgg(figure)
+                canvas.setMinimumHeight(320)
+                self.card_proceso.add_widget(canvas)
 
     def _mostrar_procedimiento_biseccion(self, result):
         """Explica las operaciones y decisiones de las iteraciones ya calculadas."""
@@ -1086,6 +1122,7 @@ class VistaMetodosNumericos(QWidget):
             self.iter_tol.clear()
             self.iter_max.clear()
             self.iter_method.setCurrentIndex(0)
+            self.iter_error.setCurrentIndex(0)
             self.iter_reorder.setChecked(True)
         self._limpiar_layout(self.card_solucion.content_layout)
         self._limpiar_layout(self.card_proceso.content_layout)
