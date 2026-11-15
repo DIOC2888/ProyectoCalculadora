@@ -2,6 +2,7 @@
 
 import os
 import sys
+from importlib import import_module
 
 PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_DIR not in sys.path:
@@ -17,6 +18,7 @@ from metodos_numericos import (
     informe_errores,
     notacion_posicional,
     propagar_error_numerico,
+    resolver_metodo_iterativo,
 )
 
 
@@ -24,11 +26,18 @@ class ControladorMetodosNumericos:
     """Valida y conecta los datos de la interfaz con cada modulo numerico."""
 
     @staticmethod
+    def resolver_iterativo(matriz, vector, inicial, tolerancia, max_iteraciones, metodo, reordenar=True):
+        """Ejecuta Jacobi o Gauss-Seidel en el motor numérico propio."""
+        return resolver_metodo_iterativo(matriz, vector, inicial, tolerancia, max_iteraciones, metodo, reordenar)
+
+    @staticmethod
     def resolver_biseccion(funcion, a, b, tolerancia, max_iteraciones):
         """Ejecuta biseccion propia y agrega una comparacion SciPy si esta instalado."""
         resultado = bisecar(funcion, a, b, tolerancia, max_iteraciones)
         try:
-            from scipy.optimize import bisect as scipy_bisect
+            # SciPy es una dependencia opcional para contraste; importación dinámica
+            # evita un diagnóstico estático si VS Code usa un Python sin SciPy.
+            scipy_bisect = import_module("scipy.optimize").bisect
             if resultado["tabla"] or resultado["iteraciones"] == 0:
                 referencia = scipy_bisect(resultado["funcion"], *resultado["intervalo_inicial"])
                 resultado["scipy"] = referencia

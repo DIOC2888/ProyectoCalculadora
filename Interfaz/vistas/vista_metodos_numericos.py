@@ -9,16 +9,16 @@ for directory in (PROJECT_DIR, INTERFACE_DIR):
     if directory not in sys.path:
         sys.path.insert(0, directory)
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
-    QComboBox, QFrame, QGridLayout, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
+    QCheckBox, QComboBox, QFrame, QGridLayout, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
     QPushButton, QScrollArea, QStackedWidget, QSizePolicy, QTableWidget, QTableWidgetItem,
     QVBoxLayout, QWidget,
 )
 
 from controlador_metodos_numericos import ControladorMetodosNumericos
 from sleeping_dog import SleepingDogContainer
-from vistas.componentes import CollapsibleCard
+from vistas.componentes import CollapsibleCard, NumberStepper
 
 
 class _CurrentPageStack(QStackedWidget):
@@ -31,17 +31,36 @@ class _CurrentPageStack(QStackedWidget):
 
     def sizeHint(self):
         page = self.currentWidget()
+        if page is not None and page.layout() is not None:
+            return page.layout().sizeHint()
         return page.sizeHint() if page is not None else super().sizeHint()
 
     def minimumSizeHint(self):
         page = self.currentWidget()
+        if page is not None and page.layout() is not None:
+            return page.layout().minimumSize()
         return page.minimumSizeHint() if page is not None else super().minimumSizeHint()
 
     def _fit_current_page(self):
         page = self.currentWidget()
         if page is not None:
-            self.setFixedHeight(page.sizeHint().height())
-        self.updateGeometry()
+            if page.layout() is not None:
+                page.layout().invalidate()
+                page.layout().activate()
+                height = page.layout().sizeHint().height()
+            else:
+                height = page.sizeHint().height()
+            self.setFixedHeight(height)
+        # Propagar el nuevo alto por la tarjeta y el contenedor desplazable;
+        # de lo contrario el stack crece, pero los botones conservan su y viejo.
+        widget = self
+        while widget is not None:
+            widget.updateGeometry()
+            parent = widget.parentWidget()
+            if parent is not None and parent.layout() is not None:
+                parent.layout().invalidate()
+                parent.layout().activate()
+            widget = parent
 
 
 class VistaMetodosNumericos(QWidget):
@@ -52,6 +71,7 @@ class VistaMetodosNumericos(QWidget):
         "Graficador de funciones",
         "Notación posicional (base 10 y base 2)",
         "Errores numéricos",
+        "Métodos iterativos: Jacobi y Gauss-Seidel",
     )
 
     def __init__(self, parent=None):
@@ -107,6 +127,7 @@ class VistaMetodosNumericos(QWidget):
         self._crear_formulario_grafica()
         self._crear_formulario_posicional()
         self._crear_formulario_errores()
+        self._crear_formulario_iterativos()
         self.pages._fit_current_page()
         card.addWidget(self.pages)
         self.selector.currentIndexChanged.connect(self.pages.setCurrentIndex)
@@ -290,6 +311,111 @@ class VistaMetodosNumericos(QWidget):
         layout.addWidget(self.error_pages)
         self.pages.addWidget(page)
 
+    def _crear_formulario_iterativos(self):
+        page = QWidget()
+        page.setStyleSheet("background: #FFFFFF;")
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(14)
+        controls = QGridLayout()
+        controls.setHorizontalSpacing(16)
+        self.iter_method = QComboBox()
+        self.iter_method.addItems(("Jacobi", "Gauss-Seidel", "Comparar ambos"))
+        self.iter_method.setMinimumHeight(38)
+        self.iter_method.setStyleSheet(self._combo_style())
+        self.iter_n = NumberStepper(value=3, min_val=2, max_val=8)
+        self.iter_n.on_change_callback = self._rebuild_iterative_matrix
+        self.iter_tol = self._new_line_edit("0.0001")
+        self.iter_max = self._new_line_edit("100")
+        for col, (caption, widget) in enumerate((("MÉTODO", self.iter_method), ("ORDEN n", self.iter_n), ("TOLERANCIA ε", self.iter_tol), ("MÁXIMO DE ITERACIONES", self.iter_max))):
+            box = QVBoxLayout()
+            label = QLabel(caption)
+            label.setStyleSheet(self._label_style())
+            box.addWidget(label)
+            box.addWidget(widget)
+            controls.addLayout(box, 0, col)
+        layout.addLayout(controls)
+        self.iter_reorder = QCheckBox("Evaluar reordenamiento de ecuaciones para evitar ceros y buscar diagonal estrictamente dominante")
+        self.iter_reorder.setChecked(True)
+        self.iter_reorder.setStyleSheet("color: #475569; font-size: 12px; background: transparent;")
+        layout.addWidget(self.iter_reorder)
+        note = QLabel("Ingresa A, el vector b y la aproximación inicial x⁽⁰⁾. La tolerancia se aplica al error ‖x⁽ᵏ⁾ − x⁽ᵏ⁻¹⁾‖∞; también se informa ‖Ax − b‖∞.")
+        note.setWordWrap(True)
+        note.setStyleSheet("color: #64748B; font-size: 11px; background: transparent;")
+        layout.addWidget(note)
+        self.iter_matrix_grid_widget = QWidget()
+        self.iter_matrix_grid = QGridLayout(self.iter_matrix_grid_widget)
+        self.iter_matrix_grid.setContentsMargins(0, 0, 0, 0)
+        self.iter_matrix_grid.setHorizontalSpacing(8)
+        self.iter_matrix_grid.setVerticalSpacing(8)
+        self.iter_matrix_grid.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self.iter_matrix_grid_widget.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        layout.addWidget(self.iter_matrix_grid_widget, alignment=Qt.AlignmentFlag.AlignLeft)
+        self.iter_matrix_fields, self.iter_b_fields, self.iter_x_fields = [], [], []
+        self._rebuild_iterative_matrix()
+        self.pages.addWidget(page)
+
+    def _rebuild_iterative_matrix(self):
+        while self.iter_matrix_grid.count():
+            item = self.iter_matrix_grid.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.hide()
+                widget.deleteLater()
+        n = self.iter_n.value
+        default_a = ((10, -1, 2), (-1, 11, -1), (2, -1, 10))
+        default_b, default_x = (6, 25, -11), (0, 0, 0)
+        self.iter_matrix_fields, self.iter_b_fields, self.iter_x_fields = [], [], []
+        # Matriz aumentada compacta, con x⁽⁰⁾ como vector independiente.
+        for col, title in ((0, ""), *((j + 1, f"a<sub>{j+1}</sub>") for j in range(n)), (n + 1, ""), (n + 2, "b"), (n + 3, ""), (n + 4, "x<sup>(0)</sup>")):
+            label = QLabel(title)
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setStyleSheet(self._label_style())
+            self.iter_matrix_grid.addWidget(label, 0, col)
+        for i in range(n):
+            equation = QLabel(f"E<sub>{i+1}</sub>")
+            equation.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            equation.setStyleSheet(self._label_style())
+            self.iter_matrix_grid.addWidget(equation, i + 1, 0)
+            row_fields = []
+            for j in range(n):
+                default = default_a[i][j] if n == 3 else (4 if i == j else 1)
+                edit = self._new_line_edit(str(default))
+                edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                edit.setFixedSize(54, 36)
+                edit.setStyleSheet("QLineEdit { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; color: #0F172A; font-weight: 600; } QLineEdit:focus { border: 1px solid #2563EB; background: #FFFFFF; }")
+                self.iter_matrix_grid.addWidget(edit, i + 1, j + 1)
+                row_fields.append(edit)
+            self.iter_matrix_fields.append(row_fields)
+            sep = QFrame()
+            sep.setFrameShape(QFrame.Shape.VLine)
+            sep.setFixedHeight(28)
+            sep.setStyleSheet("background: #CBD5E1; max-width: 1px;")
+            self.iter_matrix_grid.addWidget(sep, i + 1, n + 1, alignment=Qt.AlignmentFlag.AlignCenter)
+            b = self._new_line_edit(str(default_b[i] if n == 3 else n + 1))
+            x = self._new_line_edit(str(default_x[i] if n == 3 else 0))
+            for widget in (b, x):
+                widget.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                widget.setFixedSize(54, 36)
+                widget.setStyleSheet("QLineEdit { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; color: #0F172A; font-weight: 600; } QLineEdit:focus { border: 1px solid #2563EB; background: #FFFFFF; }")
+            spacer = QWidget()
+            spacer.setFixedWidth(12)
+            self.iter_matrix_grid.addWidget(b, i + 1, n + 2)
+            self.iter_matrix_grid.addWidget(spacer, i + 1, n + 3)
+            self.iter_matrix_grid.addWidget(x, i + 1, n + 4)
+            self.iter_b_fields.append(b)
+            self.iter_x_fields.append(x)
+        # El QStackedWidget ajusta su altura a la página visible. Al cambiar n,
+        # recalcular el tamaño evita que la matriz crezca detrás de los botones.
+        matrix_page = self.iter_matrix_grid_widget.parentWidget()
+        if matrix_page is not None:
+            matrix_page.updateGeometry()
+        self.iter_matrix_grid_widget.updateGeometry()
+        self.pages.updateGeometry()
+        # Dejar que Qt procese primero las nuevas filas; ajustar la altura en
+        # este mismo callback usa un sizeHint temporal y reduce el formulario.
+        QTimer.singleShot(0, self.pages._fit_current_page)
+
     def _actualizar_altura_error(self):
         self.error_pages._fit_current_page()
         pagina_errores = self.pages.widget(3)
@@ -411,11 +537,26 @@ class VistaMetodosNumericos(QWidget):
                     self.valor_pos.text(), int(self.base_selector.currentText())
                 )
                 self._mostrar_notacion(result)
+            elif metodo == 4:
+                self._calcular_iterativos()
+                return
             else:
                 self._calcular_error_seleccionado()
                 return
         except (ValueError, TypeError, OverflowError, ArithmeticError) as exc:
             self._mostrar_error(str(exc))
+
+    def _calcular_iterativos(self):
+        matriz = [[float(celda.text()) for celda in fila] for fila in self.iter_matrix_fields]
+        vector = [float(celda.text()) for celda in self.iter_b_fields]
+        inicial = [float(celda.text()) for celda in self.iter_x_fields]
+        seleccion = self.iter_method.currentText()
+        metodos = ("Jacobi", "Gauss-Seidel") if seleccion == "Comparar ambos" else (seleccion,)
+        resultados = [ControladorMetodosNumericos.resolver_iterativo(
+            matriz, vector, inicial, self.iter_tol.text(), self.iter_max.text(), metodo,
+            self.iter_reorder.isChecked(),
+        ) for metodo in metodos]
+        self._mostrar_iterativos(resultados)
 
     def _calcular_error_seleccionado(self):
         try:
@@ -582,7 +723,7 @@ class VistaMetodosNumericos(QWidget):
         row.addLayout(body, 1)
         self.card_proceso.add_widget(frame)
 
-    def _agregar_metrica(self, contenedor, titulo, valor):
+    def _agregar_metrica(self, contenedor, titulo, valor, posicion=None):
         bloque = QFrame()
         bloque.setStyleSheet("QFrame { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; }")
         caja = QVBoxLayout(bloque)
@@ -590,7 +731,11 @@ class VistaMetodosNumericos(QWidget):
         caja.setSpacing(5)
         caja.addWidget(self._texto_resultado(titulo.upper(), "titulo"))
         caja.addWidget(self._texto_resultado(str(valor), "valor"))
-        contenedor.addWidget(bloque)
+        if posicion is None:
+            contenedor.addWidget(bloque)
+        else:
+            contenedor.addWidget(bloque, *posicion)
+        return bloque
 
     def _mostrar_error(self, mensaje):
         self._preparar_resultados()
@@ -657,6 +802,99 @@ class VistaMetodosNumericos(QWidget):
         table.setMinimumHeight(min(430, max(100, len(result["tabla"]) * 34 + 42)))
         self.card_proceso.add_widget(table)
         self._mostrar_procedimiento_biseccion(result)
+
+    def _mostrar_iterativos(self, resultados):
+        import numpy as np
+        self._preparar_resultados(procedimiento_abierto=True)
+        for result in resultados:
+            metodo = result["metodo"]
+            grupo = QFrame()
+            grupo.setStyleSheet("QFrame { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; }")
+            grupo_layout = QVBoxLayout(grupo)
+            titulo_metodo = self._texto_resultado(metodo, "valor")
+            grupo_layout.addWidget(titulo_metodo)
+            metricas = QGridLayout()
+            metricas.setHorizontalSpacing(10)
+            metricas.setVerticalSpacing(10)
+            referencia = "No disponible (matriz singular)" if result["referencia"] is None else f"({', '.join(f'{v:.7g}' for v in result['referencia'])})  ·  diferencia = {result['diferencia_referencia']:.5g}"
+            items = (
+                ("Solución aproximada", "(" + ", ".join(f"{v:.8g}" for v in result["solucion"]) + ")"),
+                ("Estado", result["estado"]),
+                ("Iteraciones", result["iteraciones"]),
+                ("Error final ‖x⁽ᵏ⁾ − x⁽ᵏ⁻¹⁾‖∞", "—" if result["error"] is None else f"{result['error']:.7g}"),
+                ("Residuo ‖Ax − b‖∞", f"{result['residuo']:.7g}"),
+                ("Referencia NumPy · diferencia", referencia),
+            )
+            for i, (label, value) in enumerate(items):
+                self._agregar_metrica(metricas, label, value, (i // 2, i % 2))
+            grupo_layout.addLayout(metricas)
+            self.card_solucion.add_widget(grupo)
+            dom = "sí" if result["dominante"] else "no"
+            self._agregar_paso("Dominancia diagonal", f"La matriz original {'sí' if result['dominante_original'] else 'no'} cumple dominancia estricta por filas; después del reordenamiento, {'sí' if result['dominante'] else 'no'}. Es una condición suficiente, no necesaria: no cumplirla no demuestra que el método diverja.")
+            if result["reordenada"]:
+                self._agregar_paso("Orden de las ecuaciones", f"Se aplicó el orden de filas {', '.join(map(str, result['permutacion']))}. El vector b se reordenó junto con A; x⁽⁰⁾ mantiene el orden de las variables.")
+            elif not result["dominante"]:
+                self._agregar_paso("Convergencia", "No hay dominancia diagonal estricta en el orden usado. Esto no prueba divergencia; revise el estado final y el residuo.")
+            n = len(result["solucion"])
+            subscript = str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")
+            superscript = str.maketrans("0123456789-", "⁰¹²³⁴⁵⁶⁷⁸⁹⁻")
+            headers = ["k", *(f"x{str(i+1).translate(subscript)}" for i in range(n)), "‖x⁽ᵏ⁾ − x⁽ᵏ⁻¹⁾‖∞", "Residuo ‖Ax − b‖∞"]
+            table = QTableWidget(len(result["tabla"]), len(headers))
+            table.setHorizontalHeaderLabels(headers)
+            table.verticalHeader().setVisible(False)
+            table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+            table.setAlternatingRowColors(True)
+            table.setStyleSheet("QTableWidget { background: white; alternate-background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; color: #0F172A; gridline-color: #E2E8F0; } QHeaderView::section { background: #F1F5F9; color: #475569; font-weight: 700; border: none; border-bottom: 1px solid #E2E8F0; padding: 8px 5px; }")
+            for ri, fila in enumerate(result["tabla"]):
+                valores = [fila["k"], *fila["x"], fila["error"], fila["residuo"]]
+                for ci, valor in enumerate(valores):
+                    item = QTableWidgetItem("—" if valor is None else (f"{valor:.7g}" if isinstance(valor, (float, np.floating)) else str(valor)))
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    table.setItem(ri, ci, item)
+                table.setRowHeight(ri, 34)
+            table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+            table.horizontalHeader().setStretchLastSection(True)
+            table.setMinimumHeight(min(430, max(100, len(result["tabla"]) * 34 + 42)))
+            self.card_proceso.add_widget(QLabel(f"Tabla de iteraciones · {metodo}"))
+            self.card_proceso.add_widget(table)
+            self._agregar_paso(f"Desarrollo por iteraciones · {metodo}", "Se aplica xᵢ⁽ᵏ⁾ = [bᵢ − Σⱼ≠ᵢ aᵢⱼxⱼ]/aᵢᵢ. Jacobi usa todas las componentes de x⁽ᵏ⁻¹⁾; Gauss-Seidel sustituye inmediatamente las componentes nuevas ya calculadas en esta iteración.")
+            for fila in result["tabla"][1:]:
+                anterior = result["tabla"][fila["k"] - 1]["x"]
+                calculado = fila["x"]
+                ecuaciones = []
+                for i in range(n):
+                    terminos = []
+                    for j in range(n):
+                        if i == j:
+                            continue
+                        usado = anterior[j] if metodo == "Jacobi" or j > i else calculado[j]
+                        terminos.append(f"({result['A'][i, j]:.6g})({usado:.8g})")
+                    numerador = f"{result['b'][i]:.6g} − (" + " + ".join(terminos) + ")"
+                    variable = f"x{str(i+1).translate(subscript)}"
+                    indice_iteracion = str(fila["k"]).translate(superscript)
+                    ecuaciones.append(f"{variable}⁽{indice_iteracion}⁾ = [{numerador}] / ({result['A'][i, i]:.6g}) = {calculado[i]:.8g}")
+                detalle = "\n".join(ecuaciones)
+                detalle += f"\nVector nuevo: x⁽{indice_iteracion}⁾ = ({', '.join(f'{v:.8g}' for v in calculado)})."
+                detalle += f"\nError ‖x⁽ᵏ⁾ − x⁽ᵏ⁻¹⁾‖∞ = {fila['error']:.8g}; residuo ‖Ax⁽ᵏ⁾ − b‖∞ = {fila['residuo']:.8g}. Criterio: {fila['error']:.8g} {'≤' if fila['error'] <= result['tolerancia'] else '>'} ε = {result['tolerancia']:.8g}."
+                self._agregar_paso(f"Iteración {fila['k']} · {metodo}", detalle)
+        if len(resultados) == 2:
+            j, g = resultados
+            ganador = "Jacobi" if j["iteraciones"] < g["iteraciones"] else "Gauss-Seidel" if g["iteraciones"] < j["iteraciones"] else "ambos necesitaron el mismo número"
+            self._agregar_paso("Comparación de métodos", f"Menos iteraciones: {ganador}. Diferencia entre soluciones ‖x_J − x_GS‖∞ = {np.linalg.norm(j['solucion']-g['solucion'], ord=np.inf):.8g}. La comparación se interpreta junto con los estados y residuos de ambos métodos.")
+            validos = [r for r in resultados if len(r["tabla"]) > 1 and all(f["error"] is not None for f in r["tabla"][1:])]
+            if len(validos) == 2:
+                from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
+                from matplotlib.figure import Figure
+                figure = Figure(figsize=(7.5, 3.8), tight_layout=True)
+                ax = figure.add_subplot(111)
+                for r in validos:
+                    ax.semilogy([f["k"] for f in r["tabla"][1:] if f["error"] > 0], [f["error"] for f in r["tabla"][1:] if f["error"] > 0], marker="o", label=r["metodo"])
+                ax.set_title("Convergencia del error entre iteraciones")
+                ax.set_xlabel("Iteración k")
+                ax.set_ylabel("‖x⁽ᵏ⁾ − x⁽ᵏ⁻¹⁾‖∞")
+                ax.grid(True, alpha=0.3)
+                ax.legend()
+                self.card_proceso.add_widget(FigureCanvasQTAgg(figure))
 
     def _mostrar_procedimiento_biseccion(self, result):
         """Explica las operaciones y decisiones de las iteraciones ya calculadas."""
@@ -839,6 +1077,16 @@ class VistaMetodosNumericos(QWidget):
         self.x_instability_field.setText("")
         self.error_option.setCurrentIndex(0)
         self.use_bisection.setChecked(False)
+        if hasattr(self, "iter_matrix_fields"):
+            for fila in self.iter_matrix_fields:
+                for campo in fila:
+                    campo.clear()
+            for campo in (*self.iter_b_fields, *self.iter_x_fields):
+                campo.clear()
+            self.iter_tol.clear()
+            self.iter_max.clear()
+            self.iter_method.setCurrentIndex(0)
+            self.iter_reorder.setChecked(True)
         self._limpiar_layout(self.card_solucion.content_layout)
         self._limpiar_layout(self.card_proceso.content_layout)
         self.results_card.hide()

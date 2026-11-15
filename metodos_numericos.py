@@ -8,6 +8,115 @@ from decimal import Decimal, localcontext
 import numpy as np
 
 
+def resolver_metodo_iterativo(matriz, vector, inicial, tolerancia, max_iteraciones, metodo, reordenar=True):
+    """Resuelve Ax=b por Jacobi o Gauss-Seidel y conserva cada iteración."""
+    A = np.asarray(matriz, dtype=float)
+    b = np.asarray(vector, dtype=float)
+    x0 = np.asarray(inicial, dtype=float)
+    if A.ndim != 2 or A.shape[0] != A.shape[1] or A.shape[0] == 0:
+        raise ValueError("La matriz A debe ser cuadrada y no vacía.")
+    n = A.shape[0]
+    if b.shape != (n,) or x0.shape != (n,):
+        raise ValueError("Las dimensiones de A, b y x⁽⁰⁾ deben coincidir.")
+    if not np.isfinite(A).all() or not np.isfinite(b).all() or not np.isfinite(x0).all():
+        raise ValueError("Todos los valores de A, b y x⁽⁰⁾ deben ser finitos.")
+    try:
+        tol_num, max_num = float(tolerancia), float(max_iteraciones)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("La tolerancia y el máximo de iteraciones deben ser numéricos.") from exc
+    if not math.isfinite(tol_num) or tol_num <= 0:
+        raise ValueError("La tolerancia debe ser positiva y finita.")
+    if not math.isfinite(max_num) or not max_num.is_integer() or max_num < 1:
+        raise ValueError("El máximo de iteraciones debe ser un entero positivo.")
+    max_iteraciones = int(max_num)
+    if metodo not in {"Jacobi", "Gauss-Seidel"}:
+        raise ValueError("Seleccione Jacobi o Gauss-Seidel.")
+
+    indices = list(range(n))
+    diagonal = np.diag(A)
+    dominante = bool(np.all(np.abs(diagonal) > np.sum(np.abs(A), axis=1) - np.abs(diagonal)))
+    if (np.any(diagonal == 0) or (reordenar and not dominante)) and reordenar:
+        # Buscar primero un orden que logre dominancia estricta; luego uno que
+        # al menos deje una diagonal no nula. El retroceso evita permutar filas
+        # indiscriminadamente y funciona bien para los tamaños de la interfaz.
+        def buscar(exigir_dominancia):
+            asignacion = []
+            usados = set()
+            forzadas = [i for i in indices]
+
+            def dfs(columna):
+                if columna == n:
+                    return list(asignacion)
+                candidatos = sorted(
+                    (fila for fila in forzadas if fila not in usados
+                     and A[fila, columna] != 0
+                     and (not exigir_dominancia or abs(A[fila, columna]) > np.sum(np.abs(A[fila])) - abs(A[fila, columna]))),
+                    key=lambda fila: -(abs(A[fila, columna]) - (np.sum(np.abs(A[fila])) - abs(A[fila, columna]))),
+                )
+                for fila in candidatos:
+                    usados.add(fila); asignacion.append(fila)
+                    resultado = dfs(columna + 1)
+                    if resultado is not None:
+                        return resultado
+                    asignacion.pop(); usados.remove(fila)
+                return None
+            return dfs(0)
+
+        permutacion = buscar(True) if reordenar else None
+        dominancia_encontrada = permutacion is not None
+        if permutacion is None and reordenar:
+            permutacion = buscar(False)
+        if permutacion is None:
+            raise ValueError("La diagonal contiene ceros y no se encontró un reordenamiento de filas con diagonal no nula.")
+        A, b = A[permutacion, :], b[permutacion]
+        indices = permutacion
+    else:
+        dominancia_encontrada = dominante
+    if np.any(np.diag(A) == 0):
+        raise ValueError("La diagonal principal contiene ceros; no es posible iniciar el cálculo.")
+    diagonal = np.diag(A)
+    dominante_final = bool(np.all(np.abs(diagonal) > np.sum(np.abs(A), axis=1) - np.abs(diagonal)))
+
+    x = x0.copy()
+    tabla = [{"k": 0, "x": x.copy(), "error": None, "residuo": float(np.linalg.norm(A @ x - b, ord=np.inf))}]
+    errores_crecen = 0
+    estado = "Máximo de iteraciones alcanzado; posible no convergencia."
+    for k in range(1, max_iteraciones + 1):
+        anterior = x.copy()
+        if metodo == "Jacobi":
+            x = (b - (A - np.diag(diagonal)) @ anterior) / diagonal
+        else:
+            for i in range(n):
+                x[i] = (b[i] - A[i, :i] @ x[:i] - A[i, i + 1:] @ anterior[i + 1:]) / diagonal[i]
+        if not np.isfinite(x).all():
+            estado = f"{metodo}: se detuvo porque aparecieron valores no finitos en la iteración {k}."
+            x = anterior
+            break
+        error = float(np.linalg.norm(x - anterior, ord=np.inf))
+        residuo = float(np.linalg.norm(A @ x - b, ord=np.inf))
+        tabla.append({"k": k, "x": x.copy(), "error": error, "residuo": residuo})
+        if error <= tol_num:
+            estado = "Convergencia alcanzada según ‖x⁽ᵏ⁾ − x⁽ᵏ⁻¹⁾‖∞ ≤ ε."
+            break
+        errores_crecen = errores_crecen + 1 if len(tabla) > 2 and error > tabla[-2]["error"] else 0
+        if errores_crecen >= 5:
+            estado = f"Advertencia: el error creció durante varias iteraciones de {metodo}; posible no convergencia."
+            break
+    residuo_final = float(np.linalg.norm(A @ x - b, ord=np.inf))
+    try:
+        referencia = np.linalg.solve(A, b)
+        diferencia = float(np.linalg.norm(x - referencia, ord=np.inf))
+    except np.linalg.LinAlgError:
+        referencia = diferencia = None
+    return {"metodo": metodo, "A": A, "b": b, "x0": x0, "solucion": x,
+            "tabla": tabla, "iteraciones": len(tabla) - 1, "error": tabla[-1]["error"],
+            "residuo": residuo_final, "estado": estado, "tolerancia": tol_num,
+            "max_iteraciones": max_iteraciones, "dominante_original": dominante,
+            "dominante": dominante_final, "dominancia_por_reordenamiento": dominancia_encontrada,
+            "reordenada": indices != list(range(n)), "permutacion": [i + 1 for i in indices],
+            "referencia": referencia, "diferencia_referencia": diferencia}
+
+
 _BINARIOS = {
     ast.Add: operator.add,
     ast.Sub: operator.sub,
