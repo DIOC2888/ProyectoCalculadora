@@ -8,6 +8,420 @@ from decimal import Decimal, localcontext
 import numpy as np
 
 
+def compilar_funcion_simbolica(expresion):
+    """Valida una expresión y devuelve f, f′ simbólicas y sus evaluadores NumPy."""
+    import sympy as sp
+
+    simbolo = sp.Symbol("x", real=True)
+    nombres_permitidos = {"x", "pi", "e", "E", "sin", "cos", "tan", "asin", "acos",
+                          "atan", "exp", "log", "sqrt", "abs", "Abs"}
+    funciones = {nombre: getattr(sp, nombre) for nombre in nombres_permitidos
+                 if nombre not in {"x", "pi", "e", "E", "abs", "Abs"}}
+    funciones.update({"x": simbolo, "pi": sp.pi, "e": sp.E, "E": sp.E,
+                      "abs": sp.Abs, "Abs": sp.Abs})
+
+    try:
+        arbol = ast.parse(str(expresion), mode="eval")
+    except (SyntaxError, ValueError) as exc:
+        raise ValueError("La función tiene una sintaxis incorrecta.") from exc
+
+    def validar(nodo):
+        if isinstance(nodo, ast.Expression):
+            validar(nodo.body)
+        elif isinstance(nodo, ast.Constant) and isinstance(nodo.value, (int, float)):
+            return
+        elif isinstance(nodo, ast.Name) and nodo.id in nombres_permitidos:
+            return
+        elif isinstance(nodo, ast.BinOp) and type(nodo.op) in _BINARIOS:
+            validar(nodo.left)
+            validar(nodo.right)
+        elif isinstance(nodo, ast.UnaryOp) and type(nodo.op) in _UNARIOS:
+            validar(nodo.operand)
+        elif (isinstance(nodo, ast.Call) and isinstance(nodo.func, ast.Name)
+              and nodo.func.id in funciones and len(nodo.args) == 1 and not nodo.keywords):
+            validar(nodo.args[0])
+        else:
+            raise ValueError("Use x, constantes y funciones matemáticas permitidas con operaciones básicas.")
+
+    validar(arbol)
+    try:
+        funcion_simbolica = sp.sympify(str(expresion), locals=funciones, evaluate=True)
+        if funcion_simbolica.free_symbols - {simbolo}:
+            raise ValueError("La función solo puede depender de x.")
+        derivada_simbolica = sp.diff(funcion_simbolica, simbolo)
+        evaluar_f = sp.lambdify(simbolo, funcion_simbolica, modules=["numpy"])
+        evaluar_df = sp.lambdify(simbolo, derivada_simbolica, modules=["numpy"])
+    except (sp.SympifyError, TypeError, ValueError, SyntaxError) as exc:
+        if isinstance(exc, ValueError):
+            raise
+        raise ValueError("No se pudo interpretar o derivar la función ingresada.") from exc
+
+    return simbolo, funcion_simbolica, derivada_simbolica, evaluar_f, evaluar_df
+
+
+def resolver_newton_raphson(expresion, x0, tolerancia, max_iteraciones,
+                            tolerancia_residuo=1e-8, umbral_derivada=1e-12):
+    """Resuelve f(x)=0 con derivada simbólica y devuelve tabla y diagnóstico."""
+    import pandas as pd
+
+    _, funcion_simbolica, derivada_simbolica, evaluar_f, evaluar_df = compilar_funcion_simbolica(expresion)
+    tol, tol_residuo = float(tolerancia), float(tolerancia_residuo)
+    umbral = float(umbral_derivada)
+    try:
+        x_actual, max_num = float(x0), float(max_iteraciones)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Revise el valor inicial y el máximo de iteraciones.") from exc
+    if not all(map(math.isfinite, (x_actual, tol, tol_residuo, max_num, umbral))):
+        raise ValueError("Todos los datos deben ser finitos.")
+    if tol <= 0 or tol_residuo <= 0 or umbral < 0:
+        raise ValueError("Las tolerancias deben ser positivas y el umbral de derivada no negativo.")
+    if isinstance(max_iteraciones, bool) or not max_num.is_integer() or max_num < 1:
+        raise ValueError("El máximo de iteraciones debe ser un entero mayor o igual que 1.")
+    max_iteraciones = int(max_num)
+
+    def evaluar(evaluador, punto):
+        with np.errstate(all="ignore"):
+            return float(np.asarray(evaluador(punto)))
+
+    filas, aproximaciones = [], [x_actual]
+    estado, motivo = "Se alcanzó el máximo de iteraciones.", "maximo_iteraciones"
+    convergio, error_final = False, None
+    try:
+        f_actual = evaluar(evaluar_f, x_actual)
+    except (ArithmeticError, TypeError, ValueError, OverflowError):
+        f_actual = float("nan")
+    if not math.isfinite(f_actual):
+        estado, motivo = "La función no está definida o no es finita en el valor inicial.", "no_finito"
+    elif abs(f_actual) <= tol_residuo:
+        estado, motivo, convergio = "La aproximación inicial satisface la tolerancia del residuo.", "tolerancia", True
+
+    if not convergio and motivo != "no_finito":
+        for indice in range(1, max_iteraciones + 1):
+            try:
+                derivada_actual = evaluar(evaluar_df, x_actual)
+            except (ArithmeticError, TypeError, ValueError, OverflowError):
+                derivada_actual = float("nan")
+            if not math.isfinite(derivada_actual):
+                estado, motivo = f"La derivada dejó de ser finita en x = {x_actual:.8g}.", "derivada_no_finita"
+                break
+            if abs(derivada_actual) <= umbral:
+                estado, motivo = f"La derivada es cero o demasiado pequeña en x = {x_actual:.8g}; no se dividió.", "derivada_pequena"
+                break
+            try:
+                x_siguiente = x_actual - f_actual / derivada_actual
+                if not math.isfinite(x_siguiente):
+                    raise ArithmeticError
+                f_siguiente = evaluar(evaluar_f, x_siguiente)
+                if not math.isfinite(f_siguiente):
+                    raise ArithmeticError
+            except (ArithmeticError, TypeError, ValueError, OverflowError):
+                estado, motivo = "La siguiente aproximación produjo un valor no finito o fuera del dominio.", "no_finito"
+                break
+            error_absoluto = abs(x_siguiente - x_actual)
+            error_porcentual = (error_absoluto / abs(x_siguiente) * 100
+                                if x_siguiente != 0 else None)
+            error_criterio = error_porcentual if error_porcentual is not None else error_absoluto
+            if not math.isfinite(error_absoluto) or not math.isfinite(error_criterio):
+                estado, motivo = "El error aproximado dejó de ser finito; el proceso se detuvo.", "no_finito"
+                break
+            filas.append({"i": indice, "xi": x_actual, "fxi": f_actual,
+                          "dfxi": derivada_actual, "x_siguiente": x_siguiente,
+                          "error_absoluto": error_absoluto,
+                          "error_porcentual": error_porcentual,
+                          "error_criterio": error_criterio,
+                          "residuo": abs(f_siguiente)})
+            x_actual, f_actual, error_final = x_siguiente, f_siguiente, error_criterio
+            aproximaciones.append(x_actual)
+            if error_criterio <= tol and abs(f_actual) <= tol_residuo:
+                estado, motivo, convergio = "Convergencia alcanzada: error aproximado y residuo dentro de tolerancia.", "tolerancia", True
+                break
+        else:
+            estado = "No se alcanzaron simultáneamente las tolerancias antes del máximo de iteraciones."
+
+    residuo_final = abs(f_actual) if math.isfinite(f_actual) else None
+    tabla = pd.DataFrame(filas, columns=["i", "xi", "fxi", "dfxi", "x_siguiente",
+                                         "error_absoluto", "error_porcentual",
+                                         "error_criterio", "residuo"])
+    return {"expresion": str(funcion_simbolica), "derivada": str(derivada_simbolica),
+            "funcion_simbolica": funcion_simbolica, "derivada_simbolica": derivada_simbolica,
+            "funcion": evaluar_f, "derivada_funcion": evaluar_df,
+            "x0": float(x0), "raiz_aproximada": x_actual,
+            "iteraciones": len(filas), "error_final": error_final,
+            "residuo": residuo_final, "tolerancia": tol,
+            "tolerancia_residuo": tol_residuo, "umbral_derivada": umbral,
+            "max_iteraciones": max_iteraciones, "convergio": convergio,
+            "motivo_parada": motivo, "estado": estado, "tabla": tabla,
+            "aproximaciones": aproximaciones}
+
+
+def resolver_secante(expresion, x_anterior, x_actual, tolerancia,
+                     max_iteraciones, tolerancia_residuo=1e-8,
+                     umbral_denominador=1e-12):
+    """Resuelve f(x)=0 con secante y conserva cada aproximación y residuo."""
+    import pandas as pd
+
+    _, simbolica, _, evaluar_f, _ = compilar_funcion_simbolica(expresion)
+    try:
+        x_anterior, x_actual, tol = map(float, (x_anterior, x_actual, tolerancia))
+        tol_residuo = float(tolerancia_residuo)
+        max_num, umbral = float(max_iteraciones), float(umbral_denominador)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Revise los valores iniciales, tolerancias y máximo de iteraciones.") from exc
+    if not all(map(math.isfinite, (x_anterior, x_actual, tol, tol_residuo, max_num, umbral))):
+        raise ValueError("Todos los datos deben ser finitos.")
+    if tol <= 0 or tol_residuo <= 0 or umbral < 0:
+        raise ValueError("Las tolerancias deben ser positivas y el umbral no negativo.")
+    if isinstance(max_iteraciones, bool) or not max_num.is_integer() or max_num < 1:
+        raise ValueError("El máximo de iteraciones debe ser un entero mayor o igual que 1.")
+    max_iteraciones = int(max_num)
+
+    def evaluar(x):
+        with np.errstate(all="ignore"):
+            return float(np.asarray(evaluar_f(x)))
+
+    try:
+        f_anterior, f_actual = evaluar(x_anterior), evaluar(x_actual)
+    except (ArithmeticError, TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("La función debe estar definida en los dos valores iniciales.") from exc
+    if not math.isfinite(f_anterior) or not math.isfinite(f_actual):
+        raise ValueError("La función debe producir valores finitos en los dos valores iniciales.")
+
+    semilla_anterior, semilla_actual = x_anterior, x_actual
+    filas = []
+    aproximaciones = [x_anterior, x_actual]
+    convergio = abs(f_actual) <= tol_residuo
+    error_final = None
+    estado = "La aproximación alcanzó la tolerancia del residuo." if convergio else "Se alcanzó el máximo de iteraciones."
+    motivo = "tolerancia" if convergio else "maximo_iteraciones"
+    if not convergio:
+        for indice in range(1, max_iteraciones + 1):
+            denominador = f_actual - f_anterior
+            if not math.isfinite(denominador) or abs(denominador) <= umbral:
+                estado, motivo = "El denominador de la secante es cero o demasiado pequeño; no se dividió.", "denominador_pequeno"
+                break
+            x_siguiente = x_actual - f_actual * (x_actual - x_anterior) / denominador
+            if not math.isfinite(x_siguiente):
+                estado, motivo = "La siguiente aproximación no fue finita.", "no_finito"
+                break
+            try:
+                f_siguiente = evaluar(x_siguiente)
+            except (ArithmeticError, TypeError, ValueError, OverflowError):
+                f_siguiente = float("nan")
+            if not math.isfinite(f_siguiente):
+                estado, motivo = "La función no es finita en la siguiente aproximación.", "no_finito"
+                break
+            error_absoluto = abs(x_siguiente - x_actual)
+            error_porcentual = error_absoluto / abs(x_siguiente) * 100 if x_siguiente != 0 else None
+            error_criterio = error_porcentual if error_porcentual is not None else error_absoluto
+            filas.append({"i": indice, "x_anterior": x_anterior, "x_actual": x_actual,
+                          "f_anterior": f_anterior, "f_actual": f_actual,
+                          "denominador": denominador, "x_siguiente": x_siguiente,
+                          "error_absoluto": error_absoluto,
+                          "error_porcentual": error_porcentual,
+                          "error_criterio": error_criterio,
+                          "residuo": abs(f_siguiente)})
+            x_anterior, x_actual = x_actual, x_siguiente
+            f_anterior, f_actual = f_actual, f_siguiente
+            aproximaciones.append(x_siguiente)
+            error_final = error_criterio
+            if error_criterio <= tol and abs(f_actual) <= tol_residuo:
+                convergio, estado, motivo = True, "Convergencia alcanzada: error y residuo dentro de tolerancia.", "tolerancia"
+                break
+        else:
+            estado = "No se alcanzaron simultáneamente las tolerancias antes del máximo de iteraciones."
+    tabla = pd.DataFrame(filas, columns=["i", "x_anterior", "x_actual", "f_anterior",
+                                         "f_actual", "denominador", "x_siguiente",
+                                         "error_absoluto", "error_porcentual",
+                                         "error_criterio", "residuo"])
+    return {"expresion": str(simbolica), "funcion": evaluar_f,
+            "raiz_aproximada": x_actual, "x0": semilla_anterior,
+            "x1": semilla_actual, "iteraciones": len(filas),
+            "error_final": error_final, "residuo": abs(f_actual),
+            "tolerancia": tol, "tolerancia_residuo": tol_residuo,
+            "max_iteraciones": max_iteraciones, "convergio": convergio,
+            "motivo_parada": motivo, "estado": estado, "tabla": tabla,
+            "aproximaciones": aproximaciones}
+
+
+def comparar_derivadas_numericas(expresion, x, h):
+    """Compara diferencias hacia adelante, atrás y centrales con la derivada simbólica."""
+    import pandas as pd
+
+    _, simbolica, derivada, evaluar_f, evaluar_df = compilar_funcion_simbolica(expresion)
+    try:
+        x, h = float(x), float(h)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("El punto x y el paso h deben ser numéricos.") from exc
+    if not math.isfinite(x) or not math.isfinite(h) or h <= 0:
+        raise ValueError("x debe ser finito y h debe ser positivo y finito.")
+    with np.errstate(all="ignore"):
+        f_menos, f_centro, f_mas = (float(np.asarray(evaluar_f(punto)))
+                                    for punto in (x - h, x, x + h))
+        derivada_exacta = float(np.asarray(evaluar_df(x)))
+    valores = (f_menos, f_centro, f_mas, derivada_exacta)
+    if not all(map(math.isfinite, valores)):
+        raise ValueError("La función y su derivada deben estar definidas alrededor de x ± h.")
+    aproximaciones = (
+        ("Adelante", "[f(x+h) − f(x)]/h", (f_mas - f_centro) / h, "O(h)"),
+        ("Atrás", "[f(x) − f(x−h)]/h", (f_centro - f_menos) / h, "O(h)"),
+        ("Central", "[f(x+h) − f(x−h)]/(2h)", (f_mas - f_menos) / (2 * h), "O(h²)"),
+    )
+    filas = [{"esquema": nombre, "formula": formula, "aproximacion": valor,
+              "derivada_exacta": derivada_exacta,
+              "error_absoluto": abs(valor - derivada_exacta), "orden": orden}
+             for nombre, formula, valor, orden in aproximaciones]
+    return {"expresion": str(simbolica), "derivada": str(derivada),
+            "x": x, "h": h, "fx_menos": f_menos, "fx": f_centro,
+            "fx_mas": f_mas, "derivada_exacta": derivada_exacta,
+            "tabla": pd.DataFrame(filas), "funcion": evaluar_f}
+
+
+def evaluar_horner_y_derivada(coeficientes, x):
+    """Evalúa un polinomio y su derivada con el esquema simultáneo de Horner."""
+    acumulado_p = coeficientes[0]
+    acumulado_dp = 0.0
+    pasos = [{"paso": 0, "coeficiente": coeficientes[0],
+              "b_i": acumulado_p, "c_i": acumulado_dp}]
+    for indice, coeficiente in enumerate(coeficientes[1:], 1):
+        acumulado_dp = acumulado_dp * x + acumulado_p
+        acumulado_p = acumulado_p * x + coeficiente
+        pasos.append({"paso": indice, "coeficiente": coeficiente,
+                      "b_i": acumulado_p, "c_i": acumulado_dp})
+    return acumulado_p, acumulado_dp, pasos
+
+
+def resolver_newton_horner(coeficientes, x0, tolerancia, max_iteraciones,
+                           tolerancia_residuo=1e-8, umbral_derivada=1e-12):
+    """Encuentra una raíz real con Newton y Horner, y devuelve su deflación."""
+    import pandas as pd
+
+    try:
+        coeficientes = [float(coef) for coef in coeficientes]
+        x_actual, tol, tol_residuo = float(x0), float(tolerancia), float(tolerancia_residuo)
+        max_num, umbral = float(max_iteraciones), float(umbral_derivada)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Ingrese coeficientes y parámetros numéricos válidos.") from exc
+    if len(coeficientes) < 2 or not all(map(math.isfinite, coeficientes)) or coeficientes[0] == 0:
+        raise ValueError("Ingrese al menos dos coeficientes finitos y con coeficiente principal distinto de cero.")
+    if not all(map(math.isfinite, (x_actual, tol, tol_residuo, max_num, umbral))):
+        raise ValueError("Todos los datos deben ser finitos.")
+    if tol <= 0 or tol_residuo <= 0 or umbral < 0:
+        raise ValueError("Las tolerancias deben ser positivas y el umbral no negativo.")
+    if isinstance(max_iteraciones, bool) or not max_num.is_integer() or max_num < 1:
+        raise ValueError("El máximo de iteraciones debe ser un entero mayor o igual que 1.")
+    max_iteraciones = int(max_num)
+
+    coeficientes_originales = coeficientes[:]
+    px, dpx, horner_x0 = evaluar_horner_y_derivada(coeficientes, x_actual)
+    filas, aproximaciones = [], [x_actual]
+    convergio = abs(px) <= tol_residuo
+    error_final = None
+    estado = "La aproximación inicial satisface la tolerancia del residuo." if convergio else "Se alcanzó el máximo de iteraciones."
+    motivo = "tolerancia" if convergio else "maximo_iteraciones"
+    horner_final = horner_x0
+    if not convergio:
+        for indice in range(1, max_iteraciones + 1):
+            if not math.isfinite(dpx) or abs(dpx) <= umbral:
+                estado, motivo = "La derivada calculada con Horner es cero o demasiado pequeña; no se dividió.", "derivada_pequena"
+                break
+            x_siguiente = x_actual - px / dpx
+            if not math.isfinite(x_siguiente):
+                estado, motivo = "La siguiente aproximación no fue finita.", "no_finito"
+                break
+            px_siguiente, dpx_siguiente, horner_siguiente = evaluar_horner_y_derivada(coeficientes, x_siguiente)
+            if not math.isfinite(px_siguiente) or not math.isfinite(dpx_siguiente):
+                estado, motivo = "Horner produjo un valor no finito; el proceso se detuvo.", "no_finito"
+                break
+            error_absoluto = abs(x_siguiente - x_actual)
+            error_porcentual = error_absoluto / abs(x_siguiente) * 100 if x_siguiente != 0 else None
+            error_criterio = error_porcentual if error_porcentual is not None else error_absoluto
+            filas.append({"i": indice, "xi": x_actual, "pxi": px, "dpxi": dpx,
+                          "x_siguiente": x_siguiente, "error_absoluto": error_absoluto,
+                          "error_porcentual": error_porcentual,
+                          "error_criterio": error_criterio,
+                          "residuo": abs(px_siguiente)})
+            x_actual, px, dpx = x_siguiente, px_siguiente, dpx_siguiente
+            horner_final = horner_siguiente
+            aproximaciones.append(x_actual)
+            error_final = error_criterio
+            if error_criterio <= tol and abs(px) <= tol_residuo:
+                convergio, estado, motivo = True, "Convergencia alcanzada: error y residuo dentro de tolerancia.", "tolerancia"
+                break
+        else:
+            estado = "No se alcanzaron simultáneamente las tolerancias antes del máximo de iteraciones."
+
+    cociente = None
+    resto_deflacion = None
+    deflacion = []
+    if convergio:
+        acumulado = coeficientes_originales[0]
+        cociente = [acumulado]
+        deflacion.append({"paso": 0, "coeficiente": coeficientes_originales[0],
+                          "producto": None, "resultado": acumulado})
+        for indice, coeficiente in enumerate(coeficientes_originales[1:], 1):
+            producto = x_actual * acumulado
+            acumulado = coeficiente + producto
+            deflacion.append({"paso": indice, "coeficiente": coeficiente,
+                              "producto": producto, "resultado": acumulado})
+            if indice < len(coeficientes_originales) - 1:
+                cociente.append(acumulado)
+        resto_deflacion = acumulado
+    return {"coeficientes": coeficientes_originales,
+            "polinomio": np.poly1d(coeficientes_originales),
+            "raiz_aproximada": x_actual, "iteraciones": len(filas),
+            "error_final": error_final, "residuo": abs(px),
+            "tolerancia": tol, "tolerancia_residuo": tol_residuo,
+            "max_iteraciones": max_iteraciones, "convergio": convergio,
+            "motivo_parada": motivo, "estado": estado,
+            "tabla": pd.DataFrame(filas), "horner": pd.DataFrame(horner_final),
+            "aproximaciones": aproximaciones,
+            "cociente_deflacion": cociente,
+            "deflacion": pd.DataFrame(deflacion),
+            "resto_deflacion": resto_deflacion}
+
+
+def analizar_orden_convergencia(aproximaciones):
+    """Estima el orden observado a partir de cuatro iterados consecutivos."""
+    try:
+        puntos = [float(valor) for valor in aproximaciones]
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Ingrese cuatro aproximaciones numéricas.") from exc
+    if len(puntos) != 4 or not all(map(math.isfinite, puntos)):
+        raise ValueError("Ingrese exactamente cuatro aproximaciones finitas.")
+    diferencias = [abs(puntos[i + 1] - puntos[i]) for i in range(3)]
+    if any(diferencia == 0 for diferencia in diferencias):
+        raise ValueError("Las cuatro aproximaciones deben ser distintas consecutivamente.")
+    q0, q1 = diferencias[1] / diferencias[0], diferencias[2] / diferencias[1]
+    if not all(map(math.isfinite, (q0, q1))) or q0 <= 0 or q1 <= 0:
+        raise ValueError("No se pudieron calcular razones de error finitas.")
+    if math.isclose(q0, 1.0, rel_tol=1e-12, abs_tol=1e-15):
+        raise ValueError("No se puede estimar el orden: las dos primeras razones de error son casi iguales a 1.")
+    orden = math.log(q1) / math.log(q0)
+    if not math.isfinite(orden):
+        raise ValueError("Los datos no producen un orden de convergencia finito.")
+    try:
+        constante = diferencias[2] / (diferencias[1] ** orden)
+    except (OverflowError, ZeroDivisionError):
+        constante = float("inf")
+    if not math.isfinite(constante):
+        raise ValueError("No se pudo estimar una constante de convergencia finita con estos datos.")
+    contrayendo = q0 < 1 and q1 < 1
+    if not contrayendo:
+        diagnostico = "Las diferencias no decrecen en ambos pasos; estos iterados no muestran convergencia sostenida."
+    elif math.isclose(orden, 1.0, rel_tol=0.08, abs_tol=0.08):
+        diagnostico = "El orden observado es aproximadamente 1: comportamiento lineal."
+    elif orden > 1:
+        diagnostico = f"El orden observado es mayor que 1 (p ≈ {orden:.5g}): comportamiento superlineal en estos iterados."
+    elif orden > 0:
+        diagnostico = "El orden observado está entre 0 y 1: la convergencia parece sublineal en estos iterados."
+    else:
+        diagnostico = "El orden estimado no indica convergencia de orden positivo."
+    return {"aproximaciones": puntos, "diferencias": diferencias,
+            "razon_1": q0, "razon_2": q1, "orden": orden,
+            "constante": constante, "contrayendo": contrayendo,
+            "diagnostico": diagnostico}
+
+
 CRITERIOS_ERROR_ITERATIVO = {
     "infinito": ("Norma infinito (Tarea 8)", "‖x⁽ᵏ⁾ − x⁽ᵏ⁻¹⁾‖∞"),
     "euclideo": ("Norma euclídea (presentación)", "‖x⁽ᵏ⁾ − x⁽ᵏ⁻¹⁾‖₂"),
